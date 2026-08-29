@@ -1,0 +1,141 @@
+"""Needed so package data is included."""
+
+import itertools
+from pathlib import Path
+
+from skbuild import setup
+
+MODULE_DIR = Path(__file__).parent / "src" / "piper"
+PIPER_DATA_FILES = ["py.typed", "espeakbridge.pyi"]
+ESPEAK_NG_DATA_DIR = MODULE_DIR / "espeak-ng-data"
+ESPEAK_NG_DATA_FILES = [
+    f.relative_to(MODULE_DIR) for f in ESPEAK_NG_DATA_DIR.rglob("*") if f.is_file()
+]
+TASHKEEL_DATA_DIR = MODULE_DIR / "tashkeel"
+TASHKEEL_DATA_FILES = [
+    (TASHKEEL_DATA_DIR / f_name).relative_to(MODULE_DIR)
+    for f_name in (
+        "model.onnx",
+        "input_id_map.json",
+        "target_id_map.json",
+        "hint_id_map.json",
+    )
+]
+HEBREW_DATA_DIR = MODULE_DIR / "hebrew"
+HEBREW_DATA_FILES = [
+    (HEBREW_DATA_DIR / f_name).relative_to(MODULE_DIR)
+    for f_name in (
+        "nakdimon.onnx",
+        "LICENSE",
+        "SOURCE",
+    )
+]
+# Web page and images for the HTTP server
+HTTP_DATA_FILES = [
+    f.relative_to(MODULE_DIR)
+    for f in itertools.chain(
+        (MODULE_DIR / "templates").rglob("*"),
+        (MODULE_DIR / "img").rglob("*"),
+    )
+    if f.is_file()
+]
+
+setup(
+    name="piper-tts",
+    version="1.7.0",
+    description="Fast and local neural text-to-speech engine",
+    url="http://github.com/OHF-voice/piper1-gpl",
+    license="GPL-3.0-or-later",
+    # g2pW is Apache-2.0; see src/piper/g2pw_onnx.py.
+    license_files=["COPYING", "licenses/LICENSE.g2pW-Apache-2.0"],
+    author="The Home Assistant Authors",
+    author_email="hello@home-assistant.io",
+    keywords=["home", "assistant", "tts", "text-to-speech"],
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Topic :: Multimedia :: Sound/Audio :: Speech",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+    ],
+    python_requires=">=3.9",
+    install_requires=[
+        "onnxruntime>=1,<2",
+        "pathvalidate>=3,<4",
+    ],
+    extras_require={
+        "train": [
+            "torch>=2,<3",
+            "lightning>=2,<3",
+            "tensorboard>=2,<3",
+            "tensorboardX>=2,<3",
+            "jsonargparse[signatures]>=4.27.7",
+            "onnx>=1,<2",
+            "pysilero-vad>=2.1,<3",
+            "cython>=3,<4",
+            "librosa<1",
+        ],
+        "dev": [
+            "black==24.8.0",
+            "flake8==7.1.1",
+            "isort==5.13.2",  # used by script/lint and script/format
+            "mypy==1.14.0",
+            "pylint==3.2.7",
+            "pytest==8.3.4",
+            "build==1.2.2",
+            "scikit-build<1",
+            "cmake>=3.18,<4",
+            "ninja>=1,<2",
+            "onnx>=1,<2",  # for alignments
+        ],
+        "http": [
+            "flask>=3,<4",
+        ],
+        "alignment": [
+            "onnx>=1,<2",
+        ],
+        "zh": [
+            # g2pW supplies the pinyin/bopomofo lookup tables. Its model is run
+            # by piper.g2pw_onnx rather than g2pw.api, which is what keeps torch
+            # (~750 MB) out of this extra: g2pw.api imports it for a DataLoader.
+            "g2pW>=0.1.1,<1",
+            "transformers>=4,<6",
+            "sentence-stream>=1.2.1,<2",
+            "unicode-rbnf>=2.4.0,<3",
+        ],
+        "ja": [
+            "pyopenjtalk-plus>=0.4,<1",
+        ],
+    },
+    packages=[
+        "piper",
+        "piper.tashkeel",
+        "piper.hebrew",
+        "piper.train",
+        "piper.train.vits",
+        "piper.train.vits.monotonic_align",
+    ],
+    package_dir={"": "src"},
+    include_package_data=True,
+    package_data={
+        "piper": [
+            str(p)
+            for p in itertools.chain(
+                PIPER_DATA_FILES,
+                ESPEAK_NG_DATA_FILES,
+                TASHKEEL_DATA_FILES,
+                HEBREW_DATA_FILES,
+                HTTP_DATA_FILES,
+            )
+        ],
+    },
+    cmake_install_dir="src/piper",
+    entry_points={
+        "console_scripts": [
+            "piper = piper.__main__:main",
+        ]
+    },
+)
