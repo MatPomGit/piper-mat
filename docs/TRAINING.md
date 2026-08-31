@@ -15,7 +15,8 @@ Then clone the repo and install the training dependencies:
 git clone https://github.com/OHF-voice/piper1-gpl.git
 cd piper1-gpl
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/Scripts/activate # windows
+source .venv/bin/activate #linux
 python3 -m pip install -e '.[train]'
 ```
 
