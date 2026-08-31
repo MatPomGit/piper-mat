@@ -7,7 +7,8 @@ Repozytorium ma już podstawową strukturę powtarzalnego projektu głosu `pl_PL
 - [x] uporządkowanie repozytorium jako forka Piper do treningu własnego głosu,
 - [x] usunięcie konfliktującej deklaracji licencji MIT dla kodu pochodzącego z Piper GPL,
 - [x] wersjonowana konfiguracja eksperymentu,
-- [x] walidator `metadata.csv` i podstawowych parametrów WAV,
+- [x] walidator `metadata.csv` i parametrów WAV,
+- [x] analiza PCM16: czas nagrań, RMS, peak, clipping, udział ciszy i pliki nieujęte w metadata,
 - [x] deterministyczny generator train/validation/test ze stałym seed i SHA-256 metadata,
 - [x] zamrożony korpus zdań regresyjnych dla języka polskiego,
 - [x] kalkulator WER/CER,
@@ -18,7 +19,7 @@ Repozytorium ma już podstawową strukturę powtarzalnego projektu głosu `pl_PL
 
 ## P0. Dataset i trening
 
-1. Rozszerzyć analizę sygnału o peak/RMS, clipping, udział ciszy oraz rozkład długości segmentów.
+1. Uruchomić pełny `scripts/validate_dataset.py` bez `--skip-audio` na finalnym zbiorze i przeanalizować wszystkie ostrzeżenia dotyczące clippingu, ciszy, poziomu RMS i długości segmentów.
 2. Uruchomić `scripts/create_splits.py` na finalnej wersji metadata i **commitować `dataset/splits.json` dopiero po zamrożeniu datasetu**.
 3. Uzupełnić `DATASET_CARD.md` o faktyczny czas nagrań, liczbę segmentów, sprzęt, preprocessing, metodę transkrypcji i licencję danych.
 4. Ustalić produkcyjny checkpoint bazowy oraz zapisać jego źródło i SHA-256.
