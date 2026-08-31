@@ -7,7 +7,6 @@ import argparse
 import importlib.util
 import json
 import shutil
-import sys
 from pathlib import Path
 
 
@@ -23,6 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Sprawdź gotowość projektu do treningu Piper")
     parser.add_argument("--config", type=Path, default=Path("configs/pl_PL-mateusz-medium.json"))
     parser.add_argument("--skip-audio", action="store_true", help="Nie sprawdzaj, czy nagrania WAV są pobrane z Git LFS")
+    parser.add_argument("--skip-checkpoint-load", action="store_true", help="Nie deserializuj pełnego checkpointu PyTorch")
     args = parser.parse_args()
 
     errors: list[str] = []
@@ -43,14 +43,17 @@ def main() -> int:
     metadata = Path(dataset.get("metadata", ""))
     audio_dir = Path(dataset.get("audio_dir", ""))
     base_checkpoint = Path(training.get("base_checkpoint", ""))
+    checkpoint_is_pointer = False
     if not metadata.is_file():
         errors.append(f"brak metadanych: {metadata}")
     if not audio_dir.is_dir():
         errors.append(f"brak katalogu nagrań: {audio_dir}")
     if not base_checkpoint.is_file():
         errors.append(f"brak bazowego punktu kontrolnego: {base_checkpoint}")
-    elif is_lfs_pointer(base_checkpoint):
-        errors.append(f"punkt kontrolny jest tylko wskaźnikiem Git LFS: {base_checkpoint}; wykonaj `git lfs pull`")
+    else:
+        checkpoint_is_pointer = is_lfs_pointer(base_checkpoint)
+        if checkpoint_is_pointer:
+            errors.append(f"punkt kontrolny jest tylko wskaźnikiem Git LFS: {base_checkpoint}; wykonaj `git lfs pull`")
 
     sessions = training.get("sessions")
     if not isinstance(sessions, dict):
@@ -73,9 +76,32 @@ def main() -> int:
             if lfs_samples:
                 errors.append("nagrania WAV są nadal wskaźnikami Git LFS; wykonaj `git lfs pull` przed treningiem")
 
+    missing_modules: list[str] = []
     for module in ("torch", "lightning", "tensorboard", "librosa", "piper"):
         if importlib.util.find_spec(module) is None:
+            missing_modules.append(module)
             errors.append(f"brak modułu Python: {module}; zainstaluj projekt przez `python -m pip install -e '.[train]'`")
+
+    if (
+        not args.skip_checkpoint_load
+        and "torch" not in missing_modules
+        and base_checkpoint.is_file()
+        and not checkpoint_is_pointer
+    ):
+        try:
+            import torch
+
+            checkpoint = torch.load(base_checkpoint, map_location="cpu", weights_only=False)
+            if "epoch" not in checkpoint:
+                errors.append("bazowy punkt kontrolny można odczytać, ale nie zawiera pola `epoch`")
+            else:
+                print(f"Bazowy checkpoint: epoka {int(checkpoint['epoch'])}")
+            del checkpoint
+        except Exception as exc:  # noqa: BLE001
+            errors.append(
+                "nie można zdeserializować bazowego punktu kontrolnego na tym systemie: "
+                f"{exc}. Nie rozpoczynaj treningu, dopóki aktywny checkpoint nie przejdzie tej kontroli"
+            )
 
     if shutil.which("espeak-ng") is None:
         warnings.append("nie znaleziono `espeak-ng` w PATH; Piper może korzystać z dołączonych danych, ale warto zweryfikować lokalną instalację")
