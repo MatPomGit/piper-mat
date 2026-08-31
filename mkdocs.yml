@@ -10,6 +10,7 @@ nav:
       - Model: MODEL.md
       - Punkty kontrolne: CHECKPOINTS.md
       - Wydania: RELEASES.md
+      - Wdrożenie: DEPLOYMENT.md
       - Terminologia: TERMINOLOGIA.md
   - Trenowanie: TRAINING.md
   - Głosy: VOICES.md
