@@ -31,6 +31,7 @@ jobs:
 
       - name: Validate staged training plan
         run: |
+          python scripts/train_sessions.py --status
           python - <<'PY'
           import json
           from pathlib import Path
