@@ -40,7 +40,7 @@ def main() -> int:
         for iteration in range(args.warmup + args.runs):
             start = time.perf_counter()
             proc = subprocess.run(
-                ["piper", "--model", str(args.model), "--output_file", str(wav_path), "--", args.text],
+                ["python", "-m", "piper", "-m", str(args.model), "-f", str(wav_path), "--", args.text],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -49,6 +49,8 @@ def main() -> int:
             if proc.returncode != 0:
                 raise SystemExit(proc.stderr or proc.stdout or "Synteza Piper zakończyła się błędem")
             duration = wav_duration(wav_path)
+            if duration <= 0:
+                raise SystemExit("Piper wygenerował pusty plik WAV")
             if iteration >= args.warmup:
                 timings.append({"elapsed_s": elapsed, "audio_s": duration, "rtf": elapsed / duration})
 
