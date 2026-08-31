@@ -13,6 +13,7 @@ nav:
   - Strona główna: README.md
   - Projekt głosu:
       - Roadmap: docs/ROADMAP.md
+      - Ewaluacja: docs/EVALUATION.md
       - Dataset Card: dataset/DATASET_CARD.md
       - Model Card: models/pl_PL-mateusz-medium/MODEL_CARD.md
   - Trenowanie: docs/TRAINING.md
