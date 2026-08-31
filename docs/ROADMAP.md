@@ -11,18 +11,24 @@ Repozytorium ma już podstawową strukturę powtarzalnego projektu głosu `pl_PL
 - [x] analiza PCM16: czas nagrań, RMS, peak, clipping, udział ciszy i pliki nieujęte w metadata,
 - [x] deterministyczny generator train/validation/test ze stałym seed i SHA-256 metadata,
 - [x] zamrożony korpus zdań regresyjnych dla języka polskiego,
+- [x] smoke test polskiej fonemizacji przez eSpeak NG,
 - [x] kalkulator WER/CER,
 - [x] smoke test finalnej pary ONNX/JSON przez rzeczywistą syntezę Piper,
 - [x] `DATASET_CARD.md` i `MODEL_CARD.md`,
 - [x] dokument protokołu ewaluacji,
-- [x] lekkie CI sprawdzające strukturę, metadata, reprodukowalność splitu, korpus regresyjny, evaluator i MkDocs.
+- [x] manifest znanych checkpointów z SHA-256 i rozmiarem,
+- [x] walidator checkpointu obsługujący plik rzeczywisty i wskaźnik Git LFS,
+- [x] generator paczki wydania z `checksums.txt` i `release-manifest.json`,
+- [x] poprawiona struktura MkDocs z `docs_dir: docs`,
+- [x] CI sprawdzające strukturę, metadata, reprodukowalność splitu, checkpoint, polską fonemizację, evaluator i MkDocs,
+- [x] aktualizacja GitHub Actions do wersji opartych na Node 24.
 
 ## P0. Dataset i trening
 
 1. Uruchomić pełny `scripts/validate_dataset.py` bez `--skip-audio` na finalnym zbiorze i przeanalizować wszystkie ostrzeżenia dotyczące clippingu, ciszy, poziomu RMS i długości segmentów.
 2. Uruchomić `scripts/create_splits.py` na finalnej wersji metadata i **commitować `dataset/splits.json` dopiero po zamrożeniu datasetu**.
 3. Uzupełnić `DATASET_CARD.md` o faktyczny czas nagrań, liczbę segmentów, sprzęt, preprocessing, metodę transkrypcji i licencję danych.
-4. Ustalić produkcyjny checkpoint bazowy oraz zapisać jego źródło i SHA-256.
+4. Uzupełnić `checkpoints/manifest.json` o zweryfikowane źródło aktywnego checkpointu. SHA-256 i rozmiar aktualnych obiektów są już zapisane.
 5. Ustalić finalny seed i wszystkie parametry produkcyjnego treningu.
 6. Po każdym eksporcie uruchamiać `scripts/smoke_test_voice.py` na finalnym `pl_PL-mateusz-medium.onnx`.
 
@@ -37,17 +43,17 @@ Repozytorium ma już podstawową strukturę powtarzalnego projektu głosu `pl_PL
 
 ## P1. Polska fonemizacja
 
-Obecny korpus regresyjny zawiera polskie diakrytyki, liczby, daty, godziny, jednostki SI, skróty, URL/e-mail, nazwy własne, terminologię techniczną i interpunkcję. Następny krok to zapisanie oczekiwanych sekwencji fonemów dla wybranej, przypiętej wersji eSpeak NG i uruchamianie testu regresyjnego w CI.
+CI sprawdza obecnie, czy wszystkie zdania z korpusu regresyjnego są poprawnie fonemizowane przez polski głos eSpeak NG. Kolejny etap to przypięcie konkretnej wersji eSpeak NG i zapisanie oczekiwanych sekwencji fonemów dla wybranych zdań.
 
 Nie należy zamrażać oczekiwanych fonemów przed przypięciem wersji eSpeak NG, ponieważ aktualizacja upstreamu może celowo zmieniać wymowę.
 
 ## P1. Artefakty i reprodukowalność
 
-1. Dodać skrypt pobierający checkpoint bazowy ze stabilnego źródła i weryfikujący SHA-256.
-2. Generować `checksums.txt` dla każdego wydania.
-3. Zapisywać wersje Python, PyTorch, Lightning, CUDA, Piper i eSpeak NG w rekordzie eksperymentu.
-4. Usunąć duże modele bazowe z głównego drzewa Git po zapewnieniu stabilnego źródła pobierania.
-5. Publikować finalne modele przez GitHub Releases lub Hugging Face zamiast jako zwykłe commity.
+1. Po ustaleniu pierwotnego źródła checkpointu dodać bezpieczne pobieranie z URL wskazanego w `checkpoints/manifest.json`.
+2. Zapisywać wersje Python, PyTorch, Lightning, CUDA, Piper i eSpeak NG w rekordzie eksperymentu.
+3. Usunąć niepotrzebne warianty checkpointów i duże modele bazowe z głównego drzewa po zapewnieniu stabilnego źródła pobierania.
+4. Publikować finalne modele przez GitHub Releases lub Hugging Face zamiast jako zwykłe commity.
+5. Rozważyć podpisywanie manifestów wydania po ustabilizowaniu procesu publikacji.
 
 ## P2. Publikacja modelu
 
@@ -55,7 +61,7 @@ Nie należy zamrażać oczekiwanych fonemów przed przypięciem wersji eSpeak NG
 2. Ustalić osobno licencję datasetu i finalnego modelu głosu.
 3. Opublikować stały zestaw próbek porównawczych.
 4. Dodać instrukcję instalacji modelu w Piper, Wyoming Piper i Home Assistant.
-5. Zautomatyzować paczkę wydania: ONNX, JSON, model card, checksumy, wyniki i próbki.
+5. Uruchamiać `scripts/package_release.py` dla każdego kandydata do wydania i publikować wynik dopiero po smoke teście i ewaluacji.
 
 ## Kryterium wydania v1.0
 

@@ -12,9 +12,11 @@ jobs:
   project-validation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -37,11 +39,22 @@ jobs:
           python scripts/create_splits.py --output /tmp/splits-b.json
           cmp /tmp/splits-a.json /tmp/splits-b.json
 
+      - name: Verify checkpoint manifest and LFS pointer
+        run: python scripts/verify_checkpoint.py checkpoints/base.ckpt
+
       - name: Verify Polish regression corpus
         run: |
           test -s tests/polish_sentences.txt
           grep -q 'Zażółć gęślą jaźń' tests/polish_sentences.txt
           grep -q '31 sierpnia 2026' tests/polish_sentences.txt
+
+      - name: Install eSpeak NG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends espeak-ng
+
+      - name: Test Polish phonemization
+        run: python scripts/test_polish_phonemization.py
 
       - name: Self-test WER and CER evaluator
         run: |
@@ -59,9 +72,9 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
