@@ -132,10 +132,9 @@ def print_status(config: dict, state: dict | None) -> None:
         print("Plan wszystkich sesji został zakończony.")
 
 
-def cleanup_checkpoints(run_dir: Path, preserved_sources: set[Path]) -> None:
+def cleanup_checkpoints(run_dir: Path) -> None:
     for path in run_dir.rglob("*.ckpt"):
-        if path not in preserved_sources:
-            path.unlink(missing_ok=True)
+        path.unlink(missing_ok=True)
 
 
 def run_next(config_path: Path, dry_run: bool) -> int:
@@ -203,18 +202,15 @@ def run_next(config_path: Path, dry_run: bool) -> int:
     archive_dir.mkdir(parents=True, exist_ok=True)
     archived_last = archive_dir / "last.ckpt"
     archive_file(last, archived_last)
-    preserved_sources = {last}
     archived = {"last": str(archived_last)}
 
     if best_mel is not None:
         target = archive_dir / "best_val_mel.ckpt"
         archive_file(best_mel, target)
-        preserved_sources.add(best_mel)
         archived["best_val_mel"] = str(target)
     if best_mos is not None:
         target = archive_dir / "best_val_mos.ckpt"
         archive_file(best_mos, target)
-        preserved_sources.add(best_mos)
         archived["best_val_mos"] = str(target)
 
     metadata["archived_checkpoints"] = archived
@@ -235,7 +231,10 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         print("Ostrzeżenie: trening zakończył się poprawnie, ale generowanie raportu nie powiodło się.", file=sys.stderr)
 
     if sessions.get("cleanup_temporary_checkpoints", True):
-        cleanup_checkpoints(run_dir, preserved_sources)
+        # Zarchiwizowane pliki są już niezależnymi hardlinkami lub kopiami.
+        # Usunięcie checkpointów z katalogu logów pozostawia raporty i logi
+        # TensorBoard, ale nie mnoży dużych plików modelu na dysku.
+        cleanup_checkpoints(run_dir)
 
     state["latest_checkpoint"] = str(archived_last)
     state["completed_sessions"].append(
