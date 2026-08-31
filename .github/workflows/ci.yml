@@ -20,8 +20,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Compile project scripts
-        run: python -m compileall -q scripts
+      - name: Compile project scripts and Windows GUI
+        run: |
+          python -m compileall -q scripts
+          python -m py_compile tools/windows_setup_gui.py
 
       - name: Check repository structure and voice config
         run: python scripts/check_project.py
@@ -98,6 +100,40 @@ jobs:
           assert data['wer'] == 0.0
           assert data['cer'] == 0.0
           PY
+
+  windows-gui-validation:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Compile Tkinter wizard
+        shell: powershell
+        run: python -m py_compile tools/windows_setup_gui.py
+
+      - name: Parse PowerShell launcher
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'tools/start_windows_gui.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+      - name: Verify double-click launcher
+        shell: powershell
+        run: |
+          if (-not (Test-Path 'START_PIPER_MAT_GUI.bat')) { exit 1 }
+          if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'start_windows_gui.ps1' -Quiet)) { exit 1 }
 
   docs:
     runs-on: ubuntu-latest
