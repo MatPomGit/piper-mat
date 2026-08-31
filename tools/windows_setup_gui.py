@@ -121,11 +121,10 @@ class Wizard(Tk):
     def _doctor(self,repair=False):
         repo=self._repo(); script=repo/"tools"/"windows_doctor.py"
         if not script.is_file():return False,"Najpierw pobierz lub zaktualizuj repozytorium."
-        cmd=[sys.executable,str(script),"--json"]+(["--repair"] if repair else []); rc=self._cmd(cmd,cwd=repo,timeout=3700)
+        command=[sys.executable,str(script)]+(["--repair"] if repair else [])
+        rc=self._cmd(command,cwd=repo,timeout=3700)
         if rc not in (0,2):return False,"Nie udało się uruchomić diagnostyki."
-        # Uruchom ponownie bez JSON, aby czytelny raport trafił do logu.
-        rc2=self._cmd([sys.executable,str(script)]+(["--repair"] if repair else []),cwd=repo,timeout=3700)
-        return rc2==0,("System jest gotowy." if rc2==0 else "Pozostały problemy wymagające uwagi. Zobacz log.")
+        return rc==0,("System jest gotowy." if rc==0 else "Pozostały problemy wymagające uwagi. Zobacz log.")
     def _diagnose(self):return self._doctor(False)
     def _repair(self):return self._doctor(True)
     def _open_folder(self):
@@ -142,7 +141,6 @@ class Wizard(Tk):
             if self._cmd([git,"status","--porcelain"],cwd=repo)!=0:return False,"Repozytorium Git jest uszkodzone lub niedostępne."
             rc=self._cmd([git,"fetch","--prune","origin"],cwd=repo,retries=2,timeout=300)
             if rc!=0:return False,"Nie udało się połączyć z GitHub. Sprawdź Internet/VPN i spróbuj ponownie."
-            # pull --ff-only nie nadpisuje lokalnych zmian ani historii
             rc=self._cmd([git,"pull","--ff-only"],cwd=repo,retries=1,timeout=300)
             return rc==0,("Repozytorium jest aktualne." if rc==0 else "Nie można bezpiecznie scalić aktualizacji. Lokalne pliki nie zostały nadpisane.")
         if repo.exists() and any(repo.iterdir()):return False,f"Folder {repo} nie jest pusty i nie jest repozytorium. Wybierz inne miejsce."
@@ -179,7 +177,10 @@ class Wizard(Tk):
         if not py.is_file():return False,"Brak .venv."
         if self._cmd([str(py),"-m","Cython.Build.Cythonize","-i","core.pyx"],cwd=src,timeout=600)!=0:return False,"Nie udało się zbudować modułu. Zainstaluj Visual Studio 2022 Build Tools z „Desktop development with C++”, uruchom ponownie Windows i ponów krok."
         built=list(src.glob("core*.pyd"))
-        for f in built:shutil.move(str(f),str(target/f.name))
+        for f in built:
+            destination=target/f.name
+            if destination.exists():destination.unlink()
+            shutil.move(str(f),str(destination))
         rc=self._cmd([str(py),"-c","from piper.train.vits.monotonic_align import core; print('OK')"],cwd=repo); return rc==0,("monotonic_align działa." if rc==0 else "Moduł powstał, ale Python nie może go zaimportować.")
     def _action_validate_dataset(self):
         ok,msg=self._require_repo();
