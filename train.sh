@@ -21,7 +21,7 @@ if [[ ! -d "$DATASET_DIR/wavs" ]]; then
 fi
 
 if [[ ! -f "$CHECKPOINT" ]]; then
-  echo "Brak checkpointu bazowego: $CHECKPOINT" >&2
+  echo "Brak bazowego punktu kontrolnego: $CHECKPOINT" >&2
   exit 2
 fi
 
