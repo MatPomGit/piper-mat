@@ -1,0 +1,926 @@
+000001.wav|Jest to drugi nasz wykład z cyklu obliczeń naukowo-technicznych.
+000002.wav|W nim zajmiemy się szerzej rozumianą analizą danych tabelarycznych.
+000003.wav|jak sama nazwa wskazuje, tabelarycznych.
+000004.wav|trafia właśnie do nas w postaci tabel.
+000005.wav|Jakichś arkuszy kalkulacyjnych, plików CSV, eksportów z aparatury, logów procesowych, czy nawet z bazy QSL.
+000006.wav|Pandas daje nam wspólny język do pracy z takimi danymi, niezależnie od tego skąd one pochodzą.
+000007.wav|I chcę, aby od początku było jasne, że nie będziemy dzisiaj sobie mówić wyłącznie o wczytywaniu plików, bo to by było zbyt wąskie spojrzenie.
+000008.wav|Pandas to środowisko do całego przepływu pracy z danymi, od samego importu przez czyszczenie, transformację, agregację i łączenie tabel
+000009.wav|aż po analizę szeregów czasowych i szybką eksplorację wizualną.
+000010.wav|Dlatego w praktyce oznacza to, że jeżeli dobrze opanują Państwo ten wykład, to zyskują narzędzie, które będzie wracało praktycznie w każdym dalszym module kursu.
+000011.wav|Warto też pamiętać o ważnej prawdzie takiej praktycznej.
+000012.wav|W wielu projektach analiza danych nie zaczyna się od modelu, tylko właśnie od porządkowania bałaganu.
+000013.wav|w pracy analitycznej.
+000014.wav|I dlatego Pandas jest tak ważny, bo on nie służy do oglądania tabel, ale do właśnie nadawania danym postaci, z którą dalej da się sensownie pracować.
+000015.wav|Później przejdziemy do czyszczenia danych, bo w realnych projektach one nigdy nie są idealne.
+000016.wav|Następnie pokażę Wam transformacje, agregacje, czyli operacje group by, pivot, melt, apply, query.
+000017.wav|One pozwalają nam przejść od surowych tabel do informacji już gotowej do interpretacji.
+000018.wav|Następnie powiemy sobie o łączeniu zbiorów danych, bo bardzo często jedna tabela nie jest wystarczająca.
+000019.wav|Łączymy pomiary z metadanymi materiałowymi, operatorami, ustawieniami procesów,
+000020.wav|Następnie pokażę Wam pracę z szeregami czasowymi, czyli Date-Time Index, Resample, Rolling, Opóźnienia i Różnice.
+000021.wav|czytelnym całym zestawieniem struktury danych.
+000022.wav|Tu pokazujemy, że praca z danymi nie jest pojedynczą komendą typu read.csv.
+000023.wav|Jest to proces, który ma swoją logikę, bo najpierw dane muszę zrozumieć, później je uporządkować.
+000024.wav|Przekształcam, łączę, analizuję i dopiero wtedy wyciągam wnioski.
+000025.wav|I jeżeli właśnie ten schemat stanie się dla Państwa naturalny, to dalsza praca z danymi będzie dużo bardziej uporządkowana i łatwiejsza.
+000026.wav|Zacznijmy od Series i DataFrame.
+000027.wav|To są dwa podstawowe obiekty Pandas, które trzeba dobrze zrozumieć, bo od nich zaczyna się cała dalsza praca.
+000028.wav|Series można traktować jako jednowymiarowy wektor danych z indeksem.
+000029.wav|DataFrame to z kolei tabela z nazwanymi już kolumnami i oznaczonymi wierszami.
+000030.wav|To jest bardzo ważne, bo Pandas nie przechowuje tylko samych surowych wartości.
+000031.wav|Przechowuje również ich kontekst, czyli nazwy kolumn, etykiety indeksu, relacje pomiędzy seriami danych.
+000032.wav|I właśnie ten kontekst sprawia, że Pandas jest tak wygodny do pracy z danymi rzeczywistymi.
+000033.wav|Gdy pracuję z kolumną siła n, to to już nie jest druga kolumna macierzy, ale jakoś jawnie nazwana wielkość fizyczna.
+000034.wav|Gdy mam jakiś indeks czasowy, jakiś timestamp, to to nie są kolejne rekordy, tylko konkretne chwile pomiaru.
+000035.wav|I to jest fundamentalna przewaga względem zwykłych gołych tablic NumPy w zadaniach analizy tabelarycznej.
+000036.wav|Sam Pandas bardzo dobrze integruje się z resztą systemu, bo dane mogą wejść jako dataframe, ale później być przekazane do SciPy, Matplotlib, Scikit-learn czy Statsmodel.
+000037.wav|a potem wrócić do raportu.
+000038.wav|I to czyni z Pandas bardzo fajny moduł, nie zwykły czytnik CSV, ale centralny element pracy z danymi w Pythonie.
+000039.wav|w całym łańcuchu pracy badawczej.
+000040.wav|Od projektu eksperymentu, przez rejestrację uczestnika, po powstanie danych, które później możemy analizować w Pythonie.
+000041.wav|nawet neuropsychologii, neuronauce.
+000042.wav|bo to nie jest gotowa tabela przygotowana ręcznie w Excelu, bo wyniki muszą być zawsze efektem wcześniej zaprojektowanej procedury eksperymentalnej.
+000043.wav|No i właśnie PsychoPy jest jednym z modułów, które taką procedurę pozwala zaprojektować i kontrolować.
+000044.wav|Możemy określić, jakie bodźce będą zaprezentowane, w jakiej kolejności, przez jaki czas, w jakich warunkach, czy jakie reakcje uczestnika będą rejestrowane.
+000045.wav|Może to być naciśnięcie klawisza na komputerze, wybór odpowiedzi, czasy reakcji, poprawność wykonania zadania albo brak reakcji w określonym czasie.
+000046.wav|I z perspektywy tego wykładu to będzie na tyle ciekawe, że taki eksperyment nie musi być stricte inżynierski.
+000047.wav|Nie musimy mieć całego laboratorium, żeby zgromadzić dane eksperymentalne.
+000048.wav|Sami w sobie możemy być naszym przedmiotem badanym i badającym.
+000049.wav|I to tworzy tu naturalne przejście do pandas, bo skoro pandasz służy do pracy z tabelami, no to warto pokazać realistyczne źródło tych tabel.
+000050.wav|I w badaniach psychologicznych typowy jeden wiersz będzie oznaczał jedną próbę eksperymentalną.
+000051.wav|Kolumny będą opisywać jej właściwości.
+000052.wav|Mogą to być identyfikator uczestnika, jakiś numer próby, blok eksperymentu czy warunek badawczy.
+000053.wav|Taka struktura bardzo dobrze pasuje właśnie do późniejszej analizy w Pandas.
+000054.wav|Warto pokazać, że jakość późniejszej analizy zależy od jakości wcześniejszego projektu eksperymentu.
+000055.wav|Jeżeli PsychoPy zapisuje dobrze nazwane kolumny, spójne warunki i jednoznaczne informacje o odpowiedziach, to późniejsza analiza jest prosta.
+000056.wav|Można łatwo odfiltrować błędne próby, obliczyć średni czas reakcji, porównać warunki, sprawdzić trafność odpowiedzi albo przygotować dane do modelowania statystycznego.
+000057.wav|nam dużo problemów i wcale nie przyspieszy, ale spowolni sam proces przygotowywania danych.
+000058.wav|Sama biblioteka PsychoPy nie zastępuje jednak analizy statystycznej.
+000059.wav|Ona służy do organizacji eksperymentu i zbierania danych.
+000060.wav|Pozwala nam kontrolować prezentację bodźców, rejestrować odpowiedzi i zapisywać wyniki.
+000061.wav|Nie jest narzędziem, które samo rozwiąże nam problem interpretacji danych.
+000062.wav|Po zakończeniu badania zaczyna się więc kolejny etap.
+000063.wav|Kontrola jakości, czyszczenie, filtrowanie, agregacja i wizualizacja modelowania.
+000064.wav|I w tym miejscu właśnie wejdą nam wtedy narzędzia, takie jak Pandas, NumPy, SciPy, Seaborn, Matplotlib albo Statsmodel.
+000065.wav|Z metodologicznego punktu widzenia szczególnie ważne jest to, że pojedyncza próba eksperymentalna staje się jednostką analizy.
+000066.wav|Bo jeżeli uczestnik wykonuje 120 prób, to w danych możemy mieć 120 wierszy.
+000067.wav|Bo jeżeli uczestnik wykonuje 120 prób, to w danych możemy mieć 120 wierszy dla jednej osoby.
+000068.wav|Jeżeli badamy 40 osób, liczba wierszy wzrośnie do kilku tysięcy.
+000069.wav|Bo ręczna analiza w arkuszu kalkulacyjnym
+000070.wav|będzie bardzo niewygodna, trudna do kontroli i w ogóle niereplikowalna.
+000071.wav|I taki format jest przydatny analitycznie, bo pozwala nam zachować kolejność zdarzeń, numer próby, informacje o bloku i warunku.
+000072.wav|i drugą częścią eksperymentu.
+000073.wav|natywnym formacie SciDAT.
+000074.wav|Z punktu widzenia naszej analizy dalszej, to te dwa pierwsze będą szczególnie przydatne, ponieważ można je bezpośrednio wczytać do Pandas.
+000075.wav|w najczęściej spotykanych narzędziach.
+000076.wav|I przekaz tu jest następujący, że SciCopy będzie naszym początkowym narzędziem do zaprojektowania i przeprowadzenia eksperymentu.
+000077.wav|Pandas będzie narzędziem do późniejszej pracy z wynikami tego eksperymentu.
+000078.wav|Dobrze zaprojektowana procedura badawcza generuje dobrze uporządkowaną tabelę danych.
+000079.wav|I taka tabela staje się punktem wyjścia do czyszczenia, filtracji, agregacji i wnioskowania ostatecznych.
+000080.wav|Przejdźmy do samej struktury eksperymentu.
+000081.wav|To jest ważny moment, ponieważ PsychoPy nie jest tylko narzędziem do wyświetlania bodźców.
+000082.wav|Jest środowiskiem do projektowania procedury badawczej.
+000083.wav|Dlatego trzeba zrozumieć nie sam tylko interfejs programu, ale i logikę, według której eksperyment jest organizowany.
+000084.wav|W PsychoPy szczególnie ważne są trzy pojęcia.
+000085.wav|Routine, loop i condition file.
+000086.wav|Routine można traktować jako pojedynczą scenę, jakiś etap, jakiś blok procedury eksperymentalnej.
+000087.wav|Może to być ekran instrukcji, ekspozycja bodźca, ekran odpowiedzi albo i przerwa między próbami.
+000088.wav|W ramach jednej routine określamy jakie elementy pojawiają się na ekranie, kiedy się pojawią, jak długo trwają i jakie reakcje uczestnika są rejestrowane.
+000089.wav|Routine odpowiada więc za lokalną strukturę jednego fragmentu, jednego bloku eksperymentu.
+000090.wav|parametry pomiędzy kolejnymi próbkami.
+000091.wav|Bez pętli trzeba by ręcznie tworzyć każdą próbę osobno.
+000092.wav|To jest nieefektywne i bardzo podatne na błędy.
+000093.wav|lub pozwala nam uporządkować eksperyment jako serię powtarzalnych prób, jakichś bloków albo warunków eksperymentalnych.
+000094.wav|Trzecim elementem jest condition file, czyli plik warunków.
+000095.wav|Z punktu widzenia metodologii badania jest to właśnie element kluczowy, bo to w nim zapisujemy, co zmienia się pomiędzy próbami.
+000096.wav|Plik warunków może mieć postać arkusza xlsx albo pliku csv.
+000097.wav|Każdy wiersz będzie wtedy odpowiadał jednej próbie albo jednemu zestawowi parametrów.
+000098.wav|Każda kolumna z kolei będzie opisywać zmienną bodziec, kategorię, poprawną odpowiedź albo czas ekspozycji, czy jakąkolwiek inną właściwość próby.
+000099.wav|I w praktyce dlatego ten condition file pełni funkcję projektowego centrum eksperymentu.
+000100.wav|Jeżeli badamy rozpoznawanie emocji, kolumny mogą zawierać nazwę pliku obrazu, kategorię emocji, intensywność ekspresji, czasy ekspozycji i poprawną odpowiedź.
+000101.wav|Jeżeli z kolei będziemy badać reakcję na dźwięki, to taki plik warunków będzie zawierał nazwy pliku audio, kategorię bodźca, poziom głośności czy oczekiwaną reakcję.
+000102.wav|I to ma bezpośrednie konsekwencje dla samej analizy danych, bo PsychoPy zapisuje wyniki eksperymentu w formie tabelarycznej.
+000103.wav|A dobrze zaprojektowany plik warunków właśnie sprawia, że ten plik wynikowy, tabelaryczny będzie czytelny.
+000104.wav|Jeżeli kolumny są logicznie nazwane, a warunki eksperymentalne są konsekwentnie kodowane w ten sam sposób, to późniejsza analiza w Pandas staje się znacznie prostsza.
+000105.wav|Możemy łatwo grupować dane po warunku liczyć średnie czasy reakcji, analizować trafności, usuwać błędne próby albo porównywać wyniki pomiędzy kategoriami bodźców.
+000106.wav|Z kolei jeżeli eksperyment będzie źle opisany, to analiza danych stanie się dużo trudniejsza i podatniejsza na błędne.
+000107.wav|Problemem będą niejazne nazwy kolumn, mieszanie języków w etykietach, różne zapisy tej samej kategorii,
+000108.wav|albo brak informacji o poprawnej odpowiedzi czy identyfikatorze warunku.
+000109.wav|I często na tym etapie właśnie pojawiają się niedopatrzenia i pewne pomyłki, których można było uniknąć przez starane zaprojektowanie pliku warunków.
+000110.wav|czy późniejszy plik CSV będzie czytelny czy chaotyczny.
+000111.wav|Dlatego projektowanie eksperymentu i projektowanie danych wynikowych powinny być traktowane jako jedna całość.
+000112.wav|Z perspektywy badawczej tu szczególnie istotne jest oddzielenie procedury od parametrów.
+000113.wav|Routine opisuje nam co dzieje się w eksperymencie, ale to condition file określa jakie bodźce i warunki będą użyte w konkretnych próbach.
+000114.wav|I to jest dobre rozwiązanie, ponieważ pozwala nam zmienić zestaw bodźców albo warunki eksperymentalne bez przebudowywania całej procedury.
+000115.wav|Możemy zachować tą samą strukturę eksperymentu bez przebudowywania.
+000116.wav|Możemy zachować tę samą strukturę eksperymentu, ale podmienić plik warunków, czyli dodać nowe bodźce albo zmienić ich kolejność.
+000117.wav|I takie podejście sprzyja reprodukowalności, bo plik warunków dokumentuje, jakie próby zostały zaplanowane.
+000118.wav|Jeżeli ktoś chce sprawdzić eksperyment, może zobaczyć nie tylko ogólny opis całej procedury, ale konkretne bodźce, warunki i poprawne odpowiedzi.
+000119.wav|W badaniach naukowych to jest bardzo ważne, ponieważ pozwala nam lepiej kontrolować procedurę i ułatwia późniejsze raportowanie całej metody.
+000120.wav|są dostarczane przez poszczególne firmy.
+000121.wav|właśnie CSV czy LSX, a nazwy kolumn tego pliku będą zmiennymi w eksperymencie.
+000122.wav|Czyli nazwy kolumn nie są tylko technicznymi etykietami, ale stają się całym elementem logiki eksperymentu.
+000123.wav|Dlatego powinny być krótkie, jednoznaczne, konsekwentne i łatwiejsze do późniejszego użycia w analizie i kodzie.
+000124.wav|Routine musi uporządkować przebieg poszczególnej pojedynczej próby.
+000125.wav|lub zawsze będzie nam organizował powtarzalność i powtarzanie właśnie tych pojedynczych klocków.
+000126.wav|A condition file zdefiniuje nam zmienne eksperymentalne i od jakości tych wszystkich trzech elementów zależy nie tylko przebieg badania, ale też jakość późniejszej analizy wyników.
+000127.wav|Zobaczmy teraz jakiego typu dane faktycznie otrzymujemy po takim eksperymencie.
+000128.wav|PsychoPy może zapisywać różne pliki, ale dla typowej analizy później w Pandas najwygodniejsze będą CSV albo XLSX.
+000129.wav|Należy jednak podkreślić, że plik wynikowy jest tylko danymi surowymi, nie jest jeszcze wynikiem statystycznym.
+000130.wav|Taki typowy plik ma strukturę, w której jeden wiersz odpowiada jednej próbie.
+000131.wav|I to jest ważne i trzeba to zapamiętać, ponieważ część studentów intuicyjnie będzie oczekiwać, że jeden wiersz przecież odpowiada jednemu uczestnikowi.
+000132.wav|A w eksperymentach, najczęściej poznawczych, mamy wiele prób na osobę badaną.
+000133.wav|Dlatego jeden uczestnik będzie reprezentowany przez wiele różnych wierszy.
+000134.wav|Dopiero później, poprzez użycie GROUP BY, możemy przejść do poziomu uczestnika, warunku albo grupy.
+000135.wav|Trzeba też zwrócić uwagę na nazwy kolumn.
+000136.wav|PsychoPy często generuje kolumny pochodzące od nazw komponentów.
+000137.wav|Jeżeli taki komponent odpowiedzi nazwaliśmy keyRespond, no to w danych pojawią się zmienne takie jak keyRespond.keys, .rt, .core.
+000138.wav|Dlatego nazewnictwo tych komponentów w eksperymencie będzie miało znaczenie analityczne.
+000139.wav|I szczególnie jeżeli spróbujemy użyć polskich nazw albo znaków niedozwolonych, spacji, no to mogą zacząć pojawiać się coraz większe problemy później z analizą.
+000140.wav|Bo jeżeli nazwy są przypadkowe, to plik wynikowy będzie o wiele mniej czytelny albo będzie wręcz sprawiał problemy z odczytem.
+000141.wav|Sam problem jakości danych, bo czasy reakcji mogą zawierać wartości zbyt krótkie albo zbyt długie, albo braki.
+000142.wav|Część prób może być treningowa i powinna być oddzielona.
+000143.wav|Niektóre odpowiedzi mogą być błędne i w zależności od analizy należy je wykluczyć albo osobno analizować.
+000144.wav|I to nas naturalnie prowadzi do dalszych tematów, czyli RIT-SV, filtrowania, czyszczenia typów danych i agregacji.
+000145.wav|Domyślnie praca na samym oprogramowaniu PsychoPy umożliwia zapis plików w formacie SciDat.
+000146.wav|One zawierają więcej informacji niż domyślnie zapisywane CSV czy Excel.
+000147.wav|a z jednym wierszem reprezentującym jedną próbę.
+000148.wav|I podejdźmy teraz do takiego pierwszego przejścia od PsychoPy do Pandas.
+000149.wav|Czyli wczytujemy jakiś zebrany plik CSV, a następnie wykodujemy kontrolę techniczną.
+000150.wav|Sprawdzamy liczbę wierszy, kolumn, nazwy kolumn, typy danych, pierwsze obserwacje.
+000151.wav|I to jest etap obowiązkowy, bo nie należy zaczynać od wykresów od razu ani testów statystycznych bez sprawdzenia jak w ogóle wygląda plik.
+000152.wav|Następnie musimy wybrać kolumny potrzebne do analizy.
+000153.wav|PsychoPy może generować wiele kolumn technicznych, które są przydatne diagnostycznie.
+000154.wav|ale nie zawsze będą potrzebne w akurat tej pierwszej analizie.
+000155.wav|Dobrą praktyką jest dlatego utworzenie mniejszej tabeli roboczej i zmiana nazw kolumn na krótsze, bardziej analityczne.
+000156.wav|RT, Response, Core, Correct, Condition, Trial.
+000157.wav|Później przechodzimy do czyszczenia.
+000158.wav|Usuwamy próby bez reakcji.
+000159.wav|Próby z brakującym czasem reakcji albo wartości niefizjologiczne czy metodologicznie niepoprawne.
+000160.wav|Na przykład reakcje krótsze niż 200 milisekund albo bardzo długie odpowiedzi.
+000161.wav|Oczywiście wartości progowe powinny wynikać z literatury, z typu zadania czy protokołu badania.
+000162.wav|Nie powinny być dobierane arbitralnie po obejrzeniu wyników.
+000163.wav|A następnie przechodzimy do agregacji.
+000164.wav|W eksperymentach poznawczych, psychologicznych, neuropsychologicznych bardzo często interesuje nas średni lub medianowy czas reakcji oraz trafność w danym warunku.
+000165.wav|Dlatego grupujemy dane po uczestniku i warunku.
+000166.wav|To pozwala nam przejść od poziomu pojedynczej próby do poziomu jednostki analizy, którą później można wykorzystywać właśnie w statystyce, wizualizacji czy modelowaniu.
+000167.wav|Samo środowisko udostępnia nam interfejs również programowy.
+000168.wav|Cały kod eksperymentu nie musi być wyklikany w środowisku, ale być napisanym od zera kodem Pythonowym.
+000169.wav|I to jakby domyka nam nasz mikroblog o PsychoPy.
+000170.wav|Płynnie przechodzimy od właściwego tematu, czyli to tworzenia data frame, wczytywania danych, czyszczenia i dalszej analizy.
+000171.wav|jakby pełni nam funkcję przykładu wygenerowania źródła danych.
+000172.wav|I tutaj wchodzimy w tworzenie data frame i wczytywania danych.
+000173.wav|To jeden z podstawowych etapów pracy w Pandas.
+000174.wav|Ponieważ zanim zaczniemy filtrować, agregować, wizualizować czy modelować dane, musimy nadać im postać tabelaryczną.
+000175.wav|To jest główna różnica, która odróżnia Pandas od prostych tablic numerycznych, w których głównie pracujemy na pozycjach, na przykład w NumPy.
+000176.wav|W praktyce ramkę danych często tworzymy ze słownika kolumn, listy słowników albo właśnie pojedynczych tablic NumPy.
+000177.wav|Słownik kolumn jest bardzo intuicyjny, bo nazwy kluczy stają się nazwami kolumn, wartości stają się danymi.
+000178.wav|Lista słowników dobrze pasuje do sytuacji, w której każdy słownik opisuje jakąś jedną obserwację, np.
+000179.wav|jedną próbę eksperymentalną, jeden pomiar albo jeden rekord systemowy.
+000180.wav|Tablice NumPy są przydatne wtedy, gdy dane powstały w obliczeniach numerycznych, ale możemy chcieć nadać im semantyczną strukturę tabeli.
+000181.wav|Tworzenie dataframe ręcznie jest użyteczne w jakichś szybkich eksperymentach albo przykładach czy testach.
+000182.wav|JSON, albo wcześniejszego etapu naszego pipeline'u.
+000183.wav|I dlatego tak ważne są te funkcje wejścia i wyjścia.
+000184.wav|Pandas obsługuje m.in.
+000185.wav|CSV, Excel, ale i właśnie JSON, Parklet, SQL, HDF5, FEDER, przy czym robi to przez bardzo spójne API.
+000186.wav|To ułatwia nam pracę, bo podobna logika obowiązuje przy różnych źródłach danych.
+000187.wav|Pliki tego typu są proste, przenośne i obsługiwane przez niemal wszystkie narzędzia, ale jednocześnie bywają źródłem wielu problemów.
+000188.wav|Nie przechowują jednoznacznie typów danych.
+000189.wav|Mogą mieć różne separatory, różne kodowania znaków i różne formaty dat ze względu na miejsce na świecie, w którym taki plik powstał.
+000190.wav|Również mogą w różny sposób zapisywać braki.
+000191.wav|Dlatego poprawne wczytanie pliku jest już pierwszym etapem w ogóle walidacji danych.
+000192.wav|Separator decyduje nam o tym, czy kolumny zostaną poprawnie rozdzielone.
+000193.wav|Konowanie wpływa więc na poprawność znaków, szczególnie w językach zawierających jakieś znaki diakrytyczne.
+000194.wav|Przecinek dziesiętny może sprawdzić, że liczby będą wczytane jako tekst.
+000195.wav|Parsowanie nad dużo może napsuć nerwów i decyduje też o tym, czy w ogóle my możemy później używać operacji czasowych.
+000196.wav|Wartości brakujące powinny być rozpoznane, nie jako braki, ale jako napisy typu NA, brak czy nul.
+000197.wav|Również wybór kolumn i typ danych ma znaczenie.
+000198.wav|Czasem nie warto wczytywać od razu całego pliku, jeżeli interesuje nas tylko kilka zmiennych.
+000199.wav|Parametr wyboru kolumn może przyspieszać na pracę i zmniejszać zużycie pamięci.
+000200.wav|Jawne określanie typów danych pomoże nam uniknąć błędów automatycznego rozpoznawania.
+000201.wav|Przykładowo, identyfikator uczestnika albo próbki nie zawsze powinien być liczbą, nawet jeżeli będzie składał się z cyfr.
+000202.wav|Bo jeżeli zawiera zera wiodące potraktowanego jako głównej liczby, może zniszczyć informację.
+000203.wav|Bardzo wiele z problemów analitycznych zaczyna się nie od złego modelu, ale od źle wczytanego pliku.
+000204.wav|dalsza analiza może i będzie wyglądać poprawnie technicznie, ale będzie oparta na kompletnie wadliwej strukturze danych.
+000205.wav|należy sprawdzić, czy te dane wczytane do Pythona w ogóle rzeczywiście odpowiadają temu, co było w źródle.
+000206.wav|I warto wyrobić tu sobie nawyk, że po wczytaniu danych nie ufamy im bezwarunkowo.
+000207.wav|Warto też sprawdzić ich nazwy, jakieś podstawowe statystyki opisowe czy liczbę unikalnych wartości wzmiennych kategorialnych.
+000208.wav|To są bardzo proste kroki, ale bardzo skutecznie ujawniają błędy importu.
+000209.wav|z ich znaczeniem, czy braki zostały poprawnie rozpoznane, czy daty rzeczywiście są datami, a nie tylko zwykłymi napisami.
+000210.wav|I po takim sprawdzeniu można bezpiecznie dopiero przejść do właściwej eksploracji.
+000211.wav|Różne formaty plików, które możemy wczytywać, mogą mieć też, zazwyczaj mają różne zastosowania.
+000212.wav|CSV, który jest prosty i uniwersalny, niestety będzie bardzo słabo przechowywał informacje o typach danych.
+000213.wav|Excel będzie wygodny w pracy z danymi, które są przygotowane ręcznie.
+000214.wav|ale często może zawierać wiele arkuszy, scalone komórki i dodatkowe opisy.
+000215.wav|JSON bardzo fajnie parsuje i pasuje do danych z API, ale bardzo często będzie wymagał normalizacji struktury.
+000216.wav|Nie może też przechowywać jakby w łatwy sposób opisów zmiennych.
+000217.wav|Parkwood i FEDER są lepsze dla pipeline'ów analitycznych, ponieważ są dużo szybsze, bardziej kompaktowe i lepiej zachowują właśnie typy danych.
+000218.wav|No i ewentualnie SQL jeszcze będzie naturalny wtedy, gdy dane będą się znajdować w jakiejś bazie danych relacyjnej.
+000219.wav|I dlatego tworzenie i wczytywanie data frame to nie jest tylko techniczny początek pracy z Pandas.
+000220.wav|To jest moment, w którym my decydujemy, czy te dane w ogóle zostały poprawnie przekształcone ze źródła na struktury,
+000221.wav|do struktury analitycznej.
+000222.wav|Dobre wczytanie tych danych, kontrola parametrów importu, szybka inspekcja po read CSV oszczędzają wiele problemów na późniejszych etapach.
+000223.wav|Kiedy dane są już wczytane, zaczyna się etap eksploracji, kontroli jakości i indeksowania.
+000224.wav|Z pozoru jest to część bardzo prosta, no bo polega na uruchomieniu kilku podstawowych poleceń.
+000225.wav|W praktyce jednak jest to jeden z najważniejszych momentów całej analizy.
+000226.wav|Bo jeżeli na początku źle rozpoznaliśmy strukturę danych, to późniejsze obliczenia mogą być...
+000227.wav|formalne poprawnie, ale merytorycznie błędne.
+000228.wav|I podstawowe narzędzia pierwszego kontaktu ze zbiorem danych to między innymi shape, dtype, head, tail, described, czy is null, sum.
+000229.wav|Sam shape mówi nam o tym, ile mamy wierszy i kolumn.
+000230.wav|To pozwala bardzo szybko sprawdzić, czy plik został wczytany w całości i czy liczba obserwacji odpowiada oczekiwaniom.
+000231.wav|Dtypes pokazuje nam typy danych w poszczególnych kolumnach.
+000232.wav|Jest to bardzo ważne, szczególnie wtedy, kiedy błędnie rozpoznamy typ, później może nam zablokować obliczenia albo prowadzić do jakichś cichych błędów.
+000233.wav|Kolumna z datą może być wczytana jako tekst, liczby mogą być wczytane jako obiekty, a zmienne kategorialne mogą często wymagać osobnego kodowania.
+000234.wav|Narzędzia takie jak Head i Tail pozwalają nam obejrzeć początek i koniec tabeli.
+000235.wav|kodowanie znaków albo wartości, które nie powinny się w ogóle znaleźć w danych.
+000236.wav|Describe daje nam szybkie podsumowanie zmiennych.
+000237.wav|Da nam średnią, odchylenie standardowe, minimum, maksimum, kwartyle.
+000238.wav|Nie jest to jeszcze pewna analiza statystyczna, ale już pozwala wykryć wartości skrajne, jakieś podejrzane zakresy czy pierwsze informacje o rozkładzie.
+000239.wav|Z kolei isNullSum pokazuje nam liczbę braków danych w każdej kolumnie.
+000240.wav|To jest konieczne jeszcze zanim my zaczniemy w ogóle filtrować, agregować czy modelować dane.
+000241.wav|Ta eksploracja danych nie jest więc formalnością.
+000242.wav|To jest również etap kontroli jakości.
+000243.wav|Chcemy przecież wiedzieć, czy liczba rekordów jest zgodna z faktycznie oczekiwaną.
+000244.wav|Czy te kolumny mają dobre typy, czy występują braki.
+000245.wav|Druga ważna rzecz to selekcja danych.
+000246.wav|I tutaj Pandas daje nam bardzo czytelne mechanizmy pracy z kolumnami i wierszami.
+000247.wav|Pojedyncza kolumna zwraca object series, czyli serię, jednowymiarową strukturę danych z indeksem.
+000248.wav|Wybór kilku kolumn zwraca data frame, czyli całą tabelę.
+000249.wav|I to rozróżnienie jest ważne, ponieważ niektóre operacje działają inaczej na serii, a inaczej na strukturze data frame.
+000250.wav|Początkujący bardzo często będą tracić czas na błędy wynikające właśnie z tego, że nie zauważyli, że pracują na pojedynczej kolumnie, czy na tabeli z jedną kolumną.
+000251.wav|I do wyboru danych używamy przede wszystkim log i log.
+000252.wav|Log służy do selekcji po etykietach oraz po warunkach logicznych.
+000253.wav|Jest naturalnym narzędziem właśnie wtedy, kiedy chcemy powiedzieć wybierz wiersze, w których temperatura jest większa niż jakaś tam oczekiwana wartość.
+000254.wav|Wybierz obserwacje dla konkretnej grupy, zakres jakichś dat czy kolumny o konkretnych nazwach.
+000255.wav|I log działa po pozycjach liczbowych z kolei, czyli pozwala nam odwoływać się do pierwszego, drugiego albo ostatniego wiersza niezależnie od nazw indeksu.
+000256.wav|Oba mechanizmy są więc potrzebne, ale w analizie danych log często okazuje się bardziej semantyczny i odwołuje się do znaczenia danych, a nie tylko do ich pozycji w tabeli.
+000257.wav|Zamiast ręcznie wybierać wiersze o numerach od 120 do 180, możemy zapisać warunek taki.
+000258.wav|Wybierz pacjentów z danej grupy, próbki z określonego zakresu temperatur, czy pomiary po konkretnej dacie.
+000259.wav|I to zmniejsza ryzyko błędów, bo kod już na początku mówi, dlaczego wybieramy dane, a nie tylko, które pozycje wybieramy.
+000260.wav|Bardzo ważny jest też sam indeks, szczególnie początkujący bardzo często go ignorują i traktują jako techniczny numer wiersza.
+000261.wav|Tymczasem dobrze ustawiony indeks może znacząco uporządkować analizę.
+000262.wav|Jeżeli indeks będzie reprezentował czas, identyfikator próbki, numer pomiaru albo klucz obserwacji, no to tabela staje się bardziej semantyczna.
+000263.wav|Możemy wtedy znacznie łatwiej filtrować dane, połączyć później tabelę.
+000264.wav|wykonać operacje czasowe i trzymając przy tym rękę na spójności obserwacji.
+000265.wav|Taki indeks przestaje być wtedy dodatkiem, no a staje się częścią struktury informacyjnej danych.
+000266.wav|całe dane, obliczać średnie dzienne, godzinne, miesięczne, czy porządkować operacje zgodnie z ich chronologią.
+000267.wav|No i w danych eksperymentalnych to może też oznaczać identyfikator jakiejś próbki, numer uczestnika czy numer pomiaru.
+000268.wav|No i dzięki temu te operacje na danych będą bardziej naturalne i mniej podatne na przypadkowe pomyłki.
+000269.wav|I tu pojawia się nam jedna z najważniejszych cech biblioteki Pandas.
+000270.wav|Dane nie są tylko przechowywane, one są organizowane w sposób wspierający analizę, bo data frame nie jest zwykłą macierzą liczb.
+000271.wav|To jest struktura, w której my mamy już zdefiniowane konkretne nazwy dla kolumn, wiersze, które mają indeksy, a typy danych są rozpoznane.
+000272.wav|Dzięki temu operacje można wykonywać na podstawie znaczenia samych zmiennych, a nie tylko ich pozycji.
+000273.wav|Analiza wtedy staje się raz nie bliższa pracy z uporządkowaną, ładną tabelą badawczą, a nie anonimową tabelą wartości.
+000274.wav|Dlatego warto jest zapamiętać, że po wczytaniu danych nie przechodzimy od razu do wykresów, modeli ani testów statystycznych.
+000275.wav|Najpierw sprawdźmy strukturę, typy, braki, zakresy czy indeks.
+000276.wav|I dopiero wtedy selekcjonujmy dane i budujmy właściwą dalszą analizę.
+000277.wav|Bo dobrze wykonany etap eksploracji chroni nas przed wieloma błędami, które później byłyby trudne do wykrycia.
+000278.wav|I przechodzimy teraz do czyszczenia danych.
+000279.wav|To jest etap, który często bywa również traktowany jako techniczna czynność przygotowawcza, ale w praktyce jest to zasadnicza część analizy.
+000280.wav|Dane rzeczywiste prawie nigdy nie powinny być traktowane jako prawda ostateczna.
+000281.wav|W plikach pojawiają się przerwy, braki danych, zduplikowane pomiary, błędnie zapisane liczby albo niespójne kategorie tekstowe.
+000282.wav|ale nie mają żadnego sensu fizycznego, wynikają z błędów urządzenia.
+000283.wav|Dlatego trzeba wyraźnie powiedzieć, że sama jakość tej analizy nie może nigdy być wyższa niż jakość danych, na których analiza została wykonana.
+000284.wav|Tutaj określamy to, jak dobra będzie nasza analiza.
+000285.wav|Jeżeli taki krok pominiemy, no to ten sufit będzie nam narzucony.
+000286.wav|Dlatego czyszczenie danych nie jest dodatkiem do analizy, ale warunkiem sensownego wnioskowania.
+000287.wav|Typowe problemy tu są bardzo konkretne, bo braki danych mogą oznaczać, że pomiar nie został wykonany, uczestnik nie odpowiedział albo czujnik nie zadziałał.
+000288.wav|Duplikaty mogą wynikać z przypadkowego podwójnego importu, ale mogą też oznaczać celowo powtórzone pomiary.
+000289.wav|Kategorie tekstowe mogą być niespójne, np.
+000290.wav|kobieta pisana z małej litery, kobieta z dużej, K, female, F.
+000291.wav|One mogą oznaczać tą samą kategorię, ale dla programu są różnymi wartościami.
+000292.wav|Liczby czasem mogą być zapisane z przecinkiem zamiast kropki, a czasem na odwrót.
+000293.wav|z jednostką w tej samej komórce albo jako tekst.
+000294.wav|Zależnie też od oprogramowania urządzenia, na którym pracujemy.
+000295.wav|Dlatego w praktyce to czyszczenie danych wymaga połączenia zarówno techniki, jak i interpretacji.
+000296.wav|Pandas daje nam już narzędzia, takie jak dropA, fillA, duplicated, dropDuplicated, replace, asType i wiele innych.
+000297.wav|To są operacje, które na tekstach oraz...
+000298.wav|To są operacje, to są narzędzia, które pozwalają nam właśnie wykrywać i przekształcać dane, ale same nie rozstrzygają, która decyzja będzie poprawna.
+000299.wav|Bo decyzja zależy od pytania badawczego, sposobu pozyskania danych i znaczenia poszczególnych zmiennych.
+000300.wav|Ważne jest też, żeby nie działać automatycznie.
+000301.wav|Wartość odstająca może być pomyłką, ale może być również najważniejszą obserwacją w całym zbiorze.
+000302.wav|I w diagnostyce technicznej ekstremalne wartości właśnie mogą wskazywać te awarie, które my chcemy wykryć.
+000303.wav|W medycynie mogą sygnalizować jakiś przypadek klinicznie istotny.
+000304.wav|W psychologii realną zmienność pomiędzy osobami.
+000305.wav|I dlatego tych wartości nie powinno się z automatu usuwać.
+000306.wav|Tylko dlatego, że psują nam wykres albo pogarszają dopasowanie modelu.
+000307.wav|I tu podobnie jest z brakiem danych.
+000308.wav|Nie każdą brakującą wartość trzeba usuwać.
+000309.wav|Czasem usunięcie wszystkich wierszy z brakami poprowadzi nas do utraty dużo, dużej liczby informacji albo zniekształcenia próby.
+000310.wav|Innym razem uzupełnienie braku jakąś średnią może być zbyt dużym uproszczeniem, ingerującym w realne dane.
+000311.wav|Trzeba się zapytać, skąd się taki brak w ogóle bierze, czy jest przypadkowy, czy dotyczy konkretnej grupy, czy wynika z pomiaru.
+000312.wav|Duplikaty również będą wymagać namysłu, bo nie każdy powtarzający się rekord jest błędem.
+000313.wav|W danych pomiarowych powtórzenie może oznaczać replikację eksperymentu.
+000314.wav|W danych transakcyjnych dwie identyczne wartości mogą być niezależnymi operacjami.
+000315.wav|W danych ankietowych ten sam identyfikator uczestnika może oznaczać z kolei np.
+000316.wav|błąd importu albo ponowne wypełnienie formularza.
+000317.wav|Samo polecenie drop duplicates jest technicznie proste.
+000318.wav|ale decyzja czego użyć wymaga przemyślenia i zrozumienia kontekstu.
+000319.wav|Szczególnej uwagi wymagają jednostki.
+000320.wav|To jest jeden z najczęściej i najbardziej niebezpiecznych problemów danych.
+000321.wav|Jedna część pomiarów może być zapisana w metrach, a druga w centymetrach.
+000322.wav|Temperatura może być raz podana w stopniach Celsjusza, a raz w Kelwinach.
+000323.wav|Czas równie dobrze w sekundach, minutach, milisekundach.
+000324.wav|I takie błędy są często niewidoczne, jaką ani braki, ani duplikaty, a wynikają ze sposobu pracy urządzenia czy zapisu danych.
+000325.wav|I liczbowo wyglądają jak najbardziej poprawnie, ale ich interpretacja będzie błędna.
+000326.wav|I dlatego to czyszczenie danych powinno obejmować także kontrolę zakresów i jednostek.
+000327.wav|Dobrą praktyką jest rozdzielenie czyszczenia na kilka etapów.
+000328.wav|Najpierw diagnozujemy problemy, czyli sprawdzamy typy danych.
+000329.wav|Braki, duplikaty, zakresy, kategorie.
+000330.wav|Następnie podejmujemy już jakieś decyzje interpretacyjne.
+000331.wav|Co jest błędem, a co jest wartością poprawną.
+000332.wav|Wtedy możemy przejść do kolejnego kroku, czyli wykonać transformację w kodzie.
+000333.wav|Na samym końcu ponownie sprawdzamy cały zbiór, żeby upewnić się, że czyszczenie nie wprowadziło jakichś dodatkowych problemów.
+000334.wav|I warto od początku dokumentować, co zostało oczyszczone i w jaki sposób.
+000335.wav|W pracy naukowej, inżynierskiej czyszczenie danych musi być też reprodukowalne.
+000336.wav|Ta replikacyjność badań i całej procedury jest bardzo istotnym elementem.
+000337.wav|Nie powinno się polegać na ręcznym poprawianiu wartości, na oko w Excelu, nigdy.
+000338.wav|Ponieważ po kilku dniach zwykle już nie da się realnie powiedzieć, ani odtworzyć, co zostało zmienione.
+000339.wav|Dlatego lepszym rozwiązaniem jest zapisanie całego procesu w kodzie.
+000340.wav|Wtedy wiadomo, które rekordy zostały usunięte, które wartości przekształcono, jakie reguły zastosowano i dlaczego.
+000341.wav|No i taki pipeline ma jeszcze jedną dużą zaletę.
+000342.wav|Można go uruchomić ponownie, gdy pojawi się nowa wersja danych.
+000343.wav|Jeżeli dane są aktualizowane, no to ręczne czyszczenie trzeba powtarzać od początku.
+000344.wav|Taki kod można zastosować podobnie, poprawić, przetestować, udokumentować.
+000345.wav|A to jest szczególnie ważne w projektach badawczych, technicznych, inżynierskich czy raportowych, gdzie ta cała analiza powinna być możliwa do sprawdzenia później przez inne osoby.
+000346.wav|Ta biblioteka będzie nam więc pomagać w czyszczeniu danych, ale nie zastąpi ich zrozumienia.
+000347.wav|Pandas da nam narzędzia do wykrywania braków, zmiany typów, usuwania duplikatów czy standaryzacji wartości.
+000348.wav|Ale o tym, czy dana wartość będzie błędem, wyjątkiem czy krytyczną obserwacją,
+000349.wav|no to to zależy już od nas.
+000350.wav|Same jednak nieoczyszczone dane zawsze będą prowadzić do niepewnych wniosków, nawet jeżeli późniejsza analiza wygląda profesjonalnie.
+000351.wav|Dlatego to czyszczenie zawsze powinno być jawne, uzasadnione, opisane, najlepiej w kodzie i możliwe do odtworzenia.
+000352.wav|Zacznijmy od brakujących wartości, czyli klasycznych none.
+000353.wav|To jest chyba najczęstszy problem w danych rzeczywistych, bo braki mogą oznaczać zupełnie różne rzeczy.
+000354.wav|Braki pomiaru, uszkodzony czujnik, jakiś nieosiągalny wynik, za mała czułość, pominięta kategoria albo źle sparsowana komórka.
+000355.wav|Dlatego pierwszym krokiem jest tu zawsze policzenie i zrozumienie, gdzie te braki występują, a nie automatyczne ich usuwanie.
+000356.wav|Pandas daje nam kilka podstawowych strategii.
+000357.wav|Każda z tych metod ma sens, ale w innych sytuacjach.
+000358.wav|Usunięcie wierszy może być zalecane przy sporydycznych brakach, ale katastrofalne w skutkach dla danych czasowych z lukami.
+000359.wav|Wypełnienie średnią bywa szybkie, ale będzie spłaszczać nam wariancję.
+000360.wav|Interpolacja bardzo rozsądna może być dla sygnałów i szeregów czasowych, ale nie będzie miała sensu, przynajmniej zazwyczaj dla danych kategoryalnych.
+000361.wav|Dobry analityk nie pyta się tylko jak usunąć NAN, ale co ten konkretny NAN właśnie dla nas znaczy i jak wpłynie na późniejsze wnioski.
+000362.wav|Kolejnym ważnym tematem są duplikaty.
+000363.wav|Tutaj trzeba zachować dużą ostrożność, bo ten duplikat jak mówiliśmy nie zawsze oznacza błąd.
+000364.wav|Czasem to jest rzeczywiście przypadkowo powielony rekord, ale innym razem jest to normalna powtórka pomiaru, prawidłowo przeprowadzona.
+000365.wav|Ale jeszcze innym razem duplikat może istnieć tylko względem jednego identyfikatora, ale nie względem pełnej informacji o próbce.
+000366.wav|Dlatego Pandas daje nam tu narzędzia takie jak Duplicated i Drop Duplicates, które mają możliwość wskazania konkretnych kolumn.
+000367.wav|W praktyce bardzo często interesują nas duplikaty po kluczu biznesowym czy pomiarowym, a nie pełna identyczność całego wiersza.
+000368.wav|Na przykład dwa rekordy z tym samym ID mogą oznaczać problem, nawet jeżeli będą różnić się datą czy metadanymi.
+000369.wav|Z kolei przy danych tekstowych dochodzą jeszcze różnice kosmetyczne.
+000370.wav|Użyte spacje, wielkość liter, warianty zapisu.
+000371.wav|Stal z małej litery, stal z pierwszą dużą literą albo wszystko dużymi literami.
+000372.wav|I dlatego samo oczyszczenie tekstu przez str.strip czy str.title
+000373.wav|I podobne operacje bywa częścią usuwania duplikatów.
+000374.wav|Trzeba zawsze zrozumieć kontekst.
+000375.wav|Czasem zachowujemy pierwszy rekord, czasem ostatni, a czasem musimy zidentyfikować przyczynę duplikacji, który z nich jest faktycznie oryginalny.
+000376.wav|Poprawić może nam to na przykład logikę pozyskiwania danych w przyszłości.
+000377.wav|I tu dochodzimy do obserwacji odstających, czyli outlinerów tak zwanych.
+000378.wav|To jest delikatny temat, bo obserwacja odstająca wcale nie musi być błędem.
+000379.wav|Często nie jest, często właśnie odkrycia naukowe biorą się z znalezienia takich przypadkowych operacji.
+000380.wav|To może sygnalizować jakieś realne, rzadkie zjawisko.
+000381.wav|Dlatego metody typu IQR czy Z-score są tylko narzędziami pomocniczymi, ale nie automatycznymi wyrokami.
+000382.wav|W materiałach widać tu przykład zastosowania metody IQR jako podejście odporne i metodę Z-score jako bardziej związaną z założeniem normalności.
+000383.wav|To są dwie różnice, które właśnie różnią te narzędzia.
+000384.wav|W praktyce ja zawsze chcę zobaczyć takie punkty, a dopiero potem zdecydować co z nimi zrobić.
+000385.wav|Jeżeli taka wartość wynika z uszkodzonego czujnika, to powinien zniknąć.
+000386.wav|To jest bardzo mądra lekcja metodologiczna.
+000387.wav|Dane należy oczyszczać, ale nie sterylizować.
+000388.wav|szczególnie jakoś zbyt agresywnie, bo czasami to, co będzie wyglądać na problem, właśnie jest najważniejszym sygnałem.
+000389.wav|I takie odstające sygnały to nie śmieć do usunięcia, ale kandydat do głębszej interpretacji.
+000390.wav|W czyszczeniu danych bardzo ważne są też operacje na zmiennych tekstowych typu string i kategoriach.
+000391.wav|W praktyce właśnie ogromna liczba problemów bierze się z tego, że taka sama kategoria jest zapisana na kilka różnych sposobów.
+000392.wav|Czasem różni się tylko wielkością liter.
+000393.wav|Na przykład pierwsza litera raz jest z dużej, raz jest z małej.
+000394.wav|skrótem jakimś albo literówką.
+000395.wav|Pandas tu właśnie daje nam bardzo wygodne narzędzia, które przez str pozwalają nam ujednolicać takie kolumny.
+000396.wav|To jest niby drobiazg, ale potrafi całkowicie zmienić jakość późniejszego group by czy merge.
+000397.wav|I jeżeli nie oczyścimy kategorii tekstowych, no to później możemy dostać absurdalne wyniki.
+000398.wav|przez trzy różne grupy, albo ten sam operator rozbity na dwa warianty zapisu, czy taka sama próbka potraktowana jako różne rekordy.
+000399.wav|nie operują na tych danych interpretacji tego, co my widzimy w tym znaku.
+000400.wav|Tam jedna zmiana wielkości znaku czy długości zapisu, dodanie spacji, czynią z tego dwie kompletnie różne zmienne.
+000401.wav|Warto po oczyszczeniu od razu przejść do typu kategorii, bo zyskujemy wtedy nie tylko spójność, ale również mniejsze zużycie pamięci.
+000402.wav|Szybsze operacje grupowania.
+000403.wav|To jest bardzo elegancki też przykład sytuacji, w której taki porządek semantyczny poprawia również wydajność.
+000404.wav|I teraz przechodzimy do transformacji i agregacji.
+000405.wav|To jest serce całej pracy z Pandas, bo właśnie tutaj surowa tabela zaczyna zamieniać się w informacje.
+000406.wav|Tworzenie nowych kolumn, sortowanie, filtrowanie, grupowanie, to wszystko dzieje się właśnie w tym bloku.
+000407.wav|W praktyce te operacje wykonuje się codziennie.
+000408.wav|I najważniejsze z tego jest to, że Pandas pozwala robić większość z tych rzeczy w sposób wektorowy i bardzo czytelny.
+000409.wav|Zamiast pisać długie pętle, budujemy wyrażenia na całych kolumnach i grupach.
+000410.wav|To jest dużo bardziej zgodne z naturą danych tabelarycznych.
+000411.wav|W rezultacie sam kod jest krótszy, szybszy i łatwiejszy do czytania.
+000412.wav|I to jest właśnie styl pracy, do którego chcę Państwa przekonać.
+000413.wav|Transformacje są też tym momentem, w którym analityk naprawdę zaczyna modelować problem.
+000414.wav|Bo nie chodzi już tylko o samoczyszczenie, ale o nadawanie danym nowej struktury.
+000415.wav|Jakieś tworzenie wskaźników, zmiennych, pochodnych, klas jakości, poziomów temperatury czy tabel przekrojowych.
+000416.wav|Jest to dokładnie miejsce, gdzie z danych zaczyna rodzić się wiedza.
+000417.wav|Absolutnie kluczowym narzędziem w Pandas jest group by.
+000418.wav|Jeżeli miałbym wskazać jedną operację, która pokazuje siłę całej tej biblioteki właśnie w analizie danych tabelorycznych, właśnie byłoby to grupowanie połączone z agregacją.
+000419.wav|Dady surowe są zwykle zapisane jako wiele pojedynczych rekordów, pomiarów, obserwacji, transakcji czy wyników eksperymentu.
+000420.wav|Same wiersze rzadko dają jednak pełny obraz.
+000421.wav|Dopiero pogrupowanie ich według istotnych zmiennych pozwala nam zobaczyć strukturę takich danych.
+000422.wav|I właśnie Group By pozwala nam przejść od poziomu pojedynczych obserwacji do poziomu podsumowań.
+000423.wav|To jest podstawowy język dla analizy przekrojowej.
+000424.wav|Dzielimy dane na jakieś sensowne grupy, a następnie opisujemy każdą grupę zestawem statystyk.
+000425.wav|Warto wyjaśnić całą intuicję stojącą za group by.
+000426.wav|Najpierw dane są dzielone według wartości jednej lub kilku kolumn.
+000427.wav|Następnie na każdej grupie wykonywana jest określona operacja, np.
+000428.wav|obliczanie średniej czy liczebności.
+000429.wav|A na końcu te wyniki są składane w nową tabelę.
+000430.wav|I ten temat często określa się jako split, apply, combine.
+000431.wav|Podziel, zastosuj operację i połącz wyniki.
+000432.wav|To jest proste pojęciowo i bardzo wygodne i silne analitycznie.
+000433.wav|Na przykład, jeżeli analizujemy sobie wytrzymałość materiałów, to pojedynczy wiersz może oznaczać jedną próbkę.
+000434.wav|Ale dopiero group by material pozwala zapytać, jaka jest średnia wytrzymałość dla każdego materiału.
+000435.wav|Jeżeli dodamy do tego temperaturę, możemy analizować średnią wytrzymałość dla każdej kombinacji materiału i temperatury.
+000436.wav|Jeżeli dodamy jeszcze operator, możemy sprawdzić, czy te wyniki różnią się między osobami wykonującymi pomiar.
+000437.wav|W ten sposób z surowych rekordów zaczyna już nam się wyłaniać struktura procesu.
+000438.wav|Ważna jest tu również elastyczność takiej agregacji, bo nie jesteśmy ograniczeni do jednej statystyki.
+000439.wav|Możemy jednocześnie policzyć średnią, odchylenie standardowe, minimum, maksimum, liczebność.
+000440.wav|Możemy agregować kilka kolumn naraz.
+000441.wav|Możemy też nadawać własne nazwy wynikom.
+000442.wav|Dzięki temu taka tabela końcowa staje się jeszcze czytelniejsza.
+000443.wav|I to ma znaczenie praktyczne, bo ten wynik group by często trafia później bezpośrednio do raportu, jakiegoś wykresu czy dalszego modelowania.
+000444.wav|Group by jest zazwyczaj pierwszym krokiem od danych surowych do tabeli interpretacyjnej.
+000445.wav|jakiegoś człowieka, średni czas reakcji w jakichś grupach eksperymentalnych, albo udział kategorii w różnych warunkach.
+000446.wav|I to pozwala nam szybko przejść od pytania, co jest w tabeli,
+000447.wav|do tego jaki wzorzec pokazują nasze dane.
+000448.wav|Trzeba jednak pamiętać, że ta agregacja zawsze upraszcza dane, bo średnia dla grupy może być użyteczna, ale może też ukryć rozkład.
+000449.wav|Nie pokaże nam wartości odstających albo nierówną liczebność.
+000450.wav|Dlatego po group by warto patrzeć nie tylko na średnie, ale właśnie też na te liczebności i zmiary zmienności.
+000451.wav|różne właśnie odchylenia standardowe.
+000452.wav|Szczególnie użyteczne jest też grupowanie po kilku kolumnach.
+000453.wav|To pozwala analizować interakcje pomiędzy warunkami.
+000454.wav|Na przykład sama średnia wytrzymałość materiału może nie wystarczyć, jeżeli materiał ten jest silnie zależny od temperatury.
+000455.wav|Grupowanie po materiale i temperaturze pozwala zobaczyć właśnie, czy ten materiał zachowuje stabilność w różnych warunkach.
+000456.wav|czy jego parametry się właśnie gwałtownie zmieniają.
+000457.wav|I w analizie eksperymentalnej to często jest kluczowy właśnie etap przed wykonaniem tych wykresów i modeli.
+000458.wav|A group by bardzo dobrze łączy się z wizualizacją.
+000459.wav|Wyniki takiej agregacji mogą być podstawą wykresu słupkowego, liniowego czy punktowego.
+000460.wav|Hitmapy czy też wykresu z przedziałami ufności.
+000461.wav|Właśnie dlatego grupowanie jest tym pomostem,
+000462.wav|pomiędzy surową tabelą a komunikatem wynikającym z wyników.
+000463.wav|Warto też wspomnieć tu o metodzie AGG, która daje dużą kontrolę nad właśnie agregacją.
+000464.wav|Możemy określać różne funkcje dla różnych kolumn, zastosować też wiele funkcji naraz albo stworzyć w ogóle własne funkcje agregujące.
+000465.wav|I dzięki temu biblioteka GroupBy nie ogranicza się tylko do prostego obliczania średniej.
+000466.wav|Może nam służyć do budowania pełnych tabel podsumowujących.
+000467.wav|takich liczby obserwacji, średniej mediany odchyleń, przedziałów ufności i jakichś niestandardowych wskaźników domenowych zależności od branży.
+000468.wav|To jest też dobry moment, żeby wspomnieć o wydajności, bo dobrze ustawione typy danych mają bardzo duże znaczenie.
+000469.wav|Jeżeli kolumna zawiera powtarzające się wartości tekstowe, np.
+000470.wav|nazwy materiałów, grup eksperymentalnych czy kategorii, no to warto użyć tu typu category.
+000471.wav|To może znacząco zmniejszyć zużycie pamięci, bo dla każdej komórki nie jest tworzona osobna zmienna, tylko przypisana jedna kategoria.
+000472.wav|Przyśpieszy nam to wszystkie operacje później grupowania.
+000473.wav|I to właśnie pokazuje, że to wcześniejsze czyszczenie i porządkowanie typów nie było samym dodatkiem, ale inwestycją w dalszą analizę.
+000474.wav|I ta wydajność jest szczególnie ważna przy właśnie dużych zbiorach danych.
+000475.wav|Na małej tabeli te różnice mogą być niezauważalne.
+000476.wav|Dlatego sama analiza w PANDAS nie polega na znajomości funkcji dostępnych.
+000477.wav|Polega właśnie na zrozumieniu bardziej struktury danych i konsekwencji obliczeniowych dla użytych przez nas operacji.
+000478.wav|Group by pozwala nam przekształcić te surowe dane
+000479.wav|poszczególne warunki, no i gdzie w danych widać najważniejszą strukturę.
+000480.wav|Kolejnym bardzo ważnym zestawem są narzędzia Pivot Table, Melt, Stack i Unstack.
+000481.wav|To są operacje, które pozwalają nam przekształcać dane pomiędzy układem szerokim a długim.
+000482.wav|W praktyce to jest ważne z tego względu, że algorytmy i wykresy lepiej działają na danych długich, a nie na szerokich.
+000483.wav|Pandas daje nam możliwość płynnego przechodzenia pomiędzy tymi dwoma reprezentacjami.
+000484.wav|Pivot table jest świetny do tworzenia zestawień przekrojowych.
+000485.wav|Tam w wierszach mamy materiał, w kolumnach np.
+000486.wav|numer próby albo temperaturę, a komórki nam mówią o wartości średniej.
+000487.wav|Belt robi odwrotny ruch, zamienia wiele kolumn warunków w jedną kolumnę opisującą ten warunek i jedną kolumnę wartości.
+000488.wav|To jest przydatne przy pracy właśnie z Seabornem, statystyką, modelami, które oczekują danych w układzie długim.
+000489.wav|Czasem samo przejście z szerokiego do długiego typu formatu radykalnie upraszcza naszą analizę.
+000490.wav|I to jest jeden z tych momentów, w których ten pandas naprawdę pokazuje, jak fajnym narzędziem do modelowania struktury danych jest.
+000491.wav|Z kolei Apply, MP Select, Cut, Q Cut to są ogólnie narzędzia do tworzenia nowych cech.
+000492.wav|To jest ważny obszar, bo tutaj też ta tabela zaczyna zyskiwać nową warstwę znaczeniową.
+000493.wav|Możemy sklasyfikować wartości jako różne.
+000494.wav|Możemy sklasyfikować wartości jako właśnie różne wskaźniki, czy to energetyczne, logarytmować sygnały, dzielić te dane na przedziały.
+000495.wav|W praktyce jest to jeden z najczęstszych rodzajów transformacji.
+000496.wav|Chciałbym jednak mocno podkreślić jedną zasadę.
+000497.wav|Jeżeli tylko można, należy zawsze preferować te operacje wektorowe zamiast apply po wierszach.
+000498.wav|Apply jest wygodne, ale przy dużych danych bywa znacznie wolniejsze niż działanie na całej kolumnie.
+000499.wav|I to jest ważna różnica, no bo Panda zachęca nas do myślenia kolumnowego, a nie rekordowego.
+000500.wav|Właśnie dlatego te przykłady pokazują kontrast pomiędzy podejściem wolniejszym i szybszym.
+000501.wav|Samo tworzenie cech nie jest też czynnością czysto techniczną, bo to jest bardzo często właśnie ten moment, w którym nasza wiedza domenowa spotyka się z danymi.
+000502.wav|Bo to my decydujemy, które przekształcenie ma sens fizyczny, które kategorie są istotne i jaka skala najlepiej oddaje relacje w danych.
+000503.wav|Biblioteka daje nam narzędzia, ale sens danym nadaje analityk.
+000504.wav|pomagają pisać nam kod bardziej czytelny, uporządkowany i często także wydajniejszy.
+000505.wav|Są to narzędzia, które nie zawsze pojawiają się na samym początku nauki biblioteki.
+000506.wav|ale w praktycznej analizie szybko okazują się bardzo użyteczne.
+000507.wav|nawiasami i zmiennymi tymczasowymi.
+000508.wav|Query służy do filtrowania danych za pomocą wyrażeń tekstowych.
+000509.wav|w bardziej zwartej postaci.
+000510.wav|Przykładowo, zamiast budować długą maskę logiczną, możemy napisać warunek przypominający zdanie.
+000511.wav|Wybierz obserwacje, dla których temperatura jest większa od określonej wartości, materiał należy do danej grupy, a wynik pomiaru nie przekracza ustalonego progu.
+000512.wav|I to jest szczególnie przydatne właśnie wtedy, gdy warunków jest kilka.
+000513.wav|W klasycznym zapisie pandas łatwo popełnić błąd przez brak nawiasu.
+000514.wav|Pomylenie operatora, również nieczytelną strukturę wyrażenia, to się zdarza.
+000515.wav|Query pozwala nam skrócić ten zapis i wyraźniej pokazać intencję analityczną.
+000516.wav|Kod staje się wtedy bliższy pytaniu badawczemu.
+000517.wav|Mówimy wprost, wybierz próbki aluminiowe badane powyżej 100 stopni.
+000518.wav|Albo zostaw obserwacje tylko z grupy kontrolnej, w których wynik mieści się w dopuszczalnym zakresie.
+000519.wav|EVAL działa podobnie, ale jego głównym zastosowaniem jest wykonywanie wyrażeń na kolumnach.
+000520.wav|Pozwala on nam tworzyć nowe zmienne albo obliczać wartości na podstawie istniejących kolumn w zwartej formie.
+000521.wav|jakiś po prostu znormalizowany wskaźnik.
+000522.wav|I zamiast pisać kilka technicznych przypisań, można wyrazić taką operację w sposób bardziej bezpośredni.
+000523.wav|Zarówno Ival jak i Query mogą być korzystne także wydajnościowo.
+000524.wav|Zwłaszcza przy większych zbiorach zadań to wyjdzie.
+000525.wav|Ale i prostych operacjach numerycznych.
+000526.wav|Pandas może w niektórych przypadkach używać bardziej zoptymalizowanego mechanizmu obliczeń.
+000527.wav|Na przykład poprzez numExpr.
+000528.wav|To jest nie zawsze jednak należy traktować tego jako gwarancji automatycznego przyspieszenia w każdej sytuacji.
+000529.wav|Trzecim bardzo ważnym narzędziem jest PIPE.
+000530.wav|Jego rola jest nieco inna, bo pipe pozwala budować czytelne potoki przetwarzania danych.
+000531.wav|Zamiast tworzyć wiele zmiennych pośrednich albo zagnieżdżać wywołania funkcji, możemy przekazywać data frame oraz kolejne etapy transformacji.
+000532.wav|Każdy etap może być taką osobną funkcją.
+000533.wav|Czyszczenie nazw kolumn, filtrowanie danych, uzupełnienie braków, tworzenie nowych zmiennych, agregacja, standaryzacja, czy po prostu przygotowanie jakiejś tabeli końcowej.
+000534.wav|I takie podejście fajnie wspiera reprodukowalność analizy.
+000535.wav|Bo jeżeli każdy krok pipeline'u jest nazwany i zapisany już jako funkcja, no to kod staje się łatwiejszy do czytania, testowania i poprawiania.
+000536.wav|Zamiast jednego długiego bloku operacji widzimy sekwencję logicznych etapów.
+000537.wav|Można ją czytać niemal jak opis procedury badawczej.
+000538.wav|Wczytaj dane, oczyść wartości, wybierz poprawne odpowiedzi o obserwacje, przelicz sobie jednostki dalej, dodaj jakieś wskaźniki i przygotuj do wizualizacji.
+000539.wav|W praktyce warto korzystać z tych narzędzi, szczególnie wtedy, gdy chcemy zachować kąt bliski językowi problemu.
+000540.wav|W analizie danych czytelność ma bardzo duże znaczenie, no bo kod jest zwykle wielokrotnie przeglądany przez różne osoby, ale i modyfikowany i uruchamiany też ponownie.
+000541.wav|Często też wracamy do analizy po kilku różnych dniach albo przekazujemy ją innej osobie, która dalej ma poprowadzić dane zagadnienie.
+000542.wav|Jeżeli taki kod składa się z nieczytelnych masek logicznych,
+000543.wav|tymczasowych, zmiennych i powtarzających się operacji, to bardzo trudno jest ocenić, co naprawdę zostało zrobione.
+000544.wav|Dlatego warto przypomnieć tą słynną zasadę, że kod czyta się częściej niż się go pisze.
+000545.wav|Więc oszczędność nawet kilku sekund podczas pisania nie jest tak ważna, jak możliwość szybkiego zrozumienia tego kodu później podczas czytania.
+000546.wav|I tutaj query, eval i pipe pomagają właśnie w tym.
+000547.wav|Ograniczają ten techniczny szum, eksponują intencję analityczną.
+000548.wav|Dzięki nim łatwiej jest nam zobaczyć, jakie obserwacje wybrano, jakie zmienne obliczono i jakie etapy przetwarzania już wykonano.
+000549.wav|Nie znaczy to, że należy używać tych narzędzi zawsze.
+000550.wav|Prosty wybór jednej kolumny albo bardzo krótki warunek można zapisać klasycznie.
+000551.wav|Query i Ival najbardziej przydatne są wtedy, gdy to wyrażenie logiczne lub obliczeniowe jest dużo dłuższe.
+000552.wav|Pipe sprawdzi się szczególnie w jakichś analizach wieloetapowych, gdzie te dane przechodzą przez kilka kolejnych transformacji.
+000553.wav|Dobra praktyka polega więc na tym, aby wybierać zapis, który najlepiej ujawnia sens tej operacji.
+000554.wav|I tu warto również przypomnieć, że zarówno czytelność, jak i wydajność nie muszą się wykluczać.
+000555.wav|Pandas bardzo często da osiągać oba te cele równocześnie.
+000556.wav|Jeżeli korzystamy z narzędzi idiomatycznych dla tej biblioteki, kod idiomatyczny to taki, który wykorzystuje naturalny styl pracy danego narzędzia.
+000557.wav|To zamiast przenosić do niego nawyki z innych środowisk,
+000558.wav|oraz budowanie czytelnych pipeline'ów.
+000559.wav|Więc query, eval i pipe nie są tylko dodatkami składniowymi.
+000560.wav|To są narzędzia organizacji naszego myślenia analitycznego.
+000561.wav|Pomagają nam pisać kod, który znacznie lepiej prezentuje intencje, łatwiej się czyta, łatwiej się odtwarza i rozwija później.
+000562.wav|I teraz przechodzimy do łączenia zbiorów danych.
+000563.wav|w naszej praktyce, bo bardzo rzadko wszystkie potrzebne informacje zmieszczą się nam w jednej tabeli.
+000564.wav|Zwykle mamy osobno pomiary, ale osobno informacje o materiale, osobno operatorów, parametry czasowe z jakiegoś innego źródła.
+000565.wav|No i dlatego ten merge, join i concat są tutaj tak ważne, bo to one nam pozwalają budować jedną spójną strukturę z wielu częściowych źródeł.
+000566.wav|I to jest też bardzo fajny przykład tego, że analiza danych jest często bardziej problemem integracji niż czystego modelowania.
+000567.wav|Bo jeżeli źle połączymy tabelę, no to późniejsze statystyki, wykresy będą błędne, niezależnie od ich elegancji matematycznej.
+000568.wav|I w tym bloku omówimy sobie nie tylko składnie, ale rozumienie kluczy, relacji i typów złączeń.
+000569.wav|W praktyce warto przyjąć takie podejście zawsze bardzo ostrożne.
+000570.wav|Każde połączenie tabel należy traktować jak operację krytyczną.
+000571.wav|Trzeba wiedzieć po czym łączymy, jaki jest oczekiwany typ tej relacji i czy liczba rekordów po złączeniu ma sens.
+000572.wav|I to jest jedna z najważniejszych rzeczy, które z tego bloku będzie warto wyciągnąć.
+000573.wav|Najczęściej używanym narzędziem jest merge, który działa podobnie do klasycznych złączeń SQL.
+000574.wav|Możemy wykonywać left, inner, right, outer join, a typ złączenia decyduje nam, które rekordy przejdą dalej.
+000575.wav|Left join będzie szczególnie popularny, bo zachowuje pełen zbiór główny i dołącza dodatkowo do niego tylko to, co pasuje z tabeli pomocniczej.
+000576.wav|Tutaj widzimy właśnie prosty przykład łączenia siły z temperaturą po czasie.
+000577.wav|Ale w praktyce identyczny schemat działa dla bardzo złożonych danych, jakichkolwiek innych.
+000578.wav|Bardzo ważne jest zrozumienie kluczy.
+000579.wav|Jeżeli łączę po czas s w sekundach, no to muszę mieć pewność, że to rzeczywiście jest wspólna oś danych.
+000580.wav|Jeżeli łączę po ID, no to muszę wiedzieć, czy identyfikator jest unikalny, czy może występować wielokrotnie.
+000581.wav|W przeciwnym razie mogę niechcący zwielokrotnić rekordy.
+000582.wav|To jest jeden z najczęstszych błędów początkujących właśnie.
+000583.wav|Technicznie złącze zadziała, ale logicznie da fałszywy wynik.
+000584.wav|Warto też pamiętać, że join jest wygodny przy pracy na indeksach.
+000585.wav|CONCAT bardziej służy do sklejania obiektów wzdłuż jakiejś osi.
+000586.wav|Każde z tych narzędzi ma swoje miejsce jakieś.
+000587.wav|I dlatego jak zwykle warto zacząć od pytania, czy ja łączę dane po kluczu, czy tylko dokładam jedną tabelę obok drugiej.
+000588.wav|To jaka brzmi na nie odpowiedź, to podpowiada nam, które narzędzie będzie właściwsze.
+000589.wav|W bardzo dojrzałej pracy z danymi samo wykonanie tego merge już nie wystarcza.
+000590.wav|To, że pandas zwrócił wynik bez błędu, nie oznacza jeszcze, że połączenie jest poprawne merytorycznie.
+000591.wav|Po każdym ważnym złączeniu trzeba sprawdzić, czy relacja pomiędzy tabelami miała oczekiwaną strukturę.
+000592.wav|Jeden do innego, jeden do wielu, wiele do jednego, tak wiele do wielu.
+000593.wav|Każde z tych przypadków ma inne konsekwencje dla liczby wierszy i interpretacji danych.
+000594.wav|To jest szczególnie ważne wtedy, gdy łączymy dane pomiarowe z tabelami opisowymi.
+000595.wav|Na przykład z informacjami o materiałach, ludziach, urządzeniach czy próbkach.
+000596.wav|Jeżeli każda próbka ma dokładnie jeden opis materiału, to oczekujemy relacji wiele do jednego.
+000597.wav|Wiele pomiarów może odnosić się do jednego materiału.
+000598.wav|Wynik nadal będzie wyglądał jak poprawna tabela, ale liczba obserwacji zostanie sztucznie zwiększona.
+000599.wav|I właśnie takie błędy są niebezpieczne, ponieważ często nie spowodują natychmiastowego komunikatu o błędzie.
+000600.wav|Agregacje zwracają wyniki.
+000601.wav|Model może być wytrenowany.
+000602.wav|Ale problem polega na tym, że wszystkie kolejne kroki
+000603.wav|są już oparte wtedy na zniekształconych danych.
+000604.wav|Przypadkowe złączenie kartezjańskie, powielenie obserwacji albo utrata części rekordów całkowicie już pozmienia nam średnie liczebności, proporcje, no i same wyniki.
+000605.wav|I dlatego w Pandas warto korzystać z mechanizmów walidacji złączeń.
+000606.wav|Właśnie parametr validate pozwala jawnie określić, jakiej relacji oczekujemy.
+000607.wav|Na przykład one-to-one, one-to-many, many-to-one i many-to-many.
+000608.wav|Jeżeli rzeczywista struktura danych nie pasuje do tej deklaracji walidacyjnej, to pandas zgłosi nam błąd.
+000609.wav|I to jest bardzo dobra praktyka, ponieważ zmusza nas do nawiązania oczekiwanej relacji i zabezpiecza od razu przed niekontrolowanym zwielokrotnieniem danych.
+000610.wav|Warto również używać parametru indicator równa się true.
+000611.wav|On nam daje dodatkową kolumnę informującą skąd pochodzi dany rekord po złączeniu.
+000612.wav|I dzięki temu możemy sobie sprawdzić, które obserwacje zostały dopasowane w obu dwóch tabelach, które wystąpiły tylko po lewej stronie, a które tylko po prawej.
+000613.wav|Jest to bardzo przydatne, szczególnie przy diagnozowaniu jakichś brakujących kluczy.
+000614.wav|Literówek w identyfikatorach, niepełnych słowników, kategorii albo po prostu różnic pomiędzy różnymi wersjami danych.
+000615.wav|Złączenie należy traktować nie tylko jako samą operację techniczną, ale jako bardzo...
+000616.wav|Złączenie należy traktować nie tylko jako samą techniczną operację, ale jako bardziej operację semantyczną.
+000617.wav|Połączenie tabeli pomiarów z tabelą materiałów nie jest zwykłym doklejeniem kolumn.
+000618.wav|to przypisanie każdej obserwacji dodatkowego kontekstu.
+000619.wav|I w ten sposób tworzymy jakiś model danych.
+000620.wav|Jeżeli złączenie wykonamy poprawnie, zyskujemy bardzo silną bazę do dalszej analizy eksploracyjnej.
+000621.wav|jakiejś statystyki, wizualizacji czy uczenia maszynowego.
+000622.wav|Jeżeli jednak to złączenie wykonamy błędnie, to wszystkie te analizy będą metodologicznie niewiarygodne i do niczego się nam nie przydadzą.
+000623.wav|Dlatego dobrym nawykiem jest wykonywanie tej krótkiej kontroli po każdym ważnym merdżu.
+000624.wav|Sprawdzamy liczbę wierszy przed i po złączeniu.
+000625.wav|Jeżeli liczba rekordów zmieniła się, powinniśmy wiedzieć dlaczego.
+000626.wav|Następnie sprawdzamy liczbę braków w nowych kolumnach.
+000627.wav|Braki mogą oznaczać, że część kluczy nie znalazła do pasowania w drugiej tabeli.
+000628.wav|Potem warto też obejrzeć kilka przykładowych rekordów, na przykład z końca, z początku.
+000629.wav|Można też poprawnie połączonych, jak i problematycznych przyjrzeć się.
+000630.wav|I to jest bardzo prosta procedura, ale bardzo skuteczna.
+000631.wav|I w praktyce doświadczeni analitycy często traktują te kontrole jako taki stały rytuał.
+000632.wav|Po złączeniu sprawdzają shape, sprawdzają rozkład wartości w kolumnie, liczbę braków, unikalność kluczy i jakieś kilka losowych rekordów.
+000633.wav|I dzięki temu właśnie błędy są wykrywane natychmiast, a nie dopiero na etapie modelu czy nawet raportu.
+000634.wav|To bardzo oszczędza czas, ponieważ te błędy w złączeniach należą do tych, które potrafią się najdłużej ukrywać właśnie w naszych całych procesach
+000635.wav|całym pipeline'ie analitycznym.
+000636.wav|Warto też zwrócić uwagę na klucze łączenia, bo mimo, że występują w nich błędy, to zdarza się, no to trzeba próbować z tym błędem jakoś zapobiegać.
+000637.wav|Klucze zawsze powinny być jednoznaczne, spójnie zapisane i mieć właściwy, określony typ danych.
+000638.wav|Ten sam identyfikator zapisany raz jako liczba, a raz jako tekst,
+000639.wav|może uniemożliwić poprawne dopasowanie.
+000640.wav|właśnie do braku w pozłączeniu.
+000641.wav|Dlatego dobre przygotowywanie tych kluczy jest częścią też czyszczenia danych, a nie jakimś osobnym problemem technicznym.
+000642.wav|Merge nie jest więc tylko operacją składniową.
+000643.wav|To jest cały moment, w którym my definiujemy relacje pomiędzy te tabelami i budujemy sobie strukturę całego zbioru do dalszej analizy.
+000644.wav|Poprawne wzłączenie wzbogaca dane o kontekst.
+000645.wav|Błędnie może niezauważalnie początkowo albo i na dłuższą metę zniekształcić całą naszą analizę.
+000646.wav|I teraz przejdźmy do szeregów czasowych.
+000647.wav|Zaczynamy myśleć nie tylko o wierszach, ale o godzinach, dniach, miesiącach i jakichś ramkach czasowych, oknach czasowych.
+000648.wav|To otwiera nam drogę do operacji, które były znacznie trudniejsze w zwykłej tabeli bez jakiegoś indeksu czasowego.
+000649.wav|W praktyce bardzo dużo danych technicznych, inżynierskich czy naukowych ma właśnie taki charakter.
+000650.wav|Sygnały z czujników, dane pogodowe, logi procesowe, rejestry.
+000651.wav|Wszystko są jakieś procesy w czasie.
+000652.wav|Dobrze ustawiony indeks czasowy porządkuje nam całą analizę i pozwala wykonywać agregacje w sposób naturalny.
+000653.wav|I to jest fajny przykład tego, jak reprezentacja danych właśnie decyduje o jakości późniejszych operacji.
+000654.wav|Praca z czasem bardzo szybko zawsze ujawnia nam problemy jakości danych.
+000655.wav|dodatkowy wymiar biorący udział w analizie, a nie jako samą kolumnę tekstową.
+000656.wav|Najważniejsze operacje czasu w bibliotece Pandas to resample, rolling, shift i div.
+000657.wav|Resample pozwala nam zmieniać częstotliwość danych, na przykład z minutowej na dzienną, czy dziesięciominutową, z jednoczesną agregacją naszych danych.
+000658.wav|To jest bardzo użyteczne, gdy chcemy przejść od surowych pomiarów do jakiegoś trendu, albo porównać bloki czasowe.
+000659.wav|W materiałach bardzo często można zobaczyć tutaj przykład średniej co 10 minut.
+000660.wav|Dokładnie ta sama logika dla danych pogodowych, procesowych, telemetrycznych.
+000661.wav|Na właśnie takim przykładzie jest to najczęściej tłumaczone wszelkim młodym analitykom.
+000662.wav|Shift stworzy nam takie lagi, a Diff różnicę pomiędzy kolejnymi obserwacjami.
+000663.wav|I to wszystko to jest język analizy dynamicznej.
+000664.wav|Z praktycznego punktu widzenia to jest ogromnie ważne, bo Pandas nie ogranicza się tylko do przechowywania tych danych czasowych.
+000665.wav|On nam daje cały zestaw operacji, które są właśnie naturalne dla sygnałów i procesów.
+000666.wav|I dlatego tak dobrze to łączy się później ze statystyką DSP czy uczeniem maszynowym.
+000667.wav|W bardziej zaawansowanej analizie czasu dochodzą nam dekompozycje, ARIMA, EWM, PROFET czy wykrywanie anomalii.
+000668.wav|Materiał końcowy wyraźnie wskazuje, że Pandas fajnie współpracuje tutaj właśnie ze State Models czy innymi bibliotekami analitycznymi.
+000669.wav|A to jest właśnie ważne, dlatego że Pandas przecież nie działa w izolacji.
+000670.wav|Nie jest to narzędzie wykorzystywane tylko i wyłącznie wybiórczo.
+000671.wav|Ono jest potrzebne, żeby te dane zorganizować, a potem przekazać dalej do już wyspecjalizowanych narzędzi modelowania.
+000672.wav|Więc analiza szeregów czasowych to nie jest tylko wykres trendu.
+000673.wav|To jest bardzo bogaty obszar obejmujący stacjonarność, sezonowość, autokorelacje, wygładzanie wykładnicze i całe prognozowanie.
+000674.wav|Bez tego dalsze modelowanie jest dużo mniej wygodne.
+000675.wav|I dlatego zanim uruchomi się model Arima czy inną metodę predykcyjną,
+000676.wav|I teraz przechodzimy do ADA, czyli eksploracyjnej analizy danych.
+000677.wav|To jest moment, w którym pandas przestanie być tylko narzędziem porządkowania, ale zacznie pomagać już w formułowaniu pytań badawczych.
+000678.wav|I tutaj zaczynamy już trochę rozumieć te nasze dane, a nie po prostu je jeszcze przechowywać.
+000679.wav|I to jest bardzo ważne, ponieważ ADA, czyli eksploracyjna analiza danych, nie jest luksusem dodatkowym, ani jakimś etapem opcjonalnym.
+000680.wav|To powinien być podstawowy element rzetelnej pracy z danymi.
+000681.wav|Bez eksploracji bardzo łatwo jest przegapić relacje, skośności rozkładów, nieliniowości, segmentację grup albo nietypowe obserwacje.
+000682.wav|I w praktyce bardzo wiele trafnych hipotez rodzi się właśnie na etapie tego wizualnego i tabelarycznego oglądu danych.
+000683.wav|już potrafi wykryć część rzeczy, część rzeczy dostrzec, ale i wnioskować o nich.
+000684.wav|Pandas działa tu bardzo dobrze właśnie dlatego, że łączy te obliczenia z wygodą semantyczną.
+000685.wav|Mogę więc szybko stworzyć statystyki opisowe, korelacje, wykresy i od razu zobaczyć już jak zachowują się konkretne grupy takich materiałów czy jakieś warunki procesu.
+000686.wav|A to jest bardzo użyteczne w praktyce.
+000687.wav|Bardzo wygodnym punktem startowym w wizualizacji jest DF plot.
+000688.wav|Nie zastąpi ono nam nigdy matplotlib'a ani seaboard'a, ale daje bardzo szybki sposób na to pierwsze spojrzenie na dane.
+000689.wav|sprawdzić, czy te dane mają po prostu sensową strukturę.
+000690.wav|I w wielu sytuacjach jedna komenda wystarczy, aby zobaczyć właśnie już trend, rozkład, różnice pomiędzy grupami, no albo potencjalne jakieś wartości odstające.
+000691.wav|Warto tu wyjaśnić, że df.plot jest interfejsem pandas, ale opartym na matplotlibie.
+000692.wav|To oznacza, że korzystamy tu z prostoty pandas, ale pod spodem nadal działa mechanizm matplotlib.
+000693.wav|Dzięki temu możemy bardzo szybko utworzyć wykres liniowy, histogram, wykres słupkowy, pudełkowy i te wszystkie obsługiwane przez bibliotekę Matplotlib.
+000694.wav|przy jak najmniejszym wydatku czasu taki wykres zrobić.
+000695.wav|czy wartości nie wychodzą poza jakiś realistyczny obszar, czy zakres, czy jakaś kategoria jest większa od drugiej.
+000696.wav|Wykres taki nie będzie jeszcze gotowy do publikacji, bo jego zadaniem jest tylko pomóc analitykowi zorientować się z czym on pracuje.
+000697.wav|DF plot dobrze wspiera też iteracyjny styl pracy.
+000698.wav|W analizie danych rzadko od razu wiemy jaki wykres będzie najlepszy.
+000699.wav|Często zaczynamy od prostego jakiegoś obrazu.
+000700.wav|Zauważymy coś ciekawego, interesującego, przefiltrujemy dane, zgrupujemy je, przeliczymy jakiś dodatkowy wskaźnik i ponownie będziemy rysować kolejny wykres.
+000701.wav|I Pandas fajnie obsługuje taki rytm pracy, ponieważ pozwala szybko przechodzić właśnie od tabeli do wizualizacji i z powrotem.
+000702.wav|Wykres liniowy zazwyczaj będzie naszym pierwszym wyborem, szczególnie dla danych uporządkowanych w czasie albo według jakichś kolejnych pomiarów.
+000703.wav|Histogram szybko pozwoli nam ocenić rozkład zmiennej numerycznej.
+000704.wav|Słupkowy wykres, no to z kolei nam pokazuje liczebność kategorii albo jakieś zagregowanie wartości.
+000705.wav|Boxplot bardzo fajnie będzie pokazywał rozrzut i wartości odstające.
+000706.wav|Scatterplot będzie ujawniał zależności pomiędzy dwiema zmiennymi na przykład.
+000707.wav|Wszystkie te formy są dostępne w Pandas bez konieczności wychodzenia poza tą bibliotekę, a to obniża próg wejścia i przyspiesza samą analizę.
+000708.wav|Później oczywiście naturalnie przechodzimy do Seaborna i Matplotlib, gdy potrzebujemy jeszcze głębszej kontroli albo lepszej semantyki statystycznej.
+000709.wav|rozkładów albo bardziej jakieś zaawansowane wizualizacje statystyczne.
+000710.wav|Matplotlib daje nam jeszcze większą kontrolę nad całym obszarem, adnotacjami, osiami, ale i eksportem, stylem publikacyjnym.
+000711.wav|to jest dobrym narzędziem roboczym, który...
+000712.wav|Zastępuje tamte bardziej skomplikowane narzędzia na potrzeby szybkiego rzutu oka.
+000713.wav|I to jest bardzo przydatne, szczególnie na początku.
+000714.wav|Tu właśnie ten minimalny koszt wejścia jest jego największą zaletą, bo jedna komenda tylko potrafi dać nam pierwszy obraz danych.
+000715.wav|To ma bardzo duże znaczenie praktyczne.
+000716.wav|Szybka wizualizacja kontrolna już nam pozwala wykrywać problemy, które nie zauważymy w samej tabeli.
+000717.wav|Możemy też zobaczyć jakiś nietypowy skok wartości, braki danych w określonym obszarze, okresie, czy asymetrię rozkładów.
+000718.wav|I to jest, bywa bardzo przydatne.
+000719.wav|I tu warto podkreślić, że ten wykres nie musi być jeszcze estetycznie dopasowany, bo nie każdy wykres powstaje przecież po to, aby trafić do raportu czy artykułu.
+000720.wav|Bo czasami on ma tylko pełnić tu funkcję diagnostyczną.
+000721.wav|Ma odpowiedzieć nam na pytanie, czy dane wyglądają tak, jak się spodziewaliśmy.
+000722.wav|Czy warto coś pociągnąć dalej, czy analizować jakąś zależność dalej?
+000723.wav|Czy potrzebujemy wyczyszczenia, może jeszcze lepszego filtrowania, albo może jakiejś transformacji.
+000724.wav|No i w takim zastosowaniu to szybkość pracy jest ważniejsza niż ten perfekcyjny wygląd.
+000725.wav|Ciekawostką jest to, że wiele dobrych decyzji analitycznych
+000726.wav|zaczyna się właśnie i opiera na tych prostych wykresach, niemal roboczych.
+000727.wav|Więc w tym sensie ten nasz DF plot jest naszęciem eksploracji, a nie już końcowej komunikacji wyników.
+000728.wav|Trzeba też jednak mieć na uwadze istniejące ograniczenia.
+000729.wav|Domyślne wykresy PANDAS nie są zazwyczaj wystarczająco opisane.
+000730.wav|Są ubogie w opisy.
+000731.wav|Nie są też estetyczne albo jakoś statystycznie adekwatne.
+000732.wav|Mogą wymagać poprawiania dodatkowych etykiet osi, jednostek, skal, zakresów.
+000733.wav|więc nie należy ich traktować jako czegoś, co a nóż już możemy wrzucić do publikacji.
+000734.wav|Warto spojrzeć tu też na cały wykład z perspektywy większego takiego procesu workflow.
+000735.wav|Bo w praktyce Pandas działa jak właśnie ta warstwa organizacyjna pomiędzy światem surowych danych, a światem modeli, analizy, statystyki i dalszej wizualizacji.
+000736.wav|To widzieliśmy już na wcześniejszych przykładach integracji właśnie z SciPy.
+000737.wav|Jakimś filtrowaniem sygnału korelacji miałabym liczonymi w kolumnach dataframe.
+000738.wav|To jest bardzo ważne, bo pokazuje nam, że Topandas nie jest tą odizolowaną wyspą od reszty, tylko elementem większego ekosystemu.
+000739.wav|W danych eksperymentalnych typowy właśnie proces wygląda tak,
+000740.wav|Później, jeszcze później wizualizacja, tak, raport i wykres.
+000741.wav|I jeżeli ten schemat stanie się dla Was naturalny, no to dużo łatwiej będzie później przejść do bardziej zamasowanych tematów, takich jak statystyka, metody numeryczne,
+000742.wav|przy uczeniu maszynowym.
+000743.wav|Kolejnym bardzo ciekawym narzędziem jest automatyczne profilowanie danych np.
+000744.wav|Równolegle bardzo interesujące są możliwości narzędzia Styler, czyli stylizowania tabel.
+000745.wav|jednostek i już jakimś eksportem do Excela czy HTMLa.
+000746.wav|I to jest szczególnie przydatne właśnie tam, gdzie odbiorca końcowy oczekuje nie tylko modelu, ale eleganckiego jakiegoś raportu tabelarycznego.
+000747.wav|Więc sama analiza danych nie kończy się nigdy na liczbach.
+000748.wav|W praktyce często trzeba przygotować taki wynik w formie użytecznej dla innych.
+000749.wav|I Pandas jak najbardziej obsługuje tą stronę zarówno podstawowo wizualną, jak i upiększenie samych danych tabelarycznych.
+000750.wav|Tutaj warto też przypomnieć o znów replikowalności, bo wszystkie te kroki warto wykonywać zawsze w kodzie, a nie ręcznie.
+000751.wav|W szerszym tym krajobrazie danych warto wiedzieć, że sam pandas nie jest jedynym narzędziem do pracy z danymi tabelarycznymi.
+000752.wav|Obok niego rozwijają się też inne biblioteki, silniki całych przetwarzania danych.
+000753.wav|Mamy na przykład Polars, Dask, DuckDB czy jakieś rozwiązania oparte na Apache Arrow.
+000754.wav|Polars zostało jakby wskazane jako jedna z najszybszych alternatyw dla niektórych zastosowań tabelarycznych.
+000755.wav|W wielu operacjach grupowania, filtrowania i przekształcania danych potrafi działać bardzo, bardzo wydajnie.
+000756.wav|a to wynika właśnie z tej nowoczesnej architektury, z tym, że optymalizuje ona zapytania i tego, że jest bardzo silnie powiązana z formatami kolumnowymi.
+000757.wav|To pokazuje, że ten cały ekosystem nie jest jeszcze aż tak ustandaryzowany i znormalizowany.
+000758.wav|On się cały czas rozwija, nie stoi w miejscu, więc analityk zawsze musi mieć świadomość, że będą istnieć różne rozwiązania do różnych skal problemu.
+000759.wav|Jednocześnie sam Pandas pozostaje jednak standardem.
+000760.wav|Po pierwsze jest bardziej dojrzałą biblioteką.
+000761.wav|Po drugie ma olbrzymie zaplecze dokumentacyjne.
+000762.wav|Masa kursów, liczne przykłady, tutoriale, odpowiedzi na forach czy integracje już z jakimiś innymi bibliotekami.
+000763.wav|Po trzecie, bardzo dobrze Pandas współpracuje z NumPy, Matplotlibem, Seabornem, Jupiterem, no i wieloma innymi też narzędziami raportowania.
+000764.wav|No i dzięki temu ten Pandas nie jest tylko biblioteką do tabel, ale tym centralnym elementem typowego workflow analizy danych w Pythonie.
+000765.wav|Dobra lekcja jest z kolei taka, że zawsze warto znać alternatywy i trendy, jak coś się rozwija.
+000766.wav|Ale podstawą naszej głównej gałęzi warsztatu powinno być zawsze narzędzie stabilne, dobrze udokumentowane i często wspierane.
+000767.wav|Powinno to mieć ludzi, do których zawsze można napisać i uzyskać odpowiedź, a nie dowiedzieć się, że dany eksperyment przestał być wspierany po jakimś czasie.
+000768.wav|No i właśnie Pandas tu spełnia nam te wszystkie wymogi.
+000769.wav|indeksowania, czyszczenia, grupowania, łączenia i tak dalej.
+000770.wav|I to wszystko wewnątrz jednej biblioteki.
+000771.wav|I nawet jeżeli w przyszłości będą Państwo korzystać z innych silników tabelarycznych, to zrozumienie Pandas pozostanie nadal bardzo cennym fundamentem.
+000772.wav|Większość pojęć przenosi się pomiędzy narzędziami.
+000773.wav|Nadal będzie trzeba zawsze rozumieć, czym jest tabela, kolumna, indeks, typy danych, klucze łączenia, filtry logiczne.
+000774.wav|Nawet sama się będzie różnić z obecną wersją.
+000775.wav|będzie pozostawać stała.
+000776.wav|Warto więc traktować ten pandas jako punkt wyjścia do myślenia o danych tabelarycznych, bo nie chodzi tylko o samo to zapamiętywanie nazw tych funkcji,
+000777.wav|ale o zrozumienie całego sposobu organizowania tej naszej analizy.
+000778.wav|Tego, jak dane są po kolei przetwarzane, tylko że są wczytywane, kontrolowane, czyszczone, przekształcane, łączone i wizualizowane.
+000779.wav|I ta praktyczna, analityczna umiejętność pracy z DataFrame jest dzisiaj niemal tak podstawowa, jak umiejętność pracy z tablicami NumPy w obliczeniach numerycznych.
+000780.wav|NumPy daje fundament obliczeń na tablicach.
+000781.wav|Pandas daje nam język pracy z danymi opisanymi nazwami kolumn, indeksami, kategoriami, jakimiś brakami.
+000782.wav|I znajomość Pandas zawsze będzie miała to praktyczne znaczenie, nawet gdy projekt końcowo będzie używał już innych narzędzi.
+000783.wav|Dane często najpierw zawsze i tak trzeba obejrzeć, oczyścić, uporządkować i zrozumieć.
+000784.wav|No i Pandas zawsze wspiera ten efekt bardzo wydajnie.
+000785.wav|Pozwala szybko przejść od tego pliku CSV albo tabeli SQL do już jakiegoś tam uporządkowanego, gotowego zbioru danych.
+000786.wav|W tym sensie, że jest narzędziem pomostowym właśnie do
+000787.wav|danych surowych i przed ich już właściwą analizą.
+000788.wav|Pandas, mimo że nie jest tym jedynym możliwym narzędziem i coraz więcej jest tych alternatyw, pozostanie
+000789.wav|przez najbliższy czas z pewnością jednym z najważniejszych fundamentów współczesnej analizy danych w Pythonie.
+000790.wav|Warto zawsze znać alternatywy, właśnie te, które wymieniłem, Polars, szczególnie przy większych zbiorach i wymaganiach wydajnościowych.
+000791.wav|No jednak to solidne opanowanie pandas każdemu z Was na stabilną bazę pojęciową i praktyczną, na której później będziecie mogli budować już bardziej zaawansowany warsztat.
+000792.wav|W kontekście całej naszej dzisiaj pierwszej części wykładu Pan nas właśnie pełni tego rolę narzędzia pomostowego.
+000793.wav|czy jakimiś tam przykładami uczenia maszynowego.
+000794.wav|I kompetencje zdobyte na tym wykładzie stale będą wracać i powtarzać się też na kolejnych naszych spotkaniach.
+000795.wav|Więc proszę to potraktować nie jako izolowany temat, ale jako wspólny język pracy z danymi dla praktycznie każdego kolejnego naszego spotkania.
+000796.wav|I ten pandas jest właśnie tu warstwą, która nam spina tą całość.
+000797.wav|To nie jest tylko biblioteka, to jest infrastruktura myślenia o danych w Pythonie.
+000798.wav|I tu przejdźmy jeszcze sobie do bardziej zaawansowanych wzorców pracy z DataFrame.
+000799.wav|Czyli takiego sposobu pisania kodu, który nie tylko wykonuje analizę, ale porządkuje ją architektonicznie.
+000800.wav|to nie jest już etap podstawowego użycia Pandas, takiego jak filtrowanie, grupowanie czy proste jakieś agregacje.
+000801.wav|Tutaj chodzi bardziej o budowanie kodu, który jest czytelny, modułowy i testowany automatycznie.
+000802.wav|Pierwszy ważny wzorzec to metod chaining, czyli łączenie operacji w jakiś logiczny łańcuch.
+000803.wav|Zamiast tworzyć wiele zmiennych pośrednich, przechodzimy przez kolejne etapy przetwarzania danych.
+000804.wav|przez group by, zrobimy agregację przez agg, uporządkujemy to potem przez reset index, no i na końcu posortujemy sobie przez sort values.
+000805.wav|Taki zapis fajnie oddaje ten właśnie rzeczywisty proces,
+000806.wav|proces całej analizy, bo dane przepływają sobie przez kolejne transformacje, a każda jakby linia odpowiada jednemu z etapów przetwarzania.
+000807.wav|Tutaj warto zwrócić uwagę na ten pipe.
+000808.wav|To narzędzie pozwala nam włączać do łańcucha własne funkcje, na przykład funkcję diagnostyczną, long shape, która wypisze nam kształt tabeli i liczbę braków danych.
+000809.wav|Dzięki temu sobie możemy debugować nasz pipeline bez przerywania jego struktury.
+000810.wav|po kolejnych filtrach, a samo przejście procesu od początku do końca jest bardzo czasochłonne i nie chcemy musieć go ręcznie nadzorować.
+000811.wav|Drugim istotnym elementem tutaj jest assign.
+000812.wav|On pozwala nam tworzyć nowe kolumny bez rozbijania naszego procesu.
+000813.wav|Na slajdzie widać przykład przycinania wartości siły przez narzędzie CLIP, logarytmowania zmiennej oraz kategoryzacji temperatury poprzez PDCAT.
+000814.wav|To typowy etap tak naprawdę z inżynierii cech, bo z danych surowych tworzymy zmienne bardziej użyteczne analitycznie.
+000815.wav|Ważne jest to, że właśnie te operacje, te transformacje są jawnie zapisane w kodzie, a nie wykonywane ręcznie poza naszym środowiskiem analitycznym.
+000816.wav|Znów replikacja.
+000817.wav|Kolejny blok dotyczy walidacji danych przy użyciu Pandera.
+000818.wav|Jest to bardzo ważne, szczególnie w projektach produkcyjnych, badawczych,
+000819.wav|No bo ono pozwala nam opisać formalnie oczekiwaną strukturę tabeli.
+000820.wav|w ogóle mogą pojawić się w kolumnach tekstowych.
+000821.wav|Więc nasz data frame przestaje być niekontrolowaną tabelą, a zaczyna mieć schemat podobny do takiego kontraktu danych.
+000822.wav|Jeżeli dane nie spełniają reguł, walidacja zgłosi błąd.
+000823.wav|I to jest bardzo przydatne, bo wiele błędów w analizie nie wynika z samej błędnej składni, ale z błędnych założeń o danych.
+000824.wav|Zakładamy, że temperatura mieści się w określonym zakresie, że materiał należy do jakiejś znanej listy kategorii, że siła jest dodatnia i nie ma żadnych braków kluczowych.
+000825.wav|No i właśnie Pandera pozwala nam te założenia zapisać formalnie, jawnie w kodzie i automatycznie sprawdzać.
+000826.wav|Dzięki temu cała nasza analiza staje się dużo bardziej odporna na zmiany w danych wejściowych.
+000827.wav|Trzeci wzorzec to extension accessor, czyli rozszerzenie obiektów Pandas o własne metody domenowe.
+000828.wav|Na slajdzie widać rejestrację własnego akcesora,
+000829.wav|To jest przykład takiego jakby to określić metaprogramowania, bo rozszerzamy zachowanie istniejących obiektów biblioteki o własny dziedzinowy interfejs.
+000830.wav|też bazą do budowania swoich własnych mini bibliotek analitycznych.
+000831.wav|zgodnych z językiem dziedziny i wywoływać już w sposób automatyczny.
+000832.wav|Kod staje się w ogóle wtedy bardziej semantyczny.
+000833.wav|Nie tylko wykonuje obliczenia, ale lepiej opisuje nam tą intencję analityczną.
+000834.wav|Tego typu techniki zawsze powinny być jednak świadomie stosowane, bo metod changing poprawia naszą czytelność, jeżeli każdy krok jest prosty i logiczny.
+000835.wav|Może jednak stać się bardzo nieczytelny, jeżeli ten łańcuch będzie zbyt długi albo będzie zawierał jakieś zbyt złożone wyrażenia.
+000836.wav|Walidacja schematu oczywiście jest bardzo pomocna, ale wymaga wcześniejszego określania sensownych reguł.
+000837.wav|Więc zaawansowana praca z DataFrame polega nie tylko na znajomości kolejnych, dodatkowych funkcji, ale na projektowaniu całego sposobu przetwarzania danych.
+000838.wav|Pipe pomoże nam zbudować czytelne pipeline.
+000839.wav|Pandera, kontrolę jakości i walidację schematu.
+000840.wav|A własne akcesory, tak, tworzymy własne akcesoria.
+000841.wav|Dziedzinowe rozszerzenia dla biblioteki Pandas.
+000842.wav|I to są właśnie wzorce, które przesuwają tą naszą analizę od prostego skryptu w stronę już dojrzałego, powtarzalnego i produkcyjnego procesu pracy.
+000843.wav|Podsumujmy sobie więc dobre praktyki właśnie pracy z PANDAS w projekcie naukowym.
+000844.wav|To już nie jest tylko zestaw pojedynczych funkcji, ale cały zbiór zasad, które zwiększają wiarygodność, powtarzalność i bezpieczeństwo całej analizy.
+000845.wav|W projektach naukowych kod nie może tylko działać.
+000846.wav|On musi być też czytelny, odporny na typowe błędy, możliwy do uruchomienia ponownie i łatwy do sprawdzania przez inną osobę.
+000847.wav|Pierwsza z tych zasad dotyczy unikania modyfikowania wycinków danych bez jawnej kopii.
+000848.wav|W Pandas często pracujemy na fragmentach tabel.
+000849.wav|Na przykład wybieramy tylko wiersze spełniające jakiś określony warunek.
+000850.wav|Problem polega na tym, że taki fragment może być widokiem na oryginalne dane albo kopią.
+000851.wav|Jeżeli zaczniemy go modyfikować bez kopii, możemy otrzymywać ostrzeżenie Settings with Copy Warning.
+000852.wav|No ale ważniejsze jest to, że nie zawsze mamy pełną kontrolę nad tym, co faktycznie zostało zmienione.
+000853.wav|Dlatego, gdy tworzymy podzbiór danych, który zamierzamy w jakiś sposób modyfikować, to najbezpieczniej jest jawnie używać kopii.
+000854.wav|czy na niezależnym podzbiorze.
+000855.wav|Druga zasada dotyczy reset index, po operacjach zmieniających indeksy.
+000856.wav|Po group by, po filtrowaniu, sortowaniu, agregacji taki indeks może przestać być zwykłym numerem wiersza.
+000857.wav|Czasem to przydatne, a nawet pożądane, ale często przy dalszej analizie wygodniej jest przywrócić klasyczną strukturę tabeli.
+000858.wav|Wiele błędów w analizie, tak jak mówiliśmy, nie wynika z samego obliczenia, ale z nieoczekiwanych struktur, na przykład struktury indeksu.
+000859.wav|Po group by zmienne grupujące mogą znaleźć się w indeksie, a nie w kolumnach.
+000860.wav|Dla początkujących będzie to bardzo często źródło nieporozumień, dlatego po ważnych operacjach agregujących dobrze jest zawsze sprawdzać, czy ten wynik ma taką strukturę, jakiej oczekujemy.
+000861.wav|Trzecia zasada dotyczy typów danych.
+000862.wav|Nie warto w pełni polegać na automatycznym rozpoznawaniu typów przez Pandas.
+000863.wav|Jest to przydatne, ale w oczywistych sytuacjach.
+000864.wav|Przy wczytywaniu danych dlatego dobrze jest też zawsze jawnie określić typy kolumn, zwłaszcza dla jakichś zmiennych kategorialnych, liczbowych i czasowych.
+000865.wav|Kolumna materiału może być typem category, siła może być typem float 32, a data typem datetime 64.
+000866.wav|Dzięki temu sobie zmniejszymy zarówno zużycie pamięci, przyspieszymy część operacji i ograniczymy ryzyko błędnej interpretacji danych.
+000867.wav|Typy danych są częścią modelu danych, więc jeżeli identyfikator zostanie wczytany jako liczba, no to może stracić zera wiodące.
+000868.wav|Jeżeli data będzie jako tekst, no to nie da się później pracować na operacjach czasowych.
+000869.wav|Kategoria, jeżeli znów będzie zwykłym tekstem, no to nie pogrupujemy wtedy tego tak wydajnie, jak po prostu mając jedną.
+000870.wav|Dlatego ta kontrola typów po wczytaniu plików powinna być standardową praktyką analityczną.
+000871.wav|z wieloma różnymi nawiasami, to możemy zapisać warunek filtrowania w bardziej przyjrzystej formie.
+000872.wav|Podobnie EVAL pozwala nam wykonywać proste obliczenia na kolumnach w też bardzo zwartym zapisie.
+000873.wav|To nie znaczy, że zawsze trzeba ich używać.
+000874.wav|Sens pojawia się wtedy, gdy taki zapis staje się bliższy językowi analizy i łatwiejszy do sprawdzania.
+000875.wav|Piąta zasada mówi o weryfikacji wyniku po merge.
+000876.wav|Sam fakt, że złączenie w tabel się wykonało, nie oznacza jeszcze, że zostało wykonane poprawnie.
+000877.wav|Po każdym istotnym połączeniu należy właśnie zweryfikować sobie liczbę wierszy, dopasowanie kluczy i ewentualnie jakieś braki w nowych kolumnach.
+000878.wav|Dobrym takim minimalnym zabiegiem jest asercja kontrolująca, czy liczba wierszy nie zmieniła się nieoczekiwanie.
+000879.wav|W jakimś bardziej zaawansowanym kodzie można poużywać sobie parametru validate, żeby sprawdzić czy relacja między tabelami ma oczekiwaną przez nas strukturę.
+000880.wav|I każdy błąd w Merge może nie być widoczny od razu.
+000881.wav|ale tylko powielić obserwacje, utracić część rekordów albo przypisać jakiś niepoprawny kontekst.
+000882.wav|Wtedy wszystkie dalsze analizy nie są nic warte.
+000883.wav|Szósta zasada mówi nam o preferowaniu formatu Parquet względem CSV dla plików pośrednich.
+000884.wav|CSV jest prosty i uniwersalny, ale ma swoje ograniczenia.
+000885.wav|Bywa znacznie większy, nawet często dwukrotniej niż plik np.
+000886.wav|Wolniej się znacznie wczytuje i łatwo też traci informacje o kategoriach, datach albo jakiejś precyzji liczbowej.
+000887.wav|Parquet z kolei jest formatem kolumnowym.
+000888.wav|Szybszym, lepiej dopasowanym do pracy analitycznej.
+000889.wav|Zachowuje nam też typy danych i zwykle zajmuje znacznie mniej miejsca.
+000890.wav|W praktyce dlatego CSV jest zawsze dobry do wymiany prostych danych pomiędzy różnymi narzędziami.
+000891.wav|Ale już w kodzie automatycznym, w całym pipeline'ie, ten parklet będzie często lepszym wyborem.
+000892.wav|Bo jest przetwarzany kod,
+000893.wav|wręcz rozgałęziać naszą analizę z danego miejsca.
+000894.wav|To jest bardzo przydatne, szczególnie kiedy dane nasze są wielokrotnie zapisywane i odczytywane.
+000895.wav|Siódma zasada dotyczy logowania transformacji.
+000896.wav|W kodzie naukowym dobrze jest zawsze wiedzieć, ile rekordów było przed czyszczeniem, ile zostało po czyszczeniu i ile usunięto.
+000897.wav|I zamiast polegać na po prostu pamięci albo ręcznie sprawdzać wynik, warto używać jakiegoś prostego logowania.
+000898.wav|Informacja nawet typu usunięto 37 wierszy z powodu braku w kolumnie A jest już bardzo cenna podczas odtwarzania tej analizy.
+000899.wav|albo do raportu metodologicznego.
+000900.wav|Dlatego logowanie będzie zawsze przydatne, a szczególnie w jakichś dłuższych procesach.
+000901.wav|zmieniła się ta liczba obserwacji.
+000902.wav|Logi stworzą nam ślad wykonanej analizy.
+000903.wav|Ósma zasada mówi nam o testach jednostkowych.
+000904.wav|funkcja czyszcząca usuwa faktycznie braki danych, czy wynik ma oczekiwane kolumny, albo czy liczba wierszy nie spada nam do zera.
+000905.wav|takie testy chronią naszą analizę przed błędami wprowadzanymi przy późniejszych jakichś modyfikacjach tego kodu.
+000906.wav|Bo nie oszukujmy się, każdy w końcu ten kod przepisuje raz za razem, coś poprawia, no i jeżeli coś na którymś etapie się popsuje, to możemy nawet nie wiedzieć w którym momencie.
+000907.wav|Więc najważniejszy przekaz z całych tych przytoczonych zasad jest taki, że dobra analiza w PANDAS
+000908.wav|no wymaga nie samych znajomości tych funkcji, które omówiliśmy, ale jakby tej dyscypliny projektowej.
+000909.wav|trochę pracy na szeregach czasowych, no i eksploracyjną analizę danych i jakieś wstępne rysowanie takich dodatkowych wykresów.
+000910.wav|Podsumowując, do dzisiaj zbudowaliśmy pełen obraz pracy z danymi tabelarycznymi w Pandas.
+000911.wav|Zaczęliśmy od series, data frame, przeszliśmy przez importy, eksploracje, typy indeksowania, no i pokazaliśmy czyszczenie, braki, duplikaty.
+000912.wav|Dobra analiza danych nie zaczyna się nigdy od modelu.
+000913.wav|Zaczyna się od zrozumienia po prostu struktury danych.
+000914.wav|No i od porządnego przygotowania zbioru.
+000915.wav|Jeżeli ten etap zrobicie Państwo dobrze, to cała reszta gwarantuje, że stanie się dużo, dużo prostsza.
+000916.wav|Ale jeżeli zrobimy coś źle, to późniejsze wyniki będą tylko elegancko opakowanym błędem.
+000917.wav|Pandas jest właśnie narzędziem, który ten etap w miarę intuicyjnie pozwala nam wykonać dobrze.
+000918.wav|No i na koniec mocno też zachęcam do praktyki.
+000919.wav|Zadania są też odpowiednio tak dobrane, żeby mniej więcej utrwalić każdy z tych omówionych elementów.
+000920.wav|Mamy tu czyszczenie datasetu, mamy tu raport analizy eksploracyjnej, jest mały pipeline obsługi braków i wartości odstających.
+000921.wav|z użyciem narzędzia Styler, z eksportem potem do Excela i HTML-a.
+000922.wav|To nie są sztuczne ćwiczenia, to są realistyczne mini-projekty, które utrwalą tak naprawdę cały dzisiejszy nasz materiał.
+000923.wav|Podsumowując, taką radą na koniec byłoby, nie uczcie się Pandas jako listy metod.
+000924.wav|Uczcie się go jako sposobu myślenia o danych, o infrastrukturze danych.
+000925.wav|Bo jeżeli zrozumiecie, jakie dane są reprezentowane, jak je czyścić, łączyć, przekształcać, to konkretne metody zaczną się naturalnie układać.
+000926.wav|I właśnie wtedy pandas stanie się tak naprawdę użytecznym narzędziem, a nie tylko biblioteką do otwierania CSV.
