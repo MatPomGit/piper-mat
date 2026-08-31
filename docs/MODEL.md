@@ -7,11 +7,11 @@ Kanoniczna karta modelu znajduje się w `models/pl_PL-mateusz-medium/MODEL_CARD.
 Finalny model powinien mieć:
 
 - parę `pl_PL-mateusz-medium.onnx` i `pl_PL-mateusz-medium.onnx.json`,
-- pozytywny smoke test syntezy,
+- pozytywny test poprawności syntezy,
 - wyniki WER i CER na zamrożonym korpusie,
-- wynik speaker similarity,
+- wynik podobieństwa głosu,
 - co najmniej podstawową ocenę odsłuchową MOS lub CMOS,
-- benchmark RTF, latencji i zużycia pamięci,
+- pomiar RTF, opóźnienia i zużycia pamięci,
 - jednoznacznie opisaną licencję i pochodzenie danych,
 - SHA-256 każdego publikowanego artefaktu.
 
