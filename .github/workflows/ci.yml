@@ -74,7 +74,9 @@ jobs:
         shell: powershell
         run: |
           python tools/windows_doctor.py --json
-          if (($LASTEXITCODE -ne 0) -and ($LASTEXITCODE -ne 2)) { exit $LASTEXITCODE }
+          $DoctorExitCode = $LASTEXITCODE
+          if (($DoctorExitCode -ne 0) -and ($DoctorExitCode -ne 2)) { exit $DoctorExitCode }
+          exit 0
       - name: Parse PowerShell launcher
         shell: powershell
         run: |
