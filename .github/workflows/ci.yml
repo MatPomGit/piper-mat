@@ -31,6 +31,31 @@ jobs:
             --audio-dir dataset/wavs \
             --skip-audio
 
+      - name: Verify deterministic dataset split generation
+        run: |
+          python scripts/create_splits.py --output /tmp/splits-a.json
+          python scripts/create_splits.py --output /tmp/splits-b.json
+          cmp /tmp/splits-a.json /tmp/splits-b.json
+
+      - name: Verify Polish regression corpus
+        run: |
+          test -s tests/polish_sentences.txt
+          grep -q 'Zażółć gęślą jaźń' tests/polish_sentences.txt
+          grep -q '31 sierpnia 2026' tests/polish_sentences.txt
+
+      - name: Self-test WER and CER evaluator
+        run: |
+          printf '%s\n' \
+            '{"reference":"Ala ma kota","hypothesis":"Ala ma kota"}' \
+            > /tmp/transcripts.jsonl
+          python scripts/evaluate_transcripts.py /tmp/transcripts.jsonl --output /tmp/metrics.json
+          python - <<'PY'
+          import json
+          data = json.load(open('/tmp/metrics.json', encoding='utf-8'))
+          assert data['wer'] == 0.0
+          assert data['cer'] == 0.0
+          PY
+
   docs:
     runs-on: ubuntu-latest
     steps:
