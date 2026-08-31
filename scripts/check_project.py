@@ -16,9 +16,13 @@ REQUIRED = [
     ROOT / "models" / "pl_PL-mateusz-medium" / "MODEL_CARD.md",
     ROOT / "docs" / "ROADMAP.md",
     ROOT / "docs" / "STAGED_TRAINING.md",
+    ROOT / "docs" / "WINDOWS_GUI.md",
     ROOT / "dataset" / "metadata.csv",
     ROOT / "train.sh",
     ROOT / "train.ps1",
+    ROOT / "START_PIPER_MAT_GUI.bat",
+    ROOT / "tools" / "windows_setup_gui.py",
+    ROOT / "tools" / "start_windows_gui.ps1",
     ROOT / "scripts" / "train_voice.py",
     ROOT / "scripts" / "train_sessions.py",
     ROOT / "scripts" / "report_training_session.py",
@@ -30,7 +34,6 @@ REQUIRED = [
 
 def main() -> int:
     errors: list[str] = []
-
     for path in REQUIRED:
         if not path.exists():
             errors.append(f"brak wymaganej ścieżki: {path.relative_to(ROOT)}")
@@ -43,12 +46,7 @@ def main() -> int:
         except json.JSONDecodeError as exc:
             errors.append(f"niepoprawna konfiguracja JSON: {exc}")
         else:
-            expected = {
-                "language": "pl_PL",
-                "quality": "medium",
-                "sample_rate": 22050,
-                "espeak_voice": "pl",
-            }
+            expected = {"language": "pl_PL", "quality": "medium", "sample_rate": 22050, "espeak_voice": "pl"}
             for key, value in expected.items():
                 if data.get(key) != value:
                     errors.append(f"config {key!r}: oczekiwano {value!r}, otrzymano {data.get(key)!r}")
@@ -57,7 +55,6 @@ def main() -> int:
                 errors.append("nieoczekiwana nazwa pliku modelu ONNX w konfiguracji")
             if export.get("config_filename") != "pl_PL-mateusz-medium.onnx.json":
                 errors.append("nieoczekiwana nazwa pliku JSON modelu ONNX w konfiguracji")
-
             training = data.get("training", {})
             sessions = training.get("sessions", {})
             epochs = sessions.get("epochs_per_session")
@@ -76,7 +73,6 @@ def main() -> int:
         print(f"BŁĄD: {error}", file=sys.stderr)
     if errors:
         return 1
-
     print("Kontrole integralności projektu zakończone powodzeniem.")
     return 0
 
