@@ -1,0 +1,24 @@
+{
+  "voice_name": "mateusz",
+  "language": "pl_PL",
+  "quality": "medium",
+  "sample_rate": 22050,
+  "espeak_voice": "pl",
+  "batch_size": 8,
+  "dataset": {
+    "metadata": "dataset/metadata.csv",
+    "audio_dir": "dataset/wavs"
+  },
+  "training": {
+    "base_checkpoint": "checkpoints/base.ckpt",
+    "cache_dir": "cache",
+    "output_dir": "output",
+    "seed": null,
+    "max_epochs": null,
+    "notes": "Uzupełnij seed, checkpoint bazowy i parametry końcowego eksperymentu przed publikacją wyników."
+  },
+  "export": {
+    "model_filename": "pl_PL-mateusz-medium.onnx",
+    "config_filename": "pl_PL-mateusz-medium.onnx.json"
+  }
+}
