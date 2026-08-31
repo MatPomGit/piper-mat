@@ -26,6 +26,20 @@ jobs:
       - name: Check repository structure and voice config
         run: python scripts/check_project.py
 
+      - name: Validate canonical training command
+        run: python scripts/train_voice.py --dry-run
+
+      - name: Record experiment environment
+        run: |
+          python scripts/record_environment.py --output /tmp/environment.json
+          python - <<'PY'
+          import json
+          data = json.load(open('/tmp/environment.json', encoding='utf-8'))
+          assert data['schema_version'] == 1
+          assert data['inputs']['config']['sha256']
+          assert data['inputs']['metadata']['sha256']
+          PY
+
       - name: Validate dataset metadata
         run: |
           python scripts/validate_dataset.py \
