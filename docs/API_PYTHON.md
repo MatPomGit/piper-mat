@@ -1,18 +1,18 @@
-# 🐍 Python API
+# 🐍 API języka Python
 
-Install with:
+Zainstaluj za pomocą:
 
 ``` sh
 pip install piper-tts
 ```
 
-Download a voice, for example:
+Pobierz głos, na przykład:
 
 ``` sh
 python3 -m piper.download_voices en_US-lessac-medium
 ```
 
-Use `PiperVoice.synthesize_wav`:
+Użyj `PiperVoice.synthesize_wav`:
 
 ``` python
 import wave
@@ -23,7 +23,7 @@ with wave.open("test.wav", "wb") as wav_file:
     voice.synthesize_wav("Welcome to the world of speech synthesis!", wav_file)
 ```
 
-Adjust synthesis:
+Dostosuj syntezę:
 
 ``` python
 syn_config = SynthesisConfig(
@@ -37,15 +37,15 @@ syn_config = SynthesisConfig(
 voice.synthesize_wav(..., syn_config=syn_config)
 ```
 
-To use CUDA for GPU acceleration:
+Aby użyć CUDA do przyspieszenia obliczeń na GPU:
 
 ``` python
 voice = PiperVoice.load(..., use_cuda=True)
 ```
 
-This requires the `onnxruntime-gpu` package to be installed.
+Wymaga to zainstalowania pakietu `onnxruntime-gpu`.
 
-For streaming, use `PiperVoice.synthesize`:
+Do przesyłania strumieniowego użyj `PiperVoice.synthesize`:
 
 ``` python
 for chunk in voice.synthesize("..."):

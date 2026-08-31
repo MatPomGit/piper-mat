@@ -1,59 +1,59 @@
 # 🌐 HTTP API
 
-Install the necessary dependencies:
+Zainstaluj niezbędne zależności:
 
 ``` sh
 python3 -m pip install piper-tts[http]
 ```
 
-Download a voice, for example:
+Pobierz głos, na przykład:
 
 ``` sh
 python3 -m piper.download_voices en_US-lessac-medium
 ```
 
-Run the web server:
+Uruchom serwer WWW:
 
 ``` sh
 python3 -m piper.http_server -m en_US-lessac-medium
 ```
 
-This will start an HTTP server on port 5000 (use `--host` and `--port` to override).
-If you have voices in a different directory, use `--data-dir <DIR>`
+Spowoduje to uruchomienie serwera HTTP na porcie 5000 (użyj `--host` i `--port`, aby to zmienić).
+Jeśli głosy znajdują się w innym katalogu, użyj `--data-dir <DIR>`.
 
-## Web Interface
+## Interfejs WWW
 
-Open [http://localhost:5000](http://localhost:5000) in your browser to test the voice:
-enter some text, click **Speak**, and listen to the result. The page also shows
-information about the voice (name, language, number of speakers) and, for the most
-recently synthesized utterance, the synthesis time along with the phonemes and their
-audio alignments.
+Otwórz [http://localhost:5000](http://localhost:5000) w przeglądarce, aby przetestować głos:
+wpisz tekst, kliknij **Speak** i posłuchaj wyniku. Strona wyświetla również
+informacje o głosie (nazwę, język i liczbę mówców), a dla ostatnio
+zsyntetyzowanej wypowiedzi — czas syntezy wraz z fonemami i ich dopasowaniami
+dźwięku.
 
-The same information is available as JSON from the `/info` endpoint:
+Te same informacje są dostępne w formacie JSON w punkcie końcowym `/info`:
 
 ``` sh
 curl localhost:5000/info
 ```
 
-## Synthesizing Audio
+## Syntezowanie dźwięku
 
-Get WAV files via HTTP by posting to `/synthesize`:
+Pliki WAV można pobierać przez HTTP, wysyłając żądanie POST do `/synthesize`:
 
 ``` sh
 curl -X POST -H 'Content-Type: application/json' -d '{ "text": "This is a test." }' -o test.wav localhost:5000/synthesize
 ```
 
-The JSON data fields are:
+Pola danych JSON:
 
-* `text` (required) - text to synthesize
-* `voice` (optional) - name of voice to use; defaults to `-m <VOICE>`
-* `speaker` (optional) - name of speaker for multi-speaker voices
-* `speaker_id` (optional) - id of speaker for multi-speaker voices; overrides `speaker`
-* `length_scale` (optional) - speaking speed; defaults to 1
-* `noise_scale` (optional) - speaking variability
-* `noise_w_scale` (optional) - phoneme width variability
+* `text` (wymagane) — tekst do syntezy
+* `voice` (opcjonalne) — nazwa używanego głosu; domyślnie `-m <VOICE>`
+* `speaker` (opcjonalne) — nazwa mówcy w przypadku głosów wielomówcowych
+* `speaker_id` (opcjonalne) — identyfikator mówcy w przypadku głosów wielomówcowych; zastępuje `speaker`
+* `length_scale` (opcjonalne) — szybkość mowy; domyślnie 1
+* `noise_scale` (opcjonalne) — zmienność mowy
+* `noise_w_scale` (opcjonalne) — zmienność długości fonemów
 
-Get the available voices with:
+Dostępne głosy można pobrać za pomocą:
 
 ``` sh
 curl localhost:5000/voices

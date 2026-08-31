@@ -90,6 +90,7 @@ setup(
             "cmake>=3.18,<4",
             "ninja>=1,<2",
             "onnx>=1,<2",  # for alignments
+            "mkdocs>=1.6,<2",
         ],
         "http": [
             "flask>=3,<4",
