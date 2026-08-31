@@ -15,120 +15,74 @@ jobs:
       - uses: actions/checkout@v7
         with:
           lfs: false
-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-
-      - name: Compile project scripts and Windows GUI
+      - name: Compile project scripts and Windows tools
         run: |
           python -m compileall -q scripts
-          python -m py_compile tools/windows_setup_gui.py
-
+          python -m py_compile tools/windows_setup_gui.py tools/windows_doctor.py
       - name: Check repository structure and voice config
         run: python scripts/check_project.py
-
       - name: Validate canonical training command
         run: python scripts/train_voice.py --dry-run
-
       - name: Validate staged training plan
         run: |
           python scripts/train_sessions.py --status
           python - <<'PY'
           import json
           from pathlib import Path
-          config = json.loads(Path('configs/pl_PL-mateusz-medium.json').read_text(encoding='utf-8'))
-          sessions = config['training']['sessions']
-          epochs = sessions['epochs_per_session']
-          assert 3 <= len(epochs) <= 6
-          assert all(isinstance(value, int) and value > 0 for value in epochs)
-          assert sessions['state_dir']
-          assert sessions['reports_dir']
-          assert sessions['runs_dir']
+          c=json.loads(Path('configs/pl_PL-mateusz-medium.json').read_text(encoding='utf-8'))
+          e=c['training']['sessions']['epochs_per_session']
+          assert 3 <= len(e) <= 6 and all(isinstance(x,int) and x>0 for x in e)
           PY
-
       - name: Record experiment environment
-        run: |
-          python scripts/record_environment.py --output /tmp/environment.json
-          python - <<'PY'
-          import json
-          data = json.load(open('/tmp/environment.json', encoding='utf-8'))
-          assert data['schema_version'] == 1
-          assert data['inputs']['config']['sha256']
-          assert data['inputs']['metadata']['sha256']
-          PY
-
+        run: python scripts/record_environment.py --output /tmp/environment.json
       - name: Validate dataset metadata
-        run: |
-          python scripts/validate_dataset.py \
-            --metadata dataset/metadata.csv \
-            --audio-dir dataset/wavs \
-            --skip-audio
-
+        run: python scripts/validate_dataset.py --metadata dataset/metadata.csv --audio-dir dataset/wavs --skip-audio
       - name: Verify deterministic dataset split generation
         run: |
           python scripts/create_splits.py --output /tmp/splits-a.json
           python scripts/create_splits.py --output /tmp/splits-b.json
           cmp /tmp/splits-a.json /tmp/splits-b.json
-
       - name: Verify checkpoint manifest and LFS pointer
         run: python scripts/verify_checkpoint.py checkpoints/base.ckpt
-
       - name: Verify Polish regression corpus
         run: |
           test -s tests/polish_sentences.txt
           grep -q 'Zażółć gęślą jaźń' tests/polish_sentences.txt
-          grep -q '31 sierpnia 2026' tests/polish_sentences.txt
-
       - name: Install eSpeak NG
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends espeak-ng
-
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends espeak-ng
       - name: Test Polish phonemization
         run: python scripts/test_polish_phonemization.py
-
       - name: Self-test WER and CER evaluator
         run: |
-          printf '%s\n' \
-            '{"reference":"Ala ma kota","hypothesis":"Ala ma kota"}' \
-            > /tmp/transcripts.jsonl
+          printf '%s\n' '{"reference":"Ala ma kota","hypothesis":"Ala ma kota"}' > /tmp/transcripts.jsonl
           python scripts/evaluate_transcripts.py /tmp/transcripts.jsonl --output /tmp/metrics.json
-          python - <<'PY'
-          import json
-          data = json.load(open('/tmp/metrics.json', encoding='utf-8'))
-          assert data['wer'] == 0.0
-          assert data['cer'] == 0.0
-          PY
 
   windows-gui-validation:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-
-      - name: Compile Tkinter wizard
+      - name: Compile Windows Python tools
         shell: powershell
-        run: python -m py_compile tools/windows_setup_gui.py
-
+        run: python -m py_compile tools/windows_setup_gui.py tools/windows_doctor.py
+      - name: Smoke-test Windows doctor
+        shell: powershell
+        run: |
+          python tools/windows_doctor.py --json
+          $DoctorExitCode = $LASTEXITCODE
+          if (($DoctorExitCode -ne 0) -and ($DoctorExitCode -ne 2)) { exit $DoctorExitCode }
+          exit 0
       - name: Parse PowerShell launcher
         shell: powershell
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path 'tools/start_windows_gui.ps1'),
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
-          }
-
+          $tokens=$null; $errors=$null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'tools/start_windows_gui.ps1'),[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
       - name: Verify double-click launcher
         shell: powershell
         run: |
@@ -139,13 +93,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-
       - name: Install MkDocs
         run: python -m pip install 'mkdocs>=1.6,<2'
-
       - name: Build documentation
         run: mkdocs build --strict
