@@ -11,7 +11,7 @@ Projekt jest w fazie rozwoju. Kod wnioskowania i treningu pochodzi z Pipera, nat
 Aktualne cele:
 
 1. zwalidować i ustabilizować zbiór danych,
-2. uzyskać powtarzalny trening na podstawie jawnej konfiguracji,
+2. prowadzić powtarzalny trening możliwy do zatrzymania między sesjami i wznowienia innego dnia,
 3. eksportować model do ONNX i wykonywać test poprawności wnioskowania,
 4. oceniać jakość i wydajność modelu,
 5. publikować model wraz z `MODEL_CARD.md`, próbkami i informacją licencyjną.
@@ -21,16 +21,17 @@ Aktualne cele:
 ```text
 piper-mat/
 ├── .github/workflows/          # lekkie kontrole ciągłej integracji
-├── configs/                    # wersjonowane konfiguracje eksperymentów
+├── configs/                    # wersjonowane konfiguracje eksperymentów i sesji
 ├── dataset/                    # metadane i karta zbioru danych
 ├── docs/                       # dokumentacja Pipera i projektu głosu
 ├── models/                     # karty modeli bez ciężkich artefaktów treningowych
 ├── samples/                    # krótkie próbki referencyjne i syntetyczne
-├── scripts/                    # walidacja, eksport i narzędzia projektu głosu
+├── scripts/                    # trening, walidacja, raporty, eksport i ewaluacja
 ├── src/piper/                  # bazowy kod Piper
 ├── tests/                      # testy projektu i testy regresyjne języka polskiego
-├── checkpoints/                # lokalne punkty kontrolne, docelowo poza zwykłym Git
-└── train.sh                    # prosty punkt wejścia do treningu
+├── checkpoints/                # bazowe punkty kontrolne
+├── train.sh                    # trening etapowy Linux
+└── train.ps1                   # trening etapowy Windows PowerShell
 ```
 
 Duże punkty kontrolne i finalne modele ONNX powinny być publikowane jako wydania GitHub lub w repozytorium modeli na Hugging Face, a nie jako zwykłe pliki śledzone w historii Git.
@@ -44,6 +45,7 @@ Linux:
 ```bash
 git clone https://github.com/MatPomGit/piper-mat.git
 cd piper-mat
+git lfs pull
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e '.[train]'
@@ -51,9 +53,17 @@ python3 -m pip install -e '.[train]'
 python3 setup.py build_ext --inplace
 ```
 
-Windows wymaga zgodnego środowiska kompilacyjnego dla rozszerzenia Cython. Szczegóły znajdują się w `docs/TRAINING.md` i `docs/ALIGNMENTS.md`.
+Windows wymaga zgodnego środowiska kompilacyjnego dla rozszerzenia Cython. Szczegóły znajdują się w `docs/TRAINING.md`, `docs/STAGED_TRAINING.md` i `docs/ALIGNMENTS.md`.
 
-### 2. Walidacja zbioru danych
+### 2. Kontrola gotowości
+
+```bash
+python scripts/check_training_ready.py
+```
+
+Skrypt sprawdza konfigurację, plan sesji, Git LFS, zbiór danych, bazowy punkt kontrolny, zależności treningowe, rozszerzenie `monotonic_align` i podstawową ilość wolnego miejsca.
+
+### 3. Walidacja zbioru danych
 
 ```bash
 python scripts/validate_dataset.py \
@@ -61,27 +71,67 @@ python scripts/validate_dataset.py \
   --audio-dir dataset/wavs
 ```
 
-Walidator sprawdza spójność metadanych i podstawowe parametry plików WAV. Przed właściwym treningiem raport nie powinien zawierać błędów.
+Walidator sprawdza spójność metadanych i parametry plików WAV. Przed właściwym treningiem raport nie powinien zawierać błędów.
 
-### 3. Konfiguracja eksperymentu
+### 4. Plan treningu etapowego
 
-Referencyjna konfiguracja znajduje się w:
+Kanoniczna konfiguracja znajduje się w:
 
 ```text
 configs/pl_PL-mateusz-medium.json
 ```
 
-Plik zapisuje parametry, które powinny być raportowane przy każdym treningu. `train.sh` pozostaje zgodny z interfejsem `python -m piper.train fit`.
+Domyślny plan:
 
-### 4. Trening
+```json
+"epochs_per_session": [250, 250, 250, 250]
+```
+
+oznacza cztery niezależne sesje po 250 dodatkowych epok. Plan można zmienić np. na 3–6 podejść.
+
+### 5. Uruchomienie następnej sesji
+
+Linux:
 
 ```bash
 ./train.sh
 ```
 
-Przed uruchomieniem należy wskazać prawidłowe ścieżki do zbioru danych, pamięci podręcznej, katalogu wyjściowego i bazowego punktu kontrolnego.
+Windows PowerShell:
 
-### 5. Eksport ONNX
+```powershell
+.\train.ps1
+```
+
+Po zakończeniu sesji automatycznie powstają:
+
+- trwały `last.ckpt` używany do kolejnego wznowienia,
+- najlepszy punkt według `val_mel`, jeśli jest dostępny,
+- najlepszy punkt według `val_mos`, jeśli jest dostępny,
+- `REPORT.md`,
+- `summary.json`,
+- wykresy SVG z metryk TensorBoard,
+- aktualny `output/training_state/state.json`.
+
+Po zakończeniu sesji komputer można wyłączyć. W kolejnym dniu uruchamia się to samo polecenie, a trening wznawia pełny stan Lightning z poprzedniego `last.ckpt`.
+
+Stan planu:
+
+```bash
+./train.sh --status
+```
+
+Windows:
+
+```powershell
+.\train.ps1 -Status
+```
+
+Szczegółowa procedura znajduje się w `docs/STAGED_TRAINING.md`.
+
+### 6. Eksport ONNX
+
+Po zakończeniu treningu wybierz punkt kontrolny i wyeksportuj model:
 
 ```bash
 python3 -m piper.train.export_onnx \
