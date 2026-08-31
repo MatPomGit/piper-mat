@@ -1,26 +1,20 @@
 site_name: Dokumentacja piper-mat
-docs_dir: .
-site_dir: ../piper-mat-site
-exclude_docs: |
-  /*
-  !/README.md
-  !/docs/
-  /docs/*
-  !/docs/*.md
-  !/dataset/DATASET_CARD.md
-  !/models/pl_PL-mateusz-medium/MODEL_CARD.md
+docs_dir: docs
+site_dir: site
 nav:
-  - Strona główna: README.md
+  - Strona główna: index.md
   - Projekt głosu:
-      - Roadmap: docs/ROADMAP.md
-      - Ewaluacja: docs/EVALUATION.md
-      - Dataset Card: dataset/DATASET_CARD.md
-      - Model Card: models/pl_PL-mateusz-medium/MODEL_CARD.md
-  - Trenowanie: docs/TRAINING.md
-  - Głosy: docs/VOICES.md
-  - Dopasowania: docs/ALIGNMENTS.md
-  - Kompilowanie: docs/BUILDING.md
-  - Wiersz poleceń: docs/CLI.md
-  - Python API: docs/API_PYTHON.md
-  - HTTP API: docs/API_HTTP.md
-  - Starsze plany: docs/PLANS.md
+      - Roadmap: ROADMAP.md
+      - Ewaluacja: EVALUATION.md
+      - Dataset: DATASET.md
+      - Model: MODEL.md
+      - Checkpointy: CHECKPOINTS.md
+      - Wydania: RELEASES.md
+  - Trenowanie: TRAINING.md
+  - Głosy: VOICES.md
+  - Dopasowania: ALIGNMENTS.md
+  - Kompilowanie: BUILDING.md
+  - Wiersz poleceń: CLI.md
+  - Python API: API_PYTHON.md
+  - HTTP API: API_HTTP.md
+  - Starsze plany: PLANS.md
