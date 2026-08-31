@@ -11,6 +11,11 @@ import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).resolve().parents[1]
 VENV = ROOT / ".venv"
 VENV_PYTHON = VENV / "Scripts" / "python.exe"
@@ -41,6 +46,23 @@ def is_lfs_pointer(path: Path) -> bool:
         return path.read_bytes()[:80].startswith(b"version https://git-lfs.github.com/spec/v1")
     except OSError:
         return False
+
+
+def refresh_path() -> None:
+    if os.name != "nt":
+        return
+    try:
+        machine = subprocess.check_output(
+            ["powershell", "-NoProfile", "-Command", "[Environment]::GetEnvironmentVariable('Path','Machine')"],
+            text=True, encoding="utf-8", errors="replace"
+        ).strip()
+        user = subprocess.check_output(
+            ["powershell", "-NoProfile", "-Command", "[Environment]::GetEnvironmentVariable('Path','User')"],
+            text=True, encoding="utf-8", errors="replace"
+        ).strip()
+        os.environ["PATH"] = machine + os.pathsep + user
+    except Exception:
+        pass
 
 
 def check_all() -> list[Check]:
@@ -87,14 +109,14 @@ def check_all() -> list[Check]:
         checks.append(Check("repo", "Repozytorium", "error", "Ten folder nie zawiera katalogu .git."))
 
     if VENV_PYTHON.is_file():
-        rc, out = run([str(VENV_PYTHON), "-c", "import sys; print(sys.version); import pip"], timeout=30)
+        rc, _ = run([str(VENV_PYTHON), "-c", "import sys,pip; print(sys.version)"], timeout=30)
         checks.append(Check("venv", "Środowisko .venv", "ok" if rc == 0 else "error",
                             "Środowisko .venv działa." if rc == 0 else "Środowisko .venv jest uszkodzone lub niekompletne.", True))
     else:
         checks.append(Check("venv", "Środowisko .venv", "error", "Brak środowiska .venv.", True))
 
     if VENV_PYTHON.is_file():
-        rc, out = run([str(VENV_PYTHON), "-c", "import piper, lightning, tensorboard, librosa; print('OK')"], timeout=60)
+        rc, _ = run([str(VENV_PYTHON), "-c", "import piper, lightning, tensorboard, librosa; print('OK')"], timeout=60)
         checks.append(Check("deps", "Biblioteki treningowe", "ok" if rc == 0 else "error",
                             "Biblioteki treningowe są dostępne." if rc == 0 else "Brakuje części bibliotek lub instalacja jest uszkodzona.", True))
 
@@ -102,11 +124,11 @@ def check_all() -> list[Check]:
         if rc == 0:
             cuda_ok = "CUDA True" in out
             checks.append(Check("cuda", "PyTorch i CUDA", "ok" if cuda_ok else "warning",
-                                out if cuda_ok else "PyTorch działa, ale nie widzi CUDA. Trening może uruchomić się na CPU albo zakończyć błędem."))
+                                out if cuda_ok else "PyTorch działa, ale nie widzi CUDA. Sprawdź sterownik NVIDIA i zgodność wersji PyTorch/CUDA."))
         else:
             checks.append(Check("cuda", "PyTorch i CUDA", "error", "Nie można uruchomić PyTorch.", True))
 
-        rc, out = run([str(VENV_PYTHON), "-c", "from piper.train.vits.monotonic_align import core; print('OK')"], timeout=30)
+        rc, _ = run([str(VENV_PYTHON), "-c", "from piper.train.vits.monotonic_align import core; print('OK')"], timeout=30)
         checks.append(Check("align", "monotonic_align", "ok" if rc == 0 else "error",
                             "Moduł monotonic_align działa." if rc == 0 else "Moduł monotonic_align nie jest zbudowany.", True))
 
@@ -138,6 +160,12 @@ def repair() -> list[str]:
     log: list[str] = []
     git = shutil.which("git")
     if git:
+        rc, _ = run([git, "lfs", "version"])
+        if rc != 0 and os.name == "nt" and shutil.which("winget"):
+            rc, out = run(["winget", "install", "--id", "GitHub.GitLFS", "-e", "--source", "winget",
+                           "--accept-package-agreements", "--accept-source-agreements"], timeout=1800)
+            log.append(f"{'OK' if rc == 0 else 'BŁĄD'}: instalacja Git LFS przez winget: {out}")
+            refresh_path()
         for cmd in ([git, "config", "--local", "core.longpaths", "true"], [git, "lfs", "install", "--local"]):
             rc, out = run(list(cmd), timeout=60)
             log.append(f"{'OK' if rc == 0 else 'BŁĄD'}: {' '.join(cmd[1:])}: {out}")
@@ -165,11 +193,25 @@ def repair() -> list[str]:
             [str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
             [str(VENV_PYTHON), "-m", "pip", "install", "-e", ".[train]"],
         ]
+        deps_ok = True
         for cmd in cmds:
             rc, out = run(cmd, timeout=3600)
             log.append(f"{'OK' if rc == 0 else 'BŁĄD'}: {' '.join(cmd[2:])}: {out}")
             if rc != 0:
+                deps_ok = False
                 break
+        if deps_ok:
+            src = ROOT / "src" / "piper" / "train" / "vits" / "monotonic_align"
+            target = src / "monotonic_align"
+            target.mkdir(exist_ok=True)
+            rc, out = run([str(VENV_PYTHON), "-m", "Cython.Build.Cythonize", "-i", "core.pyx"], cwd=src, timeout=900)
+            log.append(f"{'OK' if rc == 0 else 'BŁĄD'}: budowanie monotonic_align: {out}")
+            if rc == 0:
+                for built in src.glob("core*.pyd"):
+                    dst = target / built.name
+                    if dst.exists():
+                        dst.unlink()
+                    shutil.move(str(built), str(dst))
     return log
 
 
