@@ -1,256 +1,143 @@
 # piper-mat
 
-Wydajna i elastyczna biblioteka oraz interfejs do syntezy mowy (TTS) oparty na silniku Piper.
+`piper-mat` jest eksperymentalnym forkiem [OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl) ukierunkowanym na przygotowanie, trenowanie, walidację i publikację własnego polskiego głosu **`pl_PL-mateusz-medium`** dla silnika Piper TTS.
 
----
+Repozytorium zachowuje upstreamową implementację Pipera w `src/piper` oraz dodaje warstwę projektu głosu: konfigurację treningu, walidację datasetu, dokumentację eksperymentu, karty datasetu i modelu oraz lekkie kontrole CI.
 
-## Opis projektu
+## Status
 
-piper-mat to narzędzie programistyczne oraz biblioteka Python stworzona w celu uproszczenia, przyspieszenia i zautomatyzowania procesu syntezy mowy (Text-to-Speech) przy użyciu silnika neuronowego Piper TTS.
+Projekt jest w fazie rozwoju. Kod inferencji i treningu pochodzi z Piper, natomiast workflow `pl_PL-mateusz-medium` jest stopniowo wydzielany do powtarzalnej struktury eksperymentalnej.
 
-Projekt umożliwia integrację lokalnej syntezy mowy w czasie rzeczywistym z aplikacjami zewnętrznymi, systemami wbudowanymi (Edge AI), botami oraz narzędziami przetwarzania języka naturalnego (NLP).
+Aktualne cele:
 
-### Kluczowe cechy
-* Niski narzut obliczeniowy dzięki zastosowaniu środowiska uruchomieniowego ONNX Runtime.
-* Pełna praca w trybie offline bez konieczności połączenia z chmurą.
-* Wygodne API języka Python oraz dedykowany interfejs wiersza poleceń (CLI).
+1. zwalidować i ustabilizować dataset,
+2. uzyskać powtarzalny trening na podstawie jawnej konfiguracji,
+3. eksportować model do ONNX i wykonywać smoke test inferencji,
+4. oceniać jakość i wydajność modelu,
+5. publikować model wraz z `MODEL_CARD.md`, próbkami i informacją licencyjną.
 
----
-
-## Funkcje
-
-* Zaawansowane przetwarzanie i normalizacja tekstu wejściowego.
-* Obsługa lokalnych modeli neuronowych w formacie ONNX wraz z plikami konfiguracji JSON.
-* Wsparcie dla generowania strumieniowego audio z niskim opóźnieniem (low-latency).
-* Eksport syntezy do plików WAV, MP3 oraz surowego formatu PCM.
-* Regulacja parametrów syntezy: szybkości mowy, intonacji oraz pauz.
-* Zwracanie wyników w postaci tablic NumPy dla dalszej analizy sygnałów.
-
----
-
-## Wymagania systemowe
-
-* Python: wersja 3.9 lub nowsza
-* System operacyjny: Linux lub Windows
-
----
-
-## Instalacja
-
-### Procedura dla systemu Linux
-
-1. Klonowanie repozytorium:
-```bash
-git clone [https://github.com/MatPomGit/piper-mat.git](https://github.com/MatPomGit/piper-mat.git)
-cd piper-mat
-```
-
-2. Utworzenie środowiska wirtualnego:
-```bash
-python3 -m venv venv
-```
-
-3. Aktywacja środowiska wirtualnego:
-```bash
-source venv/bin/activate
-```
-
-4. Instalacja wymaganych pakietów:
-```bash
-pip install -r requirements.txt
-```
-
-5. Instalacja pakietu w trybie deweloperskim (opcjonalnie):
-```bash
-pip install -e .
-```
-
----
-
-### Procedura dla systemu Windows
-
-1. Klonowanie repozytorium (Command Prompt / PowerShell):
-```cmd
-git clone [https://github.com/MatPomGit/piper-mat.git](https://github.com/MatPomGit/piper-mat.git)
-cd piper-mat
-```
-
-2. Utworzenie środowiska wirtualnego:
-```cmd
-python -m venv venv
-```
-
-3. Aktywacja środowiska wirtualnego:
-
-Dla Command Prompt (cmd.exe):
-```cmd
-venv\Scripts\activate.bat
-```
-
-Dla PowerShell:
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-4. Instalacja wymaganych pakietów:
-```cmd
-pip install -r requirements.txt
-```
-
-5. Instalacja pakietu w trybie deweloperskim (opcjonalnie):
-```cmd
-pip install -e .
-```
-
----
-
-## Użycie wiersza poleceń (CLI)
-
-### Polecenia dla systemu Linux
-
-Synteza tekstu podanego bezpośrednio w konsoli:
-```bash
-piper-mat --model models/model.onnx --text "Dzień dobry, to jest test syntezy." --output wyjscie.wav
-```
-
-Synteza tekstu wczytanego z pliku:
-```bash
-piper-mat --model models/model.onnx --input-file plik_wejsciowy.txt --output wyjscie.wav
-```
-
-Uruchomienie z dodatkowymi parametrami szybkości i intonacji:
-```bash
-piper-mat --model models/model.onnx --text "Szybki tekst." --length-scale 0.8 --noise-scale 0.5 --output wyjscie.wav
-```
-
----
-
-### Polecenia dla systemu Windows
-
-Synteza tekstu podanego bezpośrednio w konsoli (Command Prompt):
-```cmd
-piper-mat --model models\model.onnx --text "Dzień dobry, to jest test syntezy." --output wyjscie.wav
-```
-
-Synteza tekstu wczytanego z pliku (PowerShell):
-```powershell
-piper-mat --model .\models\model.onnx --input-file .\plik_wejsciowy.txt --output wyjscie.wav
-```
-
-Uruchomienie z dodatkowymi parametrami szybkości i intonacji:
-```cmd
-piper-mat --model models\model.onnx --text "Szybki tekst." --length-scale 0.8 --noise-scale 0.5 --output wyjscie.wav
-```
-
----
-
-## Użycie w języku Python
-
-Poniższy przykład przedstawia podstawowy kod wczytujący model i wykonujący syntezę tekstu:
-
-```python
-from piper_mat import PiperMatEngine, VoiceConfig
-
-# 1. Konfiguracja i inicjalizacja silnika
-config = VoiceConfig(
-    model_path="models/model.onnx",
-    config_path="models/model.onnx.json"
-)
-
-engine = PiperMatEngine(config)
-
-# 2. Synteza tekstu do pliku audio
-text = "Witaj. To jest przykładowy tekst zsyntezowany w środowisku Python."
-output_file = "wyjscie.wav"
-
-engine.synthesize_to_file(text, output_file)
-print(f"Wygenerowano plik: {output_file}")
-
-# 3. Pobranie surowych danych audio w postaci tablicy NumPy
-audio_data, sample_rate = engine.synthesize(text)
-print(f"Czestotliwosc probkowania: {sample_rate} Hz, Liczba probek: {len(audio_data)}")
-```
-
----
-
-## Parametry konfiguracji
-
-| Parametr | Typ | Wartość domyślna | Opis |
-| :--- | :--- | :--- | :--- |
-| `length_scale` | `float` | `1.0` | Szybkość wypowiedzi (wartości mniejsze niż 1.0 przyspieszają mowę). |
-| `noise_scale` | `float` | `0.667` | Zmienność intonacji i generowanego szumu. |
-| `noise_w` | `float` | `0.8` | Zmienność długości poszczególnych fonemów. |
-| `sample_rate` | `int` | `22050` | Częstotliwość próbkowania sygnału wyjściowego w Hz. |
-
----
-
-## Struktura projektu
+## Struktura repozytorium
 
 ```text
 piper-mat/
-├── piper_mat/
-│   ├── __init__.py          # Inicjalizacja pakietu
-│   ├── engine.py            # Glowna logika silnika syntezy
-│   ├── audio.py             # Obsluga i zapis plikow audio
-│   ├── text.py              # Normalizacja i przetwarzanie tekstu
-│   └── cli.py               # Interfejs wiersza polecen
-├── tests/                   # Testy jednostkowe
-│   ├── test_engine.py
-│   └── test_text.py
-├── examples/                # Skrypty przykladowe
-│   └── basic_synthesis.py
-├── .gitignore
-├── LICENSE
-├── README.md
-├── requirements.txt
-└── setup.py
+├── .github/workflows/          # lekkie kontrole CI
+├── configs/                    # wersjonowane konfiguracje eksperymentów
+├── dataset/                    # metadane datasetu i karta datasetu
+├── docs/                       # dokumentacja Pipera i projektu głosu
+├── models/                     # karty modeli, bez ciężkich artefaktów treningowych
+├── samples/                    # krótkie próbki referencyjne i syntetyczne
+├── scripts/                    # walidacja, eksport i narzędzia projektu głosu
+├── src/piper/                  # upstreamowy kod Piper
+├── tests/                      # testy upstreamu i przyszłe testy regresyjne PL
+├── checkpoints/                # lokalne checkpointy, docelowo poza Git
+└── train.sh                    # prosty punkt wejścia do treningu
 ```
 
----
+Ciężkie checkpointy i finalne modele ONNX powinny być publikowane jako GitHub Releases lub w repozytorium modeli na Hugging Face, a nie jako zwykłe pliki śledzone w historii Git.
 
-## Uruchamianie testów
+## Szybki start: trening
 
-Uruchomienie pakietu testów jednostkowych w aktywowanym środowisku wirtualnym:
+### 1. Środowisko
 
-System Linux:
-```bash
-pytest tests/
-```
-
-System Windows:
-```cmd
-pytest tests/
-```
-
----
-
-## Dokumentacja lokalna
-
-Narzędzia dokumentacyjne są częścią zależności deweloperskich. Po aktywowaniu
-środowiska wirtualnego zainstaluj je i uruchom lokalny serwer:
+Linux:
 
 ```bash
-python3 -m pip install -e '.[dev]'
+git clone https://github.com/MatPomGit/piper-mat.git
+cd piper-mat
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -e '.[train]'
+./build_monotonic_align.sh
+python3 setup.py build_ext --inplace
+```
+
+Windows wymaga zgodnego środowiska kompilacyjnego dla rozszerzenia Cython. Szczegóły znajdują się w `docs/TRAINING.md` i `docs/ALIGNMENTS.md`.
+
+### 2. Walidacja datasetu
+
+```bash
+python scripts/validate_dataset.py \
+  --metadata dataset/metadata.csv \
+  --audio-dir dataset/wavs
+```
+
+Walidator sprawdza spójność metadanych i podstawowe parametry plików WAV. Przed właściwym treningiem raport powinien nie zawierać błędów.
+
+### 3. Konfiguracja eksperymentu
+
+Referencyjna konfiguracja znajduje się w:
+
+```text
+configs/pl_PL-mateusz-medium.json
+```
+
+Plik zapisuje parametry, które powinny być raportowane przy każdym treningu. `train.sh` pozostaje zgodny z interfejsem `python -m piper.train fit`.
+
+### 4. Trening
+
+```bash
+./train.sh
+```
+
+Przed uruchomieniem należy wskazać prawidłowe ścieżki do datasetu, cache, katalogu wyjściowego i checkpointu bazowego.
+
+### 5. Eksport ONNX
+
+```bash
+python3 -m piper.train.export_onnx \
+  --checkpoint /path/to/checkpoint.ckpt \
+  --output-file /path/to/pl_PL-mateusz-medium.onnx
+```
+
+Finalny głos Piper składa się co najmniej z:
+
+```text
+pl_PL-mateusz-medium.onnx
+pl_PL-mateusz-medium.onnx.json
+MODEL_CARD.md
+```
+
+## Dataset i model
+
+Opis datasetu znajduje się w `dataset/DATASET_CARD.md`. Informacje o finalnym modelu i wymagane dane dotyczące treningu znajdują się w `models/pl_PL-mateusz-medium/MODEL_CARD.md`.
+
+Pola oznaczone jako `TODO` muszą zostać uzupełnione na podstawie faktycznego datasetu i zakończonego eksperymentu. Nie należy wpisywać szacowanych wyników jako wyników pomiaru.
+
+## Walidacja jakości
+
+Docelowa ewaluacja obejmuje trzy grupy miar:
+
+- zrozumiałość: WER i CER,
+- jakość i podobieństwo głosu: odsłuch ekspercki/MOS oraz speaker similarity,
+- wydajność: RTF, opóźnienie pierwszego audio, użycie RAM/CPU i rozmiar modelu.
+
+Plan ewaluacji oraz dalszych prac znajduje się w `docs/ROADMAP.md`.
+
+## Dokumentacja
+
+```bash
+python3 -m pip install 'mkdocs>=1.6,<2'
 mkdocs serve
 ```
 
-Witrynę można zbudować w trybie rygorystycznym, który zgłasza ostrzeżenia jako
-błędy:
+Weryfikacja dokumentacji:
 
 ```bash
 mkdocs build --strict
 ```
 
----
+## Pochodzenie i licencja
 
-## Licencja
+Kod Pipera w tym repozytorium pochodzi z projektu `OHF-Voice/piper1-gpl` i jest objęty licencją **GPL-3.0-or-later**. Pełny tekst licencji znajduje się w `COPYING`.
 
-Projekt udostępniany jest na warunkach licencji MIT. Szczegółowe informacje znajdują się w pliku LICENSE.
+Licencja kodu nie określa automatycznie licencji datasetu ani wytrenowanego modelu. Warunki dla tych artefaktów muszą być opisane osobno w `dataset/DATASET_CARD.md` i `models/pl_PL-mateusz-medium/MODEL_CARD.md` przed ich publiczną dystrybucją.
 
----
+## Upstream
 
-## Autorzy i kontakt
+- Piper: https://github.com/OHF-Voice/piper1-gpl
+- eSpeak NG: https://github.com/espeak-ng/espeak-ng
+- Piper voices: https://huggingface.co/rhasspy/piper-voices
 
-* Autor: dr inż. Mateusz Pomianek
-* Repozytorium: https://github.com/MatPomGit/piper-mat
-* Strona domowa: https://matpomgit.github.io/
+## Autor projektu głosu
+
+Mateusz Pomianek
