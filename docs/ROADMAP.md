@@ -1,72 +1,70 @@
 # Roadmap piper-mat
 
-Dokument opisuje dalsze prace konieczne do przekształcenia repozytorium w powtarzalny i dobrze udokumentowany projekt polskiego głosu Piper.
+Repozytorium ma już podstawową strukturę powtarzalnego projektu głosu `pl_PL-mateusz-medium`. Poniżej rozdzielono elementy wdrożone od prac wymagających rzeczywistych danych pomiarowych lub finalnego modelu.
 
-## P0. Stabilizacja procesu treningu
+## Zrealizowane
 
-1. **Zweryfikować pełny dataset.** Rozszerzyć `scripts/validate_dataset.py` o pomiar peak/RMS, clippingu, udziału ciszy i rozkładu długości. Dodać kontrolę zgodności plików znajdujących się w `wavs/`, ale nieobecnych w `metadata.csv`.
-2. **Utworzyć trwały podział train/validation/test.** Podział powinien używać stałego seed i być wersjonowany, aby kolejne eksperymenty były porównywalne.
-3. **Uzupełnić `DATASET_CARD.md`.** Wpisać faktyczny czas datasetu, liczbę segmentów, sprzęt, źródła nagrań, preprocessing, metodę transkrypcji i licencję.
-4. **Ustalić checkpoint bazowy.** Zapisać jego źródło, wersję i SHA-256. Nie wersjonować dużego checkpointu w zwykłym Git.
-5. **Ustalić seed i pełne parametry eksperymentu.** Zaktualizować `configs/pl_PL-mateusz-medium.json` po wybraniu konfiguracji produkcyjnej.
-6. **Dodać automatyczny smoke test eksportowanego ONNX.** Test powinien ładować model i konfigurację, syntetyzować krótkie polskie zdanie i potwierdzać powstanie niepustego audio.
+- [x] uporządkowanie repozytorium jako forka Piper do treningu własnego głosu,
+- [x] usunięcie konfliktującej deklaracji licencji MIT dla kodu pochodzącego z Piper GPL,
+- [x] wersjonowana konfiguracja eksperymentu,
+- [x] walidator `metadata.csv` i podstawowych parametrów WAV,
+- [x] deterministyczny generator train/validation/test ze stałym seed i SHA-256 metadata,
+- [x] zamrożony korpus zdań regresyjnych dla języka polskiego,
+- [x] kalkulator WER/CER,
+- [x] smoke test finalnej pary ONNX/JSON przez rzeczywistą syntezę Piper,
+- [x] `DATASET_CARD.md` i `MODEL_CARD.md`,
+- [x] dokument protokołu ewaluacji,
+- [x] lekkie CI sprawdzające strukturę, metadata, reprodukowalność splitu, korpus regresyjny, evaluator i MkDocs.
+
+## P0. Dataset i trening
+
+1. Rozszerzyć analizę sygnału o peak/RMS, clipping, udział ciszy oraz rozkład długości segmentów.
+2. Uruchomić `scripts/create_splits.py` na finalnej wersji metadata i **commitować `dataset/splits.json` dopiero po zamrożeniu datasetu**.
+3. Uzupełnić `DATASET_CARD.md` o faktyczny czas nagrań, liczbę segmentów, sprzęt, preprocessing, metodę transkrypcji i licencję danych.
+4. Ustalić produkcyjny checkpoint bazowy oraz zapisać jego źródło i SHA-256.
+5. Ustalić finalny seed i wszystkie parametry produkcyjnego treningu.
+6. Po każdym eksporcie uruchamiać `scripts/smoke_test_voice.py` na finalnym `pl_PL-mateusz-medium.onnx`.
 
 ## P1. Ewaluacja jakości
 
-1. Przygotować zamrożony zestaw zdań testowych dla języka polskiego.
-2. Wyznaczać WER i CER przez niezależny system ASR dla syntetyzowanych zdań.
-3. Dodać speaker similarity na podstawie embeddingów mówcy.
-4. Przygotować prosty protokół odsłuchowy MOS lub CMOS.
-5. Raportować RTF, czas pierwszego audio, RAM i CPU na x86-64 oraz Raspberry Pi 5.
-6. Zapisywać wyniki każdego modelu w wersjonowanym pliku, np. `evaluations/<version>.json`.
+1. Wygenerować mowę dla zamrożonego splitu testowego i `tests/polish_sentences.txt`.
+2. Uruchomić niezależny ASR i policzyć WER/CER przez `scripts/evaluate_transcripts.py`.
+3. Dodać speaker similarity z ustalonym modelem speaker-embedding.
+4. Przeprowadzić ślepy odsłuch MOS lub CMOS zgodnie z `docs/EVALUATION.md`.
+5. Zmierzyć RTF, latency, RAM i CPU na x86-64 oraz Raspberry Pi 5.
+6. Zapisywać wyniki kolejnych wersji w `evaluations/` wraz z metadanymi środowiska.
 
-## P1. Reprodukowalność i CI
+## P1. Polska fonemizacja
 
-1. Rozszerzyć CI o testy jednostkowe po ustabilizowaniu zależności kompilacyjnych Pipera.
-2. Dodać testy regresyjne polskiej fonemizacji oparte na eSpeak NG.
-3. Sprawdzać zgodność par `.onnx` i `.onnx.json` w artefaktach wydania.
-4. Generować `checksums.txt` dla publicznych artefaktów.
-5. Zapisywać wersje Python, PyTorch, Lightning, CUDA, Piper i eSpeak NG w raporcie eksperymentu.
+Obecny korpus regresyjny zawiera polskie diakrytyki, liczby, daty, godziny, jednostki SI, skróty, URL/e-mail, nazwy własne, terminologię techniczną i interpunkcję. Następny krok to zapisanie oczekiwanych sekwencji fonemów dla wybranej, przypiętej wersji eSpeak NG i uruchamianie testu regresyjnego w CI.
 
-## P1. Porządkowanie artefaktów
+Nie należy zamrażać oczekiwanych fonemów przed przypięciem wersji eSpeak NG, ponieważ aktualizacja upstreamu może celowo zmieniać wymowę.
 
-1. Usunąć duże modele bazowe z głównego drzewa repozytorium po zapewnieniu ich stabilnego źródła pobierania.
-2. Nie dodawać kolejnych checkpointów ani finalnych ONNX bezpośrednio do historii Git.
-3. Publikować finalne modele przez GitHub Releases lub Hugging Face.
-4. Dodać skrypt pobierający wskazany checkpoint bazowy i weryfikujący SHA-256.
+## P1. Artefakty i reprodukowalność
+
+1. Dodać skrypt pobierający checkpoint bazowy ze stabilnego źródła i weryfikujący SHA-256.
+2. Generować `checksums.txt` dla każdego wydania.
+3. Zapisywać wersje Python, PyTorch, Lightning, CUDA, Piper i eSpeak NG w rekordzie eksperymentu.
+4. Usunąć duże modele bazowe z głównego drzewa Git po zapewnieniu stabilnego źródła pobierania.
+5. Publikować finalne modele przez GitHub Releases lub Hugging Face zamiast jako zwykłe commity.
 
 ## P2. Publikacja modelu
 
-1. Uzupełnić `models/pl_PL-mateusz-medium/MODEL_CARD.md` faktycznymi parametrami i wynikami.
-2. Ustalić licencję datasetu i osobno licencję modelu.
+1. Uzupełnić `MODEL_CARD.md` rzeczywistymi parametrami i wynikami.
+2. Ustalić osobno licencję datasetu i finalnego modelu głosu.
 3. Opublikować stały zestaw próbek porównawczych.
-4. Dodać instrukcję instalacji głosu w Piper, Wyoming Piper i Home Assistant.
-5. Zautomatyzować tworzenie paczki wydania zawierającej ONNX, JSON, model card, checksumy i próbki.
+4. Dodać instrukcję instalacji modelu w Piper, Wyoming Piper i Home Assistant.
+5. Zautomatyzować paczkę wydania: ONNX, JSON, model card, checksumy, wyniki i próbki.
 
-## P2. Testy języka polskiego
+## Kryterium wydania v1.0
 
-Zestaw regresyjny powinien obejmować co najmniej:
+Wydanie `pl_PL-mateusz-medium` można oznaczyć jako stabilne, gdy:
 
-- polskie znaki diakrytyczne,
-- liczby ujemne i dziesiętne,
-- daty i godziny,
-- jednostki SI,
-- tytuły i skróty,
-- adresy URL i e-mail,
-- nazwiska i nazwy własne,
-- zapożyczenia,
-- interpunkcję,
-- bardzo krótkie i długie wypowiedzi.
-
-## Kryterium wydania v1.0 głosu
-
-Pierwsze stabilne wydanie można uznać za gotowe, gdy jednocześnie:
-
-- dataset przechodzi walidację bez błędów,
-- train/validation/test są zamrożone,
-- trening można odtworzyć z wersjonowanej konfiguracji,
-- ONNX przechodzi smoke test,
-- istnieją wyniki WER/CER, ocena podobieństwa oraz benchmark CPU/Raspberry Pi 5,
-- `DATASET_CARD.md` i `MODEL_CARD.md` są kompletne,
-- licencje datasetu i modelu są jednoznaczne,
-- wydanie zawiera checksumy i próbki audio.
+- dataset przechodzi pełną walidację sygnału,
+- `dataset/splits.json` jest zamrożony i zgodny z SHA-256 metadata,
+- trening można odtworzyć z wersjonowanej konfiguracji i wskazanego checkpointu,
+- finalny ONNX przechodzi smoke test,
+- dostępne są WER/CER, speaker similarity i benchmark Raspberry Pi 5/x86-64,
+- `DATASET_CARD.md` i `MODEL_CARD.md` nie zawierają niewypełnionych danych krytycznych,
+- licencje datasetu oraz modelu są jednoznaczne,
+- opublikowana paczka zawiera checksumy i próbki audio.
