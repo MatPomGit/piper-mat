@@ -13,6 +13,7 @@ nav:
       - Wdrożenie: DEPLOYMENT.md
       - Terminologia: TERMINOLOGIA.md
   - Trenowanie:
+      - Kreator Windows 11: WINDOWS_GUI.md
       - Podstawy: TRAINING.md
       - Trening etapowy i wznawianie: STAGED_TRAINING.md
   - Głosy: VOICES.md
