@@ -1,0 +1,19 @@
+site_name: Dokumentacja piper-mat
+docs_dir: .
+site_dir: ../piper-mat-site
+exclude_docs: |
+  /*
+  !/README.md
+  !/docs/
+  /docs/*
+  !/docs/*.md
+nav:
+  - Strona główna: README.md
+  - Dopasowania: docs/ALIGNMENTS.md
+  - HTTP API: docs/API_HTTP.md
+  - Python API: docs/API_PYTHON.md
+  - Kompilowanie: docs/BUILDING.md
+  - Wiersz poleceń: docs/CLI.md
+  - Plany: docs/PLANS.md
+  - Trenowanie: docs/TRAINING.md
+  - Głosy: docs/VOICES.md

@@ -1,15 +1,15 @@
-# 🏋️ Training
+# 🏋️ Trenowanie
 
-Code for training new voices is included in `src/piper/train` and can be run with `python3 -m piper.train fit`.
-This uses [PyTorch Lightning][lighting] and the `LightningCLI`.
+Kod do trenowania nowych głosów znajduje się w `src/piper/train` i można go uruchomić za pomocą `python3 -m piper.train fit`.
+Wykorzystuje on [PyTorch Lightning][lighting] oraz `LightningCLI`.
 
-You will need the following system packages installed (`apt-get`):
+Należy zainstalować następujące pakiety systemowe (`apt-get`):
 
 * `build-essential`
 * `cmake`
 * `ninja-build`
 
-Then clone the repo and install the training dependencies:
+Następnie sklonuj repozytorium i zainstaluj zależności do trenowania:
 
 ``` sh
 git clone https://github.com/OHF-voice/piper1-gpl.git
@@ -20,19 +20,19 @@ source .venv/bin/activate #linux
 python3 -m pip install -e '.[train]'
 ```
 
-and then build the cython extension:
+a następnie zbuduj rozszerzenie Cython:
 
 ``` sh
 ./build_monotonic_align.sh
 ```
 
-If you are running from the repo, you will need to do a dev build:
+W przypadku uruchamiania z repozytorium należy wykonać kompilację deweloperską:
 
 ``` sh
 python3 setup.py build_ext --inplace
 ```
 
-To train, you must have a CSV file with `|` as a delimiter and the format:
+Do trenowania potrzebny jest plik CSV z separatorem `|` w następującym formacie:
 
 ``` csv
 utt1.wav|Text for utterance 1.
@@ -40,11 +40,11 @@ utt2.wav|Text for utterance 2.
 ...
 ```
 
-The first column is the name of the audio file (any format supported by [librosa][]), which must be located in `--data.audio_dir` (see below).
+Pierwsza kolumna zawiera nazwę pliku dźwiękowego (w dowolnym formacie obsługiwanym przez [librosa][]), który musi znajdować się w `--data.audio_dir` (zobacz niżej).
 
-The other column(s) will depend on the [training settings](#settings). By default, the second column is the text that will be passed to [espeak-ng][] for phonemization (similar to `espeak-ng --ipa=3`).
+Pozostałe kolumny zależą od [ustawień trenowania](#ustawienia). Domyślnie druga kolumna zawiera tekst przekazywany do [espeak-ng][] w celu fonemizacji (podobnie jak w `espeak-ng --ipa=3`).
 
-Run the training script:
+Uruchom skrypt trenujący:
 
 ``` sh
 python3 -m piper.train fit \
@@ -59,29 +59,29 @@ python3 -m piper.train fit \
   --ckpt_path /path/to/finetune.ckpt  # optional but highly recommended
 ```
 
-where:
+gdzie:
 
-* `data.voice_name` is the name of your voice (can be anything)
-* `data.csv_path` is the path to the CSV file with audio file names and text
-* `data.audio_dir` is the directory containing the audio files (usually `.wav`)
-* `model.sample_rate` is the sample rate of the audio in hertz (usually 22050)
-* `data.espeak_voice` is the espeak-ng voice/language like `en-us` (see `espeak-ng --voices`)
-* `data.cache_dir` is a directory where training artifacts are cached (phonemes, trimmed audio, etc.)
-* `data.config_path` is the path to write the voice's JSON config file
-* `data.batch_size` is the training batch size
-* `ckpt_path` is the path to an existing [Piper checkpoint][piper-checkpoints]
+* `data.voice_name` to nazwa głosu (może być dowolna)
+* `data.csv_path` to ścieżka do pliku CSV z nazwami plików dźwiękowych i tekstem
+* `data.audio_dir` to katalog zawierający pliki dźwiękowe (zwykle `.wav`)
+* `model.sample_rate` to częstotliwość próbkowania dźwięku w hercach (zwykle 22050)
+* `data.espeak_voice` to głos/język espeak-ng, na przykład `en-us` (zobacz `espeak-ng --voices`)
+* `data.cache_dir` to katalog, w którym buforowane są artefakty trenowania (fonemy, przycięty dźwięk itd.)
+* `data.config_path` to ścieżka zapisu pliku konfiguracji JSON głosu
+* `data.batch_size` to rozmiar partii podczas trenowania
+* `ckpt_path` to ścieżka do istniejącego [punktu kontrolnego Pipera][piper-checkpoints]
 
-Using `--ckpt_path` is recommended since it will speed up training a lot, even if the checkpoint is from a different language. Only `medium` quality checkpoints are supported without [tweaking other settings][audio-config].
+Zaleca się użycie `--ckpt_path`, ponieważ znacznie przyspiesza trenowanie, nawet jeśli punkt kontrolny pochodzi z innego języka. Bez [dostosowania innych ustawień][audio-config] obsługiwane są tylko punkty kontrolne jakości `medium`.
 
-Run `python3 -m piper.train fit --help` for many more options.
+Uruchom `python3 -m piper.train fit --help`, aby poznać wiele innych opcji.
 
-## Settings
+## Ustawienia
 
-Some training settings will change the input data format.
+Niektóre ustawienia trenowania zmieniają format danych wejściowych.
 
-### Multiple Speakers
+### Wielu mówców
 
-If you have more than one speaker in your dataset, the input CSV format changes to:
+Jeśli zbiór danych zawiera więcej niż jednego mówcę, format wejściowego pliku CSV zmienia się na:
 
 ``` csv
 utt1.wav|speaker_1|Text for utterance 1 with first speaker.
@@ -89,11 +89,11 @@ utt2.wav|speaker_2|Text for utterance 2 with second speaker.
 ...
 ```
 
-where `speaker_1` and `speaker_2` are the **names** of the speakers. When training begins, Piper will count up the number of unique speaker names and create a mapping between speaker names and ids. This mapping will be saved in the `config.json` file for the voice (`--data.config_path`).
+gdzie `speaker_1` i `speaker_2` są **nazwami** mówców. Po rozpoczęciu trenowania Piper policzy unikatowe nazwy mówców i utworzy mapowanie nazw mówców na identyfikatory. Mapowanie zostanie zapisane w pliku `config.json` głosu (`--data.config_path`).
 
-### Custom Phonemes
+### Własne fonemy
 
-If you want to skip phonemization with `espeak-ng`, set `--data.phoneme_type text` and use the CSV format:
+Aby pominąć fonemizację za pomocą `espeak-ng`, ustaw `--data.phoneme_type text` i użyj formatu CSV:
 
 ``` csv
 utt1.wav|phonemes_for_utt_1
@@ -101,17 +101,17 @@ utt2.wav|phonemes_for_utt_2
 ...
 ```
 
-The final column is now the UTF-8 codepoints that you want to be the phonemes for each utterance. In Python, these are converted to a list with:
+Ostatnia kolumna zawiera teraz punkty kodowe UTF-8, które mają być fonemami każdej wypowiedzi. W języku Python są one przekształcane w listę za pomocą:
 
 ```python
 phonemes_list = list(unicodedata.normalize("NFD", phonemes_text))
 ```
 
-These phonemes are run through the normal process to create phoneme ids, which includes adding the BOS/EOS ids and interspersing PAD.
+Fonemy przechodzą zwykły proces tworzenia identyfikatorów fonemów, obejmujący dodanie identyfikatorów BOS/EOS i wstawienie PAD.
 
-### Custom Phoneme Ids
+### Własne identyfikatory fonemów
 
-For complete control over phonemization, use `--data.data_type phoneme_ids` and use the CSV format:
+Aby uzyskać pełną kontrolę nad fonemizacją, użyj `--data.data_type phoneme_ids` oraz formatu CSV:
 
 ``` csv
 utt1.wav|Text for utterance 1.|0 1 2 3 4 5
@@ -119,9 +119,9 @@ utt2.wav|Text for utterance 2.|5 4 3 2 1 0
 ...
 ```
 
-The model will be trained with the exact phoneme ids you specify. You should set `--data.num_symbols <N>` to the number of phoneme ids you have unless you want the default of 256.
+Model zostanie wytrenowany dokładnie z podanymi identyfikatorami fonemów. Należy ustawić `--data.num_symbols <N>` na liczbę posiadanych identyfikatorów fonemów, chyba że ma zostać użyta wartość domyślna 256.
 
-Setting `--data.phonemes_path <FILE>` will copy a phoneme/id map into the voice's config file (`--data.config_path`). This file is a JSON object mapping phonemes to ids:
+Ustawienie `--data.phonemes_path <FILE>` skopiuje mapę fonemów i identyfikatorów do pliku konfiguracji głosu (`--data.config_path`). Plik ten jest obiektem JSON mapującym fonemy na identyfikatory:
 
 ```json
 {
@@ -131,15 +131,15 @@ Setting `--data.phonemes_path <FILE>` will copy a phoneme/id map into the voice'
 }
 ```
 
-### Vocoder Warmstart
+### Wstępna inicjalizacja wokodera
 
-When training a new model from scratch, you can significantly speed up training by using `--model.vocoder_warmstart_ckpt <CHECKPOINT>`. This will copy the model parameters for the vocoder, but not the phoneme embedding layer.
+Podczas trenowania nowego modelu od podstaw można znacznie przyspieszyć ten proces za pomocą `--model.vocoder_warmstart_ckpt <CHECKPOINT>`. Spowoduje to skopiowanie parametrów modelu wokodera, ale nie warstwy osadzania fonemów.
 
-Unlike `--ckpt_path`, using `--model.vocoder_warmstart_ckpt` allows you to train a model with a different number of phonemes without having to start completely from scratch.
+W przeciwieństwie do `--ckpt_path` użycie `--model.vocoder_warmstart_ckpt` pozwala trenować model z inną liczbą fonemów bez rozpoczynania całkowicie od podstaw.
 
-## Exporting
+## Eksportowanie
 
-When your model is finished training, export it to onnx with:
+Po zakończeniu trenowania wyeksportuj model do formatu ONNX za pomocą:
 
 ``` sh
 python3 -m piper.train.export_onnx \
@@ -147,18 +147,18 @@ python3 -m piper.train.export_onnx \
   --output-file /path/to/model.onnx
 ```
 
-To make this compatible with other Piper voices, rename `model.onnx` as `<language>-<name>-medium.onnx` (e.g., `en_US-lessac-medium.onnx`). Name the JSON config file that was written to `--data.config_path` **during training** the same name with a `.json` extension. So you would have two files for the voice:
+Aby zapewnić zgodność z innymi głosami Pipera, zmień nazwę `model.onnx` na `<language>-<name>-medium.onnx` (np. `en_US-lessac-medium.onnx`). Plikowi konfiguracji JSON zapisanemu w `--data.config_path` **podczas trenowania** nadaj tę samą nazwę z rozszerzeniem `.json`. Głos będzie więc składał się z dwóch plików:
 
-* `en_US-lessac-medium.onnx` (from the export script)
-* `en_US-lessac-medium.onnx.json` (from training)
+* `en_US-lessac-medium.onnx` (ze skryptu eksportującego)
+* `en_US-lessac-medium.onnx.json` (z trenowania)
 
-## Hardware
+## Sprzęt
 
-Most of the Piper voices were trained/fine-tuned on a Threadripper 1900X with 128GB of RAM and either an NVIDIA A6000 (48 GB VRAM) or a 3090 (24 GB VRAM).
+Większość głosów Pipera trenowano lub dostrajano na procesorze Threadripper 1900X ze 128 GB pamięci RAM oraz kartą NVIDIA A6000 (48 GB VRAM) albo 3090 (24 GB VRAM).
 
-Users have reported success with as little as 8GB of VRAM and alternative GPUs like the RX 7600.
+Użytkownicy zgłaszali udane trenowanie nawet z 8 GB pamięci VRAM i alternatywnymi kartami GPU, takimi jak RX 7600.
 
-<!-- Links -->
+<!-- Odnośniki -->
 [espeak-ng]: https://github.com/espeak-ng/espeak-ng
 [lighting]: https://lightning.ai/docs/pytorch/stable/
 [librosa]: https://librosa.org/doc/latest/index.html

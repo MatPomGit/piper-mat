@@ -224,6 +224,25 @@ pytest tests/
 
 ---
 
+## Dokumentacja lokalna
+
+Narzędzia dokumentacyjne są częścią zależności deweloperskich. Po aktywowaniu
+środowiska wirtualnego zainstaluj je i uruchom lokalny serwer:
+
+```bash
+python3 -m pip install -e '.[dev]'
+mkdocs serve
+```
+
+Witrynę można zbudować w trybie rygorystycznym, który zgłasza ostrzeżenia jako
+błędy:
+
+```bash
+mkdocs build --strict
+```
+
+---
+
 ## Licencja
 
 Projekt udostępniany jest na warunkach licencji MIT. Szczegółowe informacje znajdują się w pliku LICENSE.

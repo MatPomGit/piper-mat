@@ -1,64 +1,64 @@
-# Alignments
+# Dopasowania
 
-Experimental support for audio alignments has been added to Piper's Python and C++ APIs.
-This exposes the number of audio samples for each **phoneme id** used during synthesis, and can be used for [aligning speech with mouth movement][visemes].
+Do interfejsów API Pipera dla języków Python i C++ dodano eksperymentalną obsługę dopasowań dźwięku.
+Udostępnia ona liczbę próbek dźwięku dla każdego **identyfikatora fonemu** użytego podczas syntezy i może służyć do [synchronizowania mowy z ruchem ust][visemes].
 
-## Patching Voices
+## Modyfikowanie głosów
 
-To access alignments, you must first "patch" a voice's ONNX model file:
+Aby uzyskać dostęp do dopasowań, najpierw należy „zmodyfikować” plik modelu ONNX głosu:
 
 ``` sh
 python3 -m piper.patch_voice_with_alignment /path/to/model.onnx
 ```
 
-This requires the `onnx` Python package to be installed (not to be confused with `onnxruntime`). After patching, the `onnx` package is no longer required. Patched ONNX models should still work fine with existing Piper installations.
+Wymaga to zainstalowania pakietu Python `onnx` (nie należy go mylić z `onnxruntime`). Po zmodyfikowaniu pakiet `onnx` nie jest już potrzebny. Zmodyfikowane modele ONNX powinny nadal poprawnie działać z istniejącymi instalacjami Pipera.
 
-### Patching at Load Time
+### Modyfikowanie podczas wczytywania
 
-Alternatively, you can patch a voice in memory when loading it, without writing a modified model to disk:
+Alternatywnie można zmodyfikować głos w pamięci podczas jego wczytywania, bez zapisywania zmienionego modelu na dysku:
 
 ``` python
 voice = PiperVoice.load("/path/to/model.onnx", include_alignments=True)
 ```
 
-This also requires the `onnx` package (install with `pip install piper-tts[alignment]`), but it leaves the original `.onnx` file untouched. If the model is already patched, or the `onnx` package is unavailable, the voice loads normally and alignments are simply unavailable.
+To również wymaga pakietu `onnx` (zainstaluj go poleceniem `pip install piper-tts[alignment]`), ale pozostawia oryginalny plik `.onnx` bez zmian. Jeśli model został już zmodyfikowany albo pakiet `onnx` jest niedostępny, głos zostanie wczytany normalnie, a dopasowania po prostu nie będą dostępne.
 
-## Python API
+## API języka Python
 
-The `AudioChunk` class has been extended with several new fields:
+Klasę `AudioChunk` rozszerzono o kilka nowych pól:
 
-* `phonemes` - list of phonemes used to produce the audio chunk
-* `phoneme_ids` - list of phonemes ids used to produce the audio chunk
-* `phoneme_id_samples` - number of audio samples for each phoneme id
-* `phoneme_alignments` - list of phoneme/sample count alignments
+* `phonemes` — lista fonemów użytych do utworzenia fragmentu dźwięku
+* `phoneme_ids` — lista identyfikatorów fonemów użytych do utworzenia fragmentu dźwięku
+* `phoneme_id_samples` — liczba próbek dźwięku dla każdego identyfikatora fonemu
+* `phoneme_alignments` — lista dopasowań fonemów do liczby próbek
 
-Both the `phoneme_id_sample` and `phoneme_alignments` fields will be missing if alignments are not supported by the voice model or are disabled with `include_alignments=False`.
+Pola `phoneme_id_sample` i `phoneme_alignments` będą nieobecne, jeśli model głosu nie obsługuje dopasowań lub wyłączono je za pomocą `include_alignments=False`.
 
-## C++ API
+## API języka C++
 
-The `piper_audio_chunk` struct has been extended with several new fields:
+Strukturę `piper_audio_chunk` rozszerzono o kilka nowych pól:
 
-* `phonemes` - array of codepoints whose length is `num_phonemes`
-* `phoneme_ids` - array of ids whose length is `num_phoneme_ids`
-* `alignments` - array of sample counts whose length is `num_alignments`
+* `phonemes` — tablica punktów kodowych o długości `num_phonemes`
+* `phoneme_ids` — tablica identyfikatorów o długości `num_phoneme_ids`
+* `alignments` — tablica liczb próbek o długości `num_alignments`
 
-The `alignments` array will be empty if the voice doesn't support them, but the `phonemes` and `phonemes_ids` arrays will always be present.
+Tablica `alignments` będzie pusta, jeśli głos nie obsługuje dopasowań, ale tablice `phonemes` i `phonemes_ids` będą zawsze obecne.
 
-The `phoneme_ids` array contains the ids that were used to synthesize audio for the chunk. It looks like [1, 0, id1, 0, id2, 0, ..., 2] where:
+Tablica `phoneme_ids` zawiera identyfikatory użyte do syntezy dźwięku danego fragmentu. Ma postać [1, 0, id1, 0, id2, 0, ..., 2], gdzie:
 
-* 0 = pad
-* 1 = beginning of sentence
-* 2 = end of sentence
+* 0 = wypełnienie
+* 1 = początek zdania
+* 2 = koniec zdania
 
-Since a single phoneme can produce multiple phoneme ids, the `phonemes` array is a bit more complex. It looks like [p1, p1, 0, p2, p2, 0, ...] where the same phoneme codepoint is repeated for each corresponding id in `phoneme_ids`. A value of 0 separates each phoneme, and in most cases there will be two codepoints per phoneme corresponding to the phoneme id and the pad id.
+Ponieważ jeden fonem może utworzyć wiele identyfikatorów fonemów, tablica `phonemes` jest nieco bardziej złożona. Ma postać [p1, p1, 0, p2, p2, 0, ...], w której ten sam punkt kodowy fonemu jest powtarzany dla każdego odpowiadającego mu identyfikatora w `phoneme_ids`. Wartość 0 oddziela poszczególne fonemy, a w większości przypadków na fonem przypadają dwa punkty kodowe odpowiadające identyfikatorowi fonemu i identyfikatorowi wypełnienia.
 
-The `alignments` array contains the number of audio samples for each phoneme id. You can determine which phoneme these belong to by:
+Tablica `alignments` zawiera liczbę próbek dźwięku dla każdego identyfikatora fonemu. Przynależność próbek do fonemów można ustalić następująco:
 
-1. Read N (repeated) codepoints from `phonemes` until a 0 is reached (or end)
-2. The next N phoneme ids correspond to that phoneme
-3. The next N alignments (sample counts) correspond to that phoneme
-4. Advance your iterators in the `phoneme_ids` and `alignments` arrays by N
-5. Repeat
+1. Odczytaj N (powtórzonych) punktów kodowych z `phonemes`, aż zostanie napotkane 0 (lub koniec)
+2. Następnych N identyfikatorów fonemów odpowiada temu fonemowi
+3. Następnych N dopasowań (liczb próbek) odpowiada temu fonemowi
+4. Przesuń iteratory w tablicach `phoneme_ids` i `alignments` o N
+5. Powtórz
 
-<!-- Links -->
+<!-- Odnośniki -->
 [visemes]: https://github.com/aflorithmic/viseme-to-video

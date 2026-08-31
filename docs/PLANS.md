@@ -1,11 +1,11 @@
-# Plans
+# Plany
 
-Plans for future Piper development.
+Plany przyszłego rozwoju Pipera.
 
-## Alignments
+## Dopasowania
 
-Experimental [alignment support][ALIGNMENTS.md] has been added. If useful, all of the existing voices need to be patched.
+Dodano eksperymentalną [obsługę dopasowań](ALIGNMENTS.md). Jeśli okaże się przydatna, wszystkie istniejące głosy trzeba będzie zmodyfikować.
 
 ## piper.exe
 
-Compiled executables for Piper need to be ported from the old repo. These should use `libpiper` now.
+Skompilowane pliki wykonywalne Pipera trzeba przenieść ze starego repozytorium. Powinny teraz używać `libpiper`.
