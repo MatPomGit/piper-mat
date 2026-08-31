@@ -6,15 +6,20 @@
       "sha256": "ab7e5b8dab40f834b7cc58ae4ad7b7009c954b901e4ddbb784bbe11ce379a1cd",
       "size_bytes": 845898328,
       "storage": "git-lfs",
-      "source": null,
-      "notes": "Aktualny checkpoint bazowy. Uzupełnij stabilny URL źródłowy przed usunięciem obiektu z Git LFS."
+      "source": {
+        "repository": "rhasspy/piper-checkpoints",
+        "path": "en/en_US/lessac/medium/epoch=2164-step=1355540.ckpt",
+        "revision": "19ca249c3d7c490dbbefbaf775f74df10681d9a4",
+        "url": "https://huggingface.co/datasets/rhasspy/piper-checkpoints/resolve/main/en/en_US/lessac/medium/epoch%3D2164-step%3D1355540.ckpt"
+      },
+      "notes": "Zweryfikowany punkt kontrolny en_US-lessac-medium. SHA-256 i rozmiar są zgodne z publicznym artefaktem rhasspy/piper-checkpoints."
     },
     "base_clean.ckpt": {
       "sha256": "364a565cf43edc665b52d9183fa042e4097beaf581fd1f9e0d18ce34f013f594",
       "size_bytes": 845861848,
       "storage": "git-lfs",
       "source": null,
-      "notes": "Wariant lokalnie przetworzony; zachować tylko, jeśli jego rola w pipeline zostanie jednoznacznie opisana."
+      "notes": "Wariant lokalnie przetworzony; zachować tylko, jeśli jego rola w procesie zostanie jednoznacznie opisana."
     }
   }
 }

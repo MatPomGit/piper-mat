@@ -2,15 +2,29 @@
 
 Punkty kontrolne treningu są dużymi artefaktami i nie powinny być traktowane jak zwykłe pliki źródłowe.
 
-## Manifest
+## Aktywny punkt kontrolny
 
-Plik `checkpoints/manifest.json` zapisuje nazwę, rozmiar i SHA-256 znanych punktów kontrolnych. Dla aktualnego `base.ckpt` identyfikator Git LFS wskazuje SHA-256:
+Aktywny `base.ckpt` został jednoznacznie zidentyfikowany jako publiczny punkt kontrolny **en_US-lessac-medium**, `epoch=2164-step=1355540.ckpt`, z repozytorium `rhasspy/piper-checkpoints`.
 
-`ab7e5b8dab40f834b7cc58ae4ad7b7009c954b901e4ddbb784bbe11ce379a1cd`
+Zweryfikowane parametry:
 
-oraz rozmiar 845898328 bajtów.
+- SHA-256: `ab7e5b8dab40f834b7cc58ae4ad7b7009c954b901e4ddbb784bbe11ce379a1cd`,
+- rozmiar: `845898328` bajtów,
+- rewizja źródłowa: `19ca249c3d7c490dbbefbaf775f74df10681d9a4`.
 
-Integralność można sprawdzić poleceniem:
+Dane te są zapisane w `checkpoints/manifest.json`.
+
+## Pobieranie
+
+Punkt kontrolny można pobrać bezpośrednio na podstawie manifestu:
+
+```bash
+python scripts/download_checkpoint.py base.ckpt
+```
+
+Skrypt zapisuje dane najpierw do pliku tymczasowego, a następnie weryfikuje zarówno rozmiar, jak i SHA-256. Plik docelowy jest podmieniany dopiero po poprawnej weryfikacji.
+
+## Weryfikacja istniejącego pliku
 
 ```bash
 python scripts/verify_checkpoint.py checkpoints/base.ckpt
@@ -18,14 +32,8 @@ python scripts/verify_checkpoint.py checkpoints/base.ckpt
 
 Skrypt rozpoznaje zarówno rzeczywisty plik punktu kontrolnego, jak i wskaźnik Git LFS.
 
-## Dalsze porządkowanie
+## Pozostałe warianty
 
-Przed usunięciem punktów kontrolnych z Git LFS należy:
+`base_clean.ckpt`, `base_fixed.ckpt` i `base_win.ckpt` powstały w toku lokalnych prac nad kompatybilnością. Nie należy traktować ich jako niezależnych źródeł bazowych bez udokumentowania transformacji i celu.
 
-1. ustalić ich pierwotne źródło,
-2. wpisać stabilny adres URL do `checkpoints/manifest.json`,
-3. zweryfikować SHA-256 pobranego pliku,
-4. potwierdzić, który punkt kontrolny jest rzeczywiście używany do treningu produkcyjnego,
-5. usunąć niepotrzebne warianty `base_clean`, `base_fixed` i `base_win`, jeśli nie są już wymagane.
-
-Nie należy wpisywać adresu URL źródłowego na podstawie przypuszczenia. Manifest ma odzwierciedlać zweryfikowane pochodzenie artefaktu.
+Po potwierdzeniu, że aktywny `base.ckpt` wystarcza do powtarzalnego treningu, warianty nieużywane należy usunąć z bieżącego drzewa repozytorium i Git LFS. Pełne czyszczenie historycznych obiektów LFS jest osobną, bardziej inwazyjną operacją i nie jest wymagane do poprawnego działania projektu.

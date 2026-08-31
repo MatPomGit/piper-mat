@@ -13,9 +13,9 @@
     "base_checkpoint": "checkpoints/base.ckpt",
     "cache_dir": "cache",
     "output_dir": "output",
-    "seed": null,
+    "seed": 20260831,
     "max_epochs": null,
-    "notes": "Uzupełnij seed, checkpoint bazowy i parametry końcowego eksperymentu przed publikacją wyników."
+    "notes": "Stałe ziarno losowania zapewnia porównywalność eksperymentów. Limit epok należy ustalić dla finalnej strategii treningu przed publikacją wyników."
   },
   "export": {
     "model_filename": "pl_PL-mateusz-medium.onnx",
