@@ -20,8 +20,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Compile project scripts
-        run: python -m compileall -q scripts
+      - name: Compile project scripts and Windows GUI
+        run: |
+          python -m compileall -q scripts
+          python -m py_compile tools/windows_setup_gui.py
 
       - name: Check repository structure and voice config
         run: python scripts/check_project.py
