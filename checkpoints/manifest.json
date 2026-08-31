@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "active_checkpoint": "base.ckpt",
+  "checkpoints": {
+    "base.ckpt": {
+      "sha256": "ab7e5b8dab40f834b7cc58ae4ad7b7009c954b901e4ddbb784bbe11ce379a1cd",
+      "size_bytes": 845898328,
+      "storage": "git-lfs",
+      "source": null,
+      "notes": "Aktualny checkpoint bazowy. Uzupełnij stabilny URL źródłowy przed usunięciem obiektu z Git LFS."
+    },
+    "base_clean.ckpt": {
+      "sha256": "364a565cf43edc665b52d9183fa042e4097beaf581fd1f9e0d18ce34f013f594",
+      "size_bytes": 845861848,
+      "storage": "git-lfs",
+      "source": null,
+      "notes": "Wariant lokalnie przetworzony; zachować tylko, jeśli jego rola w pipeline zostanie jednoznacznie opisana."
+    }
+  }
+}
