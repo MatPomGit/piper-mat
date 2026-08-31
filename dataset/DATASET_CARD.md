@@ -1,12 +1,12 @@
-# Dataset Card: pl_PL-mateusz
+# Karta zbioru danych: pl_PL-mateusz
 
 ## Przeznaczenie
 
-Dataset służy do trenowania i dostrajania jednego polskiego głosu dla Piper TTS. Metadane znajdują się w `metadata.csv`, a nagrania w `wavs/`.
+Zbiór danych służy do trenowania i dostrajania jednego polskiego głosu dla Piper TTS. Metadane znajdują się w `metadata.csv`, a nagrania w `wavs/`.
 
 ## Stan
 
-Dataset jest w trakcie przygotowania i walidacji. Poniższe pola oznaczone `TODO` należy uzupełnić wyłącznie na podstawie faktycznych pomiarów i udokumentowanego procesu przygotowania danych.
+Zbiór danych jest w trakcie przygotowania i walidacji. Poniższe pola oznaczone `TODO` należy uzupełnić wyłącznie na podstawie faktycznych pomiarów i udokumentowanego procesu przygotowania danych.
 
 ## Dane podstawowe
 
@@ -29,9 +29,9 @@ Dataset jest w trakcie przygotowania i walidacji. Poniższe pola oznaczone `TODO
 
 ## Przygotowanie danych
 
-Udokumentuj:
+Należy udokumentować:
 
-1. ekstrakcję i konwersję audio,
+1. ekstrakcję i konwersję dźwięku,
 2. segmentację wypowiedzi,
 3. normalizację poziomu sygnału,
 4. redukcję lub brak redukcji szumu,
@@ -53,27 +53,25 @@ Przed treningiem należy raportować co najmniej:
 - duplikaty,
 - puste transkrypcje,
 - rozkład długości segmentów,
-- liczbę plików o niezgodnym sample rate,
+- liczbę plików o niezgodnej częstotliwości próbkowania,
 - liczbę plików stereo,
-- clipping i poziomy RMS/peak,
+- przesterowanie i poziomy RMS oraz wartości szczytowe,
 - udział ciszy,
 - pokrycie znaków i fonemów języka polskiego.
 
-Ostatnie cztery pozycje wymagają rozszerzenia obecnego walidatora o analizę sygnałową i fonemizację.
-
 ## Podział danych
 
-Docelowo należy utworzyć trwały, wersjonowany podział `train/validation/test`, aby kolejne wersje modelu były porównywane na tym samym zbiorze testowym.
+Docelowo należy utworzyć trwały, wersjonowany podział na zbiory treningowy, walidacyjny i testowy, aby kolejne wersje modelu były porównywane na tym samym zbiorze testowym.
 
-- train: TODO
-- validation: TODO
-- test: TODO
-- seed podziału: TODO
+- zbiór treningowy: TODO
+- zbiór walidacyjny: TODO
+- zbiór testowy: TODO
+- ziarno losowania podziału: TODO
 
 ## Prywatność i prawa do głosu
 
-Nagrania przedstawiają głos jednej osoby. Przed publicznym udostępnieniem datasetu należy jednoznacznie udokumentować zgodę właściciela głosu na publikację i zakres dozwolonego wykorzystania nagrań.
+Nagrania przedstawiają głos jednej osoby. Przed publicznym udostępnieniem zbioru danych należy jednoznacznie udokumentować zgodę właściciela głosu na publikację i zakres dozwolonego wykorzystania nagrań.
 
 ## Licencja
 
-TODO. Licencja datasetu musi zostać określona niezależnie od GPL-3.0-or-later obejmującej kod Piper.
+TODO. Licencja zbioru danych musi zostać określona niezależnie od GPL-3.0-or-later obejmującej kod Piper.

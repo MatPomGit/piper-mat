@@ -4,13 +4,13 @@ Ewaluacja `pl_PL-mateusz-medium` powinna rozdzielać zrozumiałość, podobieńs
 
 ## Zamrożony zbiór testowy
 
-Do porównań między kolejnymi wersjami należy używać wyłącznie wersjonowanego splitu testowego wygenerowanego przez:
+Do porównań między kolejnymi wersjami należy używać wyłącznie wersjonowanego podziału testowego wygenerowanego przez:
 
 ```bash
 python scripts/create_splits.py --output dataset/splits.json
 ```
 
-Plik zawiera seed oraz SHA-256 `metadata.csv`. Jeżeli zmieni się metadata, split należy świadomie wygenerować ponownie i odnotować zmianę w eksperymencie.
+Plik zawiera ziarno losowania oraz SHA-256 `metadata.csv`. Jeżeli metadane się zmienią, podział należy świadomie wygenerować ponownie i odnotować zmianę w eksperymencie.
 
 Dodatkowy zestaw `tests/polish_sentences.txt` służy do regresji polskiej normalizacji, fonemizacji i syntezy dla konstrukcji trudnych językowo.
 
@@ -29,11 +29,11 @@ python scripts/evaluate_transcripts.py results/transcripts.jsonl \
   --output evaluations/pl_PL-mateusz-medium.json
 ```
 
-Należy zapisać nazwę i wersję modelu ASR. WER/CER nie są samodzielną miarą naturalności głosu.
+Należy zapisać nazwę i wersję modelu ASR. WER i CER nie są samodzielną miarą naturalności głosu.
 
-## Speaker similarity
+## Podobieństwo głosu
 
-Do porównania podobieństwa należy użyć stałego modelu speaker-embedding i raportować średnią cosinusową zgodność syntetycznych wypowiedzi z referencyjnymi nagraniami mówcy. W dokumentacji wyniku trzeba podać dokładną nazwę i wersję modelu embeddingowego oraz sposób agregacji.
+Do porównania podobieństwa należy użyć stałego modelu osadzeń mówcy i raportować średnie podobieństwo cosinusowe syntetycznych wypowiedzi do referencyjnych nagrań mówcy. W dokumentacji wyniku trzeba podać dokładną nazwę i wersję modelu osadzeń oraz sposób agregacji.
 
 ## MOS i CMOS
 
@@ -49,20 +49,20 @@ Każde wydanie powinno być mierzone przynajmniej na:
 
 Raportowane wartości:
 
-- real-time factor (RTF),
-- czas do uzyskania pierwszego audio, jeśli używany jest streaming,
+- współczynnik czasu rzeczywistego (RTF),
+- czas do uzyskania pierwszego fragmentu dźwięku, jeśli używane jest przesyłanie strumieniowe,
 - całkowity czas syntezy,
-- peak RAM,
+- szczytowe użycie pamięci RAM,
 - obciążenie CPU,
 - rozmiar modelu ONNX.
 
 Dla RTF należy używać definicji:
 
-`RTF = czas obliczeń / czas wygenerowanego audio`
+`RTF = czas obliczeń / czas wygenerowanego dźwięku`
 
 Wartość poniżej 1 oznacza syntezę szybszą niż czas rzeczywisty.
 
-## Smoke test ONNX
+## Test poprawności ONNX
 
 Po każdym eksporcie należy uruchomić:
 
@@ -71,20 +71,20 @@ python scripts/smoke_test_voice.py \
   --model output/pl_PL-mateusz-medium.onnx
 ```
 
-Test sprawdza obecność pary ONNX/JSON, poprawność konfiguracji, możliwość wykonania Pipera oraz powstanie niepustego WAV o zgodnym sample rate.
+Test sprawdza obecność pary ONNX/JSON, poprawność konfiguracji, możliwość wykonania Pipera oraz powstanie niepustego pliku WAV o zgodnej częstotliwości próbkowania.
 
 ## Minimalny rekord eksperymentu
 
 Wynik opublikowanego eksperymentu powinien zawierać:
 
-- wersję/commit Piper,
-- checkpoint bazowy i jego SHA-256,
-- seed,
+- wersję lub identyfikator zatwierdzenia Piper,
+- bazowy punkt kontrolny i jego SHA-256,
+- ziarno losowania,
 - parametry treningu,
 - wersje Python, PyTorch, Lightning, CUDA i eSpeak NG,
-- SHA-256 dataset metadata oraz pliku splitów,
+- SHA-256 metadanych zbioru danych oraz pliku podziału,
 - WER i CER,
-- speaker similarity,
+- podobieństwo głosu,
 - MOS/CMOS, jeśli przeprowadzono badanie,
-- benchmarki sprzętowe,
+- pomiary wydajności sprzętowej,
 - SHA-256 finalnego ONNX i JSON.

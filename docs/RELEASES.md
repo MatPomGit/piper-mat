@@ -27,4 +27,4 @@ Każdy plik otrzymuje rozmiar oraz SHA-256. Katalog `dist/` pozostaje lokalnym a
 
 ## Publikacja
 
-Docelowo paczkę należy publikować w GitHub Releases lub Hugging Face. Przed publikacją należy uruchomić smoke test ONNX oraz uzupełnić Model Card o faktyczne wyniki ewaluacji.
+Docelowo paczkę należy publikować jako wydanie GitHub lub w serwisie Hugging Face. Przed publikacją należy uruchomić test poprawności ONNX oraz uzupełnić kartę modelu o faktyczne wyniki ewaluacji.

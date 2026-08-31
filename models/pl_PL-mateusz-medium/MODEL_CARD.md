@@ -1,16 +1,16 @@
-# Model Card: pl_PL-mateusz-medium
+# Karta modelu: pl_PL-mateusz-medium
 
 ## Model
 
 - nazwa: `pl_PL-mateusz-medium`
 - język: polski (`pl_PL`)
 - architektura: Piper / VITS
-- jakość: medium
+- jakość: średnia
 - liczba mówców: 1
-- sample rate: 22050 Hz
+- częstotliwość próbkowania: 22050 Hz
 - format dystrybucyjny: ONNX + JSON
 
-## Status
+## Stan
 
 Model jest w trakcie treningu. Pola `TODO` należy uzupełnić po zakończeniu konkretnego, identyfikowalnego eksperymentu. Nie należy wpisywać przewidywanych parametrów jako wyników pomiarów.
 
@@ -20,16 +20,16 @@ Model jest w trakcie treningu. Pola `TODO` należy uzupełnić po zakończeniu k
 
 - liczba wypowiedzi: TODO
 - czas nagrań: TODO
-- wersja datasetu / commit: TODO
-- podział train/validation/test: TODO
+- wersja zbioru danych / identyfikator zatwierdzenia: TODO
+- podział na zbiory treningowy, walidacyjny i testowy: TODO
 
 ## Trening
 
-- wersja/commit Piper: TODO
-- checkpoint bazowy: TODO
-- checksum checkpointu bazowego: TODO
-- seed: TODO
-- batch size: TODO
+- wersja / identyfikator zatwierdzenia Piper: TODO
+- bazowy punkt kontrolny: TODO
+- suma kontrolna bazowego punktu kontrolnego: TODO
+- ziarno losowania: TODO
+- rozmiar partii: TODO
 - liczba epok / kroków: TODO
 - GPU: TODO
 - system operacyjny: TODO
@@ -51,16 +51,16 @@ Referencyjne parametry projektu znajdują się w `configs/pl_PL-mateusz-medium.j
 
 - MOS lub inna ocena odsłuchowa: TODO
 - liczba oceniających: TODO
-- speaker similarity: TODO
-- użyty model embeddingowy: TODO
+- podobieństwo głosu: TODO
+- użyty model osadzeń mówcy: TODO
 
 ### Wydajność
 
 Raportować co najmniej dla CPU x86-64 oraz Raspberry Pi 5, a opcjonalnie dla GPU:
 
-- real-time factor (RTF): TODO
-- opóźnienie pierwszego audio: TODO
-- peak RAM: TODO
+- współczynnik czasu rzeczywistego (RTF): TODO
+- opóźnienie uzyskania pierwszego fragmentu dźwięku: TODO
+- szczytowe użycie pamięci RAM: TODO
 - użycie CPU: TODO
 - rozmiar modelu ONNX: TODO
 
@@ -75,7 +75,7 @@ Przed wydaniem model powinien przejść testy obejmujące:
 - skróty i tytuły naukowe,
 - jednostki SI,
 - nazwy własne,
-- URL i adresy e-mail,
+- adresy URL i e-mail,
 - krótkie oraz długie wypowiedzi.
 
 ## Artefakty wydania
@@ -96,4 +96,4 @@ Model reprezentuje pojedynczy polski głos i może popełniać błędy fonetyczn
 
 ## Licencja
 
-TODO. Licencja modelu musi zostać ustalona i opisana niezależnie od licencji kodu Piper oraz zgodnie z prawami do datasetu i głosu.
+TODO. Licencja modelu musi zostać ustalona i opisana niezależnie od licencji kodu Piper oraz zgodnie z prawami do zbioru danych i głosu.

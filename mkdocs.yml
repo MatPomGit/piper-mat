@@ -4,17 +4,18 @@ site_dir: site
 nav:
   - Strona główna: index.md
   - Projekt głosu:
-      - Roadmap: ROADMAP.md
+      - Plan rozwoju: ROADMAP.md
       - Ewaluacja: EVALUATION.md
-      - Dataset: DATASET.md
+      - Zbiór danych: DATASET.md
       - Model: MODEL.md
-      - Checkpointy: CHECKPOINTS.md
+      - Punkty kontrolne: CHECKPOINTS.md
       - Wydania: RELEASES.md
+      - Terminologia: TERMINOLOGIA.md
   - Trenowanie: TRAINING.md
   - Głosy: VOICES.md
   - Dopasowania: ALIGNMENTS.md
   - Kompilowanie: BUILDING.md
   - Wiersz poleceń: CLI.md
-  - Python API: API_PYTHON.md
-  - HTTP API: API_HTTP.md
+  - Interfejs Python: API_PYTHON.md
+  - Interfejs HTTP: API_HTTP.md
   - Starsze plany: PLANS.md
