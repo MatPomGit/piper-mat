@@ -12,8 +12,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import torch
-
 from train_voice import build_command
 
 
@@ -25,6 +23,8 @@ def load_config(path: Path) -> dict:
 
 
 def checkpoint_epoch(path: Path) -> int:
+    import torch
+
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
     epoch = checkpoint.get("epoch")
     if epoch is None:
@@ -155,8 +155,6 @@ def run_next(config_path: Path, dry_run: bool) -> int:
     run_dir, archive_dir, report_dir = session_paths(config, number)
     resume_checkpoint = Path(state["latest_checkpoint"])
     cumulative_extra = sum(int(value) for value in increments[:number])
-    # Lightning zapisuje epoch jako indeks ostatniej ukończonej epoki. Aby wykonać
-    # N dodatkowych epok po checkpointcie E, max_epochs musi wynosić E + 1 + N.
     target_max_epochs = int(state["initial_epoch"]) + 1 + cumulative_extra
 
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -231,9 +229,6 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         print("Ostrzeżenie: trening zakończył się poprawnie, ale generowanie raportu nie powiodło się.", file=sys.stderr)
 
     if sessions.get("cleanup_temporary_checkpoints", True):
-        # Zarchiwizowane pliki są już niezależnymi hardlinkami lub kopiami.
-        # Usunięcie checkpointów z katalogu logów pozostawia raporty i logi
-        # TensorBoard, ale nie mnoży dużych plików modelu na dysku.
         cleanup_checkpoints(run_dir)
 
     state["latest_checkpoint"] = str(archived_last)
