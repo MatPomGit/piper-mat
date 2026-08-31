@@ -1,12 +1,12 @@
-# Dataset
+# Zbiór danych
 
-Kanoniczna karta datasetu znajduje się w `dataset/DATASET_CARD.md`. Nie jest kopiowana do dokumentacji, aby uniknąć dwóch rozbieżnych źródeł prawdy.
+Kanoniczna karta zbioru danych znajduje się w `dataset/DATASET_CARD.md`. Nie jest kopiowana do dokumentacji, aby uniknąć dwóch rozbieżnych źródeł prawdy.
 
 ## Procedura przed treningiem
 
-1. Uruchom walidację metadanych i WAV.
-2. Wygeneruj deterministyczny split train/validation/test.
-3. Zapisz seed i SHA-256 pliku `metadata.csv`.
+1. Uruchom walidację metadanych i plików WAV.
+2. Wygeneruj deterministyczny podział na zbiory treningowy, walidacyjny i testowy.
+3. Zapisz ziarno losowania i SHA-256 pliku `metadata.csv`.
 4. Uzupełnij `DATASET_CARD.md` rzeczywistymi statystykami i informacją o licencji.
 
 ```bash
