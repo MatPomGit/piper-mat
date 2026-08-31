@@ -15,7 +15,16 @@
     "output_dir": "output",
     "seed": 20260831,
     "max_epochs": null,
-    "notes": "Stałe ziarno losowania zapewnia porównywalność eksperymentów. Limit epok należy ustalić dla finalnej strategii treningu przed publikacją wyników."
+    "sessions": {
+      "epochs_per_session": [250, 250, 250, 250],
+      "runs_dir": "output/training_sessions",
+      "state_dir": "output/training_state",
+      "reports_dir": "output/training_reports",
+      "archive_best_val_mel": true,
+      "archive_best_val_mos": true,
+      "cleanup_temporary_checkpoints": true
+    },
+    "notes": "Domyślny plan obejmuje cztery sesje po 250 dodatkowych epok. Lista epochs_per_session może zawierać od 1 do dowolnej liczby sesji, praktycznie np. 3-6 podejść. Każda kolejna sesja wznawia pełny stan Lightning z checkpointu końcowego poprzedniej sesji."
   },
   "export": {
     "model_filename": "pl_PL-mateusz-medium.onnx",
