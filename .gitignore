@@ -20,3 +20,14 @@ src/piper/train/vits/monotonic_align/core.c
 *.so
 
 lightning_logs/
+
+# Local training artifacts
+cache/
+output/
+checkpoints/*.ckpt
+checkpoints/*.pt
+checkpoints/*.pth
+
+# Exported voice models should be published as release artifacts
+models/**/*.onnx
+models/**/*.onnx.json
