@@ -24,8 +24,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def inspect_pcm16(wav: wave.Wave_read, silence_dbfs: float, clipping_threshold: float) -> tuple[float, float, float]:
-    """Return RMS dBFS, peak dBFS and silent-sample ratio for mono PCM16 audio."""
+def inspect_pcm16(
+    wav: wave.Wave_read, silence_dbfs: float, clipping_threshold: float
+) -> tuple[float, float, float, float]:
+    """Return RMS, peak, silence ratio and clipping ratio for mono PCM16 audio."""
     max_value = 32767.0
     silence_level = max_value * (10.0 ** (silence_dbfs / 20.0))
     clip_level = max_value * clipping_threshold
@@ -54,7 +56,7 @@ def inspect_pcm16(wav: wave.Wave_read, silence_dbfs: float, clipping_threshold: 
                 clipped_count += 1
 
     if sample_count == 0:
-        return float("-inf"), float("-inf"), 1.0
+        return float("-inf"), float("-inf"), 1.0, 0.0
     rms = math.sqrt(sum_squares / sample_count)
     rms_dbfs = 20.0 * math.log10(rms / max_value) if rms > 0 else float("-inf")
     peak_dbfs = 20.0 * math.log10(peak / max_value) if peak > 0 else float("-inf")
