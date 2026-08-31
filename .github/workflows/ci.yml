@@ -29,6 +29,22 @@ jobs:
       - name: Validate canonical training command
         run: python scripts/train_voice.py --dry-run
 
+      - name: Validate staged training plan
+        run: |
+          python scripts/train_sessions.py --status
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path('configs/pl_PL-mateusz-medium.json').read_text(encoding='utf-8'))
+          sessions = config['training']['sessions']
+          epochs = sessions['epochs_per_session']
+          assert 3 <= len(epochs) <= 6
+          assert all(isinstance(value, int) and value > 0 for value in epochs)
+          assert sessions['state_dir']
+          assert sessions['reports_dir']
+          assert sessions['runs_dir']
+          PY
+
       - name: Record experiment environment
         run: |
           python scripts/record_environment.py --output /tmp/environment.json

@@ -12,7 +12,9 @@ nav:
       - Wydania: RELEASES.md
       - Wdrożenie: DEPLOYMENT.md
       - Terminologia: TERMINOLOGIA.md
-  - Trenowanie: TRAINING.md
+  - Trenowanie:
+      - Podstawy: TRAINING.md
+      - Trening etapowy i wznawianie: STAGED_TRAINING.md
   - Głosy: VOICES.md
   - Dopasowania: ALIGNMENTS.md
   - Kompilowanie: BUILDING.md
