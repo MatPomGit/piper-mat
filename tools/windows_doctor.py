@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, asdict
+from datetime import datetime
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -178,9 +179,11 @@ def repair() -> list[str]:
         rc, _ = run([str(VENV_PYTHON), "-c", "import pip"], timeout=30)
         venv_broken = rc != 0
     if venv_broken:
-        backup = ROOT / ".venv_broken"
-        if backup.exists():
-            shutil.rmtree(backup, ignore_errors=True)
+        backup = ROOT / f".venv_broken_{datetime.now():%Y%m%d_%H%M%S}"
+        suffix = 1
+        while backup.exists():
+            backup = ROOT / f".venv_broken_{datetime.now():%Y%m%d_%H%M%S}_{suffix}"
+            suffix += 1
         VENV.rename(backup)
         log.append(f"OK: uszkodzone .venv przeniesiono do {backup.name}")
 
