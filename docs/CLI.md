@@ -1,85 +1,118 @@
-# 🖥️ Interfejs wiersza poleceń
+# Interfejs wiersza poleceń
 
-Interfejs wiersza poleceń Pipera pozwala szybko uzyskać dźwięk z tekstu i wypróbować różne głosy. Może jednak działać wolno, ponieważ za każdym razem musi wczytać model głosu. Przy wielokrotnym użyciu zalecany jest [serwer WWW](API_HTTP.md).
+Interfejs wiersza poleceń (command-line interface, CLI) Pipera umożliwia syntezę mowy bezpośrednio z terminala. Jest szczególnie przydatny do testów modelu, automatyzacji i diagnostyki.
 
-## Instalowanie
+Przy wielu kolejnych żądaniach każdorazowe uruchamianie programu może być nieefektywne, ponieważ model musi zostać ponownie wczytany. W takim przypadku należy rozważyć proces utrzymujący model w pamięci, np. [interfejs HTTP](API_HTTP.md) albo usługę Wyoming Piper.
 
-Zainstaluj za pomocą:
+Nazwy opcji CLI pozostają w oryginalnej postaci, ponieważ są częścią interfejsu programu. Terminologię dokumentacji opisano w [słowniku](TERMINOLOGIA.md).
 
-``` sh
+## Instalacja
+
+Dla opublikowanej wersji Pipera:
+
+```bash
 pip install piper-tts
 ```
 
-## Pobieranie głosów
+Podczas prac nad kodem `piper-mat` należy korzystać z odizolowanego środowiska projektu zgodnie z [instrukcją trenowania](TRAINING.md).
 
-Wyświetl listę głosów za pomocą:
+## Synteza głosem projektu
 
-``` sh
-python3 -m piper.download_voices
+Jeżeli pliki modelu znajdują się w bieżącym katalogu:
+
+```bash
+python -m piper \
+  --model pl_PL-mateusz-medium.onnx \
+  --output-file test.wav \
+  -- "To jest test polskiego modelu głosu."
 ```
 
-Wybierz głos ([próbki są dostępne tutaj][samples]) i pobierz go. Na przykład:
+Model wymaga odpowiadającego mu pliku konfiguracji:
 
-``` sh
-python3 -m piper.download_voices en_US-lessac-medium
+```text
+pl_PL-mateusz-medium.onnx
+pl_PL-mateusz-medium.onnx.json
 ```
 
-Głos zostanie pobrany do bieżącego katalogu. Można to zmienić za pomocą `--data-dir <DIR>`.
+Nie należy łączyć modelu ONNX z plikiem JSON pochodzącym z innej wersji głosu.
 
-## Uruchamianie
+## Katalog modeli
 
-Po pobraniu powyższego przykładowego głosu uruchom:
+Jeżeli modele znajdują się w innym katalogu, można wskazać katalog danych opcją `--data-dir`, o ile używana wersja Pipera ją obsługuje:
 
-``` sh
-python3 -m piper -m en_US-lessac-medium -f test.wav -- 'This is a test.'
+```bash
+python -m piper \
+  --data-dir /path/to/voices \
+  --model pl_PL-mateusz-medium \
+  --output-file test.wav \
+  -- "Próba syntezy mowy."
 ```
 
-Spowoduje to zapisanie zdania „This is a test.” w pliku `test.wav`.
-Jeśli głosy znajdują się w innym katalogu, użyj `--data-dir <DIR>`.
+Przed automatyzacją należy sprawdzić dokładną składnię zainstalowanej wersji:
 
-Jeśli zainstalowano [ffplay][], pomiń `-f`, aby od razu usłyszeć dźwięk:
-
-``` sh
-python3 -m piper -m en_US-lessac-medium -- 'This will play on your speakers.'
+```bash
+python -m piper --help
 ```
 
-Uruchamianie Pipera w ten sposób jest powolne, ponieważ za każdym razem trzeba wczytać model. Uruchom [serwer WWW](API_HTTP.md), chyba że konieczne jest strumieniowanie dźwięku (zobacz `--output-raw` w `--help`).
+## Przyspieszenie GPU
 
-Inne przydatne opcje wiersza poleceń:
+Opcja `--cuda` włącza wykonywanie obsługiwanych obliczeń za pomocą CUDA. Wymaga odpowiedniej wersji `onnxruntime-gpu` i zgodnego środowiska sterowników.
 
-* `--cuda` — włącza przyspieszenie GPU (wymaga pakietu `onnxruntime-gpu`)
-* `--input-file` — odczytuje tekst wejściowy z jednego lub wielu plików
-* `--sentence-silence` — dodaje sekundy ciszy do wszystkich zdań poza ostatnim
-* `--volume` — dostosowuje mnożnik głośności (domyślnie: 1.0)
-* `--no-normalize` — wyłącza automatyczną normalizację głośności
-
-### Surowe fonemy
-
-Surowe fonemy espeak-ng można wstrzykiwać za pomocą bloków `[[ <phonemes> ]]`. Na przykład:
-
-```
-I am the [[ bˈætmæn ]] not [[bɹˈuːs wˈe‍ɪn]]
+```bash
+python -m piper \
+  --cuda \
+  --model pl_PL-mateusz-medium.onnx \
+  --output-file test.wav \
+  -- "Test syntezy z wykorzystaniem GPU."
 ```
 
-Aby pobrać fonemy z espeak-ng, użyj:
+Przyspieszenie GPU nie zawsze zmniejsza całkowity czas pojedynczej krótkiej syntezy, ponieważ znaczenie mają również koszty inicjalizacji i przesyłania danych. Wydajność należy mierzyć, a nie zakładać.
 
-``` sh
-espeak-ng -v <VOICE> --ipa=3 -q <TEXT>
+## Przydatne opcje
+
+W zależności od wersji Pipera dostępne mogą być między innymi:
+
+- `--cuda`: użycie CUDA,
+- `--input-file`: odczyt tekstu z pliku,
+- `--sentence-silence`: dodatkowa cisza pomiędzy zdaniami,
+- `--volume`: mnożnik poziomu sygnału,
+- `--no-normalize`: wyłączenie normalizacji sygnału,
+- `--output-raw`: zapis surowych danych dźwiękowych.
+
+Aktualnym źródłem prawdy dla konkretnej instalacji pozostaje wynik `--help`.
+
+## Cisza pomiędzy zdaniami
+
+Parametr `--sentence-silence` określa czas ciszy dodawanej pomiędzy kolejnymi zdaniami. Przykładowo wartość `0.2` oznacza około 200 ms dodatkowej przerwy.
+
+Zbyt mała wartość może powodować nienaturalne łączenie zdań. Zbyt duża sprawia, że wypowiedź brzmi fragmentarycznie. Parametr należy dobierać do zastosowania, a nie traktować jako sposób naprawiania błędnej prozodii modelu.
+
+## Głośność
+
+`--volume` jest mnożnikiem amplitudy. Wartość `1.0` oznacza brak zamierzonej zmiany poziomu, `0.5` zmniejsza amplitudę, a wartości większe od `1.0` ją zwiększają.
+
+Zwiększanie tego parametru może prowadzić do przesterowania (clipping), dlatego wynik należy kontrolować również na poziomie sygnału, a nie tylko odsłuchowo.
+
+## Surowe fonemy
+
+Piper może umożliwiać przekazywanie fonemów eSpeak NG bezpośrednio w tekście. Jest to funkcja diagnostyczna i zaawansowana. Nie należy jej używać do ręcznego poprawiania całego korpusu zamiast naprawienia źródłowego procesu fonemizacji.
+
+Fonemy dla tekstu można sprawdzić narzędziem eSpeak NG, np. dla języka polskiego:
+
+```bash
+espeak-ng -v pl --ipa=3 -q "przykład"
 ```
 
-Na przykład:
+Takie testy są przydatne przy diagnozowaniu pojedynczych błędów wymowy.
 
-``` sh
-espeak-ng -v en-us --ipa=3 -q batman
-bˈætmæn
-```
+## Zastosowanie w automatyzacji
 
-## Wydania binarne
+CLI jest odpowiednie przede wszystkim do:
 
-* [amd64](https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz) (64-bitowy komputer z systemem Linux)
-* [arm64](https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_arm64.tar.gz) (64-bitowy Raspberry Pi 4)
-* [armv7](https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_armv7.tar.gz) (32-bitowy Raspberry Pi 3/4)
+- podstawowych testów poprawności,
+- skryptów przetwarzania wsadowego,
+- diagnostyki konkretnego modelu,
+- testowania parametrów syntezy,
+- przygotowywania danych do oceny jakości.
 
-<!-- Odnośniki -->
-[samples]: https://rhasspy.github.io/piper-samples/
-[ffplay]: https://ffmpeg.org/ffplay.html
+Dla aplikacji czasu rzeczywistego należy unikać architektury uruchamiającej nowy proces i wczytującej model dla każdego krótkiego fragmentu tekstu. Model powinien pozostawać w pamięci pomiędzy żądaniami.
