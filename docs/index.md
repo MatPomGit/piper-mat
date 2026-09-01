@@ -1,73 +1,113 @@
 # piper-mat
 
-`piper-mat` jest gałęzią rozwojową Piper ukierunkowaną na przygotowanie, trenowanie (training), walidację i publikację polskiego głosu `pl_PL-mateusz-medium`.
+`piper-mat` jest projektem rozwijającym Piper w celu przygotowania, trenowania, oceny, wydania i wdrożenia polskiego modelu głosu `pl_PL-mateusz-medium`.
 
-Repozytorium obejmuje kod Pipera, konfigurację eksperymentu, metadane zbioru danych (dataset), walidację jakości danych, narzędzia do oceny (evaluation) oraz dokumentację procesu wydawania modelu.
+Dokumentacja opisuje proces projektu głosu. Szczegóły implementacyjne odziedziczone po Piper są dokumentowane tylko wtedy, gdy są potrzebne do trenowania, uruchamiania, rozwijania lub integracji `piper-mat`.
 
-## Standard dokumentacji
+## Cel projektu
 
-Dokumentacja projektu jest prowadzona po polsku. Przy pierwszym użyciu charakterystycznego terminu technicznego podawana jest jego polska nazwa oraz angielski odpowiednik w nawiasie. Obowiązujące tłumaczenia i zasady redakcyjne znajdują się w [słowniku terminologii](TERMINOLOGIA.md).
+Docelowy proces ma być powtarzalny i pozostawiać jednoznacznie identyfikowalne artefakty:
 
-Nie należy tworzyć prostych kalek z języka angielskiego, jeżeli istnieje utrwalony lub trafniejszy polski odpowiednik techniczny. Przed wprowadzeniem nowego terminu należy sprawdzić słownik. Nowe pojęcie powinno zostać najpierw zdefiniowane i dodane do `TERMINOLOGIA.md`.
+```text
+nagrania i transkrypcje
+  ↓
+walidacja zbioru danych
+  ↓
+zamrożony podział danych
+  ↓
+trenowanie
+  ↓
+wybór punktu kontrolnego
+  ↓
+eksport ONNX
+  ↓
+ocena jakości i wydajności
+  ↓
+wydanie
+  ↓
+wdrożenie
+```
 
-Nazwy techniczne wymagane przez kod, np. `batch_size`, `--checkpoint`, `ONNX`, `PyTorch` lub `CUDA`, pozostają bez zmian. Ich znaczenie jest jednak opisywane po polsku, np. „parametr `batch_size` określa rozmiar partii (batch size)”.
+Rozwój integracji z awatarem rozszerza ten proces o dane fonemiczne i animację twarzy:
 
-W dokumentacji nie należy używać pauzy em (em dash, `—`). Zamiast niej należy zastosować znak interpunkcyjny właściwy dla konstrukcji zdania, np. przecinek, dwukropek, średnik, nawias albo kropkę.
+```text
+tekst → Piper TTS → dźwięk i czas fonemów → wizemy → koartykulacja → animacja twarzy
+```
+
+## Od czego zacząć
+
+Jeżeli przygotowujesz dane, przejdź do [zbioru danych](DATASET.md).
+
+Jeżeli środowisko jest już gotowe i chcesz trenować model, przejdź do [podstaw trenowania](TRAINING.md) albo [kreatora Windows 11](WINDOWS_GUI.md).
+
+Jeżeli wznawiasz dłuższy eksperyment, użyj procedury [trenowania etapowego](STAGED_TRAINING.md).
+
+Jeżeli model został już wytrenowany, przejdź kolejno do [opisu modelu](MODEL.md), [oceny jakości](EVALUATION.md), [wydawania](RELEASES.md) i [wdrożenia](DEPLOYMENT.md).
+
+Aktualne zadania projektu znajdują się wyłącznie w [planie rozwoju](ROADMAP.md).
+
+## Struktura dokumentacji
+
+Dokumentacja jest podzielona według odpowiedzialności:
+
+- **Projekt głosu** opisuje dane, model, punkty kontrolne, ocenę, wydania i wdrożenie.
+- **Trenowanie** opisuje przygotowanie środowiska i prowadzenie eksperymentów.
+- **Integracja** opisuje używanie modelu przez CLI, Python i HTTP oraz dane potrzebne do synchronizacji ust.
+- **Rozwój oprogramowania** opisuje budowanie kodu oraz obowiązującą terminologię.
+
+Dokumenty historyczne, które nie opisują bieżącego procesu `piper-mat`, nie są utrzymywane w głównej dokumentacji.
+
+## Najważniejsze katalogi
+
+```text
+configs/      konfiguracje eksperymentów
+dataset/      metadane, nagrania i karta zbioru danych
+docs/         dokumentacja projektu
+models/       karty modeli
+scripts/      narzędzia procesu treningowego i oceny
+tests/        testy oraz korpus regresyjny
+checkpoints/  kontrolowane punkty kontrolne
+```
+
+Duże artefakty nie powinny trafiać do historii Git bez uzasadnienia. Finalne modele powinny być dystrybuowane jako wersjonowane wydania lub przez repozytorium modeli.
+
+## Standard terminologiczny
+
+Dokumentacja jest prowadzona po polsku. Przy pierwszym użyciu specjalistycznego pojęcia podawana jest poprawna polska nazwa oraz angielski odpowiednik w nawiasie. Obowiązujące odpowiedniki znajdują się w [słowniku terminologii](TERMINOLOGIA.md).
+
+Nazwy wymagane przez kod lub format, np. `batch_size`, `--checkpoint`, `ONNX`, `PyTorch` i `CUDA`, zachowują oryginalny zapis.
+
+W dokumentacji nie stosuje się pauzy em (`—`).
 
 ## Standard kodu
 
-Kod Python rozwijany w projekcie powinien być zgodny z [PEP 8](https://peps.python.org/pep-0008/) oraz konwencją łańcuchów dokumentacyjnych (docstrings) określoną w [PEP 257](https://peps.python.org/pep-0257/).
+Kod Pythona rozwijany w projekcie powinien przestrzegać PEP 8 i PEP 257.
 
-PEP 8 określa przede wszystkim zasady formatowania, nazewnictwa, organizacji importów i czytelności kodu. PEP 257 określa sposób dokumentowania publicznych modułów, klas, funkcji i metod za pomocą docstringów.
+Najważniejsze reguły nazewnictwa:
 
-### Nazewnictwo
+- funkcje, metody, zmienne i parametry: `snake_case`,
+- klasy i wyjątki: `CapWords`,
+- stałe modułu: `UPPER_CASE_WITH_UNDERSCORES`,
+- moduły Pythona: małe litery, w razie potrzeby z podkreśleniami,
+- opcje CLI: zapis zgodny z rzeczywistym interfejsem, często `kebab-case`.
 
-W projekcie należy stosować konwencję właściwą dla rodzaju elementu:
+`kebab-case` nie jest konwencją identyfikatorów Pythona.
 
-- funkcje, metody, zmienne i parametry: `snake_case`, np. `sample_rate`, `load_voice_model()`;
-- klasy i wyjątki: `CapWords` / `PascalCase`, np. `VoiceModel`, `DatasetValidationError`;
-- stałe modułu: `UPPER_CASE_WITH_UNDERSCORES`, np. `DEFAULT_SAMPLE_RATE`;
-- moduły Pythona: małe litery, w razie potrzeby z podkreśleniami, np. `voice_export.py`;
-- pakiety Pythona: krótkie nazwy małymi literami;
-- opcje interfejsu wiersza poleceń mogą używać `kebab-case`, np. `--sample-rate`, jeśli tak definiuje je interfejs.
+Szczegółowe reguły dla zmian w repozytorium znajdują się w `AGENTS.md`.
 
-`kebab-case` nie jest poprawną konwencją dla identyfikatorów Pythona. Nazwa `sample-rate` nie może być nazwą zmiennej ani funkcji w Pythonie. Odpowiednikiem jest `sample_rate`.
+## Zasady projektowe
 
-PEP 8 nie określa jednej obowiązkowej konwencji nazw dla wszystkich plików w repozytorium. Pliki dokumentacyjne i inne artefakty niebędące modułami Pythona mogą zachowywać właściwe dla siebie nazwy, np. `README.md`, `AGENTS.md` lub `MODEL_CARD.md`.
+W kodzie i dokumentacji obowiązuje zasada KISS. Należy preferować rozwiązania proste, jawne i możliwe do zweryfikowania.
 
-W projekcie obowiązują ponadto następujące zasady:
+Nie należy:
 
-- KISS (Keep It Simple, Stupid): wybieraj najprostsze rozwiązanie poprawnie realizujące wymagania;
-- czytelność kodu ma pierwszeństwo przed jego nadmiernym skracaniem;
-- funkcja lub klasa powinna mieć jasno określoną odpowiedzialność;
-- unikaj przedwczesnej abstrakcji i generalizacji;
-- ograniczaj powtórzenia, ale nie twórz sztucznych abstrakcji wyłącznie w celu usunięcia kilku podobnych wierszy;
-- stosuj jednoznaczne nazwy opisujące znaczenie danych i operacji;
-- ograniczaj efekty uboczne oraz zależności globalne;
-- komentarze powinny wyjaśniać przyczynę decyzji lub nietrywialny kontekst, a nie powtarzać treść kodu;
-- usuwaj martwy kod zamiast pozostawiać zakomentowane stare implementacje;
-- zmiana zachowania programu powinna prowadzić do dodania lub aktualizacji odpowiednich testów;
-- optymalizacje powinny wynikać z rzeczywistej potrzeby lub pomiarów.
+- utrzymywać dwóch dokumentów opisujących ten sam proces,
+- kopiować informacji, które mają jedno kanoniczne źródło,
+- pozostawiać nieaktualnych instrukcji jako aktywnej dokumentacji,
+- dokumentować planowanej funkcji tak, jakby była już dostępna,
+- wpisywać wartości szacunkowych jako wyniki pomiarów,
+- zmieniać wielu parametrów eksperymentu bez zapisania nowej konfiguracji.
 
-Szczegółowe instrukcje dla agentów programistycznych i osób modyfikujących repozytorium znajdują się w pliku `AGENTS.md` w katalogu głównym.
+## Licencje
 
-## Główne obszary
-
-- `dataset/`: metadane i karta zbioru danych,
-- `configs/`: wersjonowana konfiguracja trenowania,
-- `models/`: karta finalnego modelu,
-- `scripts/`: walidacja, podziały danych, ocena i testy jakości,
-- `tests/`: zamrożony korpus regresyjny języka polskiego,
-- `docs/`: dokumentacja procesu badawczego i wdrożeniowego.
-
-## Aktualny cel
-
-Najbliższym celem jest uzyskanie powtarzalnego procesu:
-
-`walidacja → podział danych → trenowanie → eksport → podstawowy test poprawności → ocena → pakowanie`.
-
-Aktualny stan i pozostałe zadania są opisane w [planie rozwoju](ROADMAP.md).
-
-## Licencja
-
-Kod pochodzący z Piper jest udostępniany zgodnie z GPL-3.0-or-later. Licencje zbioru danych oraz finalnego modelu głosu należy traktować oddzielnie i wskazać w odpowiednich kartach artefaktów.
+Kod odziedziczony po Piper podlega warunkom GPL-3.0-or-later. Licencja kodu nie określa automatycznie warunków wykorzystania zbioru danych ani wytrenowanego modelu głosu. Informacje te są dokumentowane osobno w kartach danych i modelu.
