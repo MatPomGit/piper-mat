@@ -70,7 +70,7 @@ jobs:
       - name: Compile Windows Python tools
         shell: powershell
         run: python -m py_compile tools/windows_setup_gui.py tools/windows_doctor.py
-      - name: Smoke-test Windows doctor
+      - name: Basic validity test for Windows doctor
         shell: powershell
         run: |
           python tools/windows_doctor.py --json
