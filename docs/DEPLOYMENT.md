@@ -1,76 +1,61 @@
 # Wdrożenie modelu głosu
 
-Wdrożenie (deployment) jest procesem przeniesienia zweryfikowanego modelu z etapu eksperymentalnego do środowiska, w którym będzie wykonywana rzeczywista synteza mowy. Obejmuje nie tylko skopiowanie plików, ale również sprawdzenie ich integralności, konfigurację usługi, test funkcjonalny, pomiar wydajności i przygotowanie możliwości wycofania wersji.
+Wdrożenie (deployment) jest procesem przeniesienia zweryfikowanego modelu z etapu eksperymentalnego do środowiska, w którym będzie wykonywana rzeczywista synteza mowy. Obejmuje sprawdzenie integralności artefaktów, konfigurację usługi, test funkcjonalny, pomiar wydajności i przygotowanie możliwości wycofania wersji.
 
 Ten rozdział opisuje wdrożenie `pl_PL-mateusz-medium` po przygotowaniu kompletnego wydania modelu.
 
-## 1. Wymagane artefakty
+## Wymagane artefakty
 
-Minimalny zestaw wykonawczy obejmuje:
+Minimalny zestaw wykonawczy:
 
 ```text
 pl_PL-mateusz-medium.onnx
 pl_PL-mateusz-medium.onnx.json
 ```
 
-W wydaniu przeznaczonym do archiwizacji i dystrybucji powinny znaleźć się również:
+W paczce wydania powinny znajdować się również karta modelu, manifest, sumy kontrolne i reprezentatywne próbki. Ich przygotowanie opisano w [RELEASES.md](RELEASES.md).
 
-```text
-MODEL_CARD.md
-checksums.txt
-release-manifest.json
-samples/
-```
+Model ONNX i konfiguracja JSON stanowią jedną wersjonowaną całość. Nie należy łączyć plików pochodzących z różnych wydań.
 
-Model ONNX i jego konfiguracja JSON stanowią jedną wersjonowaną całość. Nie należy łączyć plików pochodzących z różnych eksperymentów lub wydań.
-
-## 2. Weryfikacja przed wdrożeniem
+## Weryfikacja przed wdrożeniem
 
 Przed instalacją należy:
 
-1. sprawdzić sumy kontrolne SHA-256,
+1. sprawdzić SHA-256,
 2. potwierdzić zgodność modelu i konfiguracji,
 3. wykonać podstawowy test poprawności (smoke test),
-4. wykonać syntezę kilku zdań regresyjnych,
+4. wykonać syntezę zdań regresyjnych,
 5. zapisać identyfikator wdrażanego wydania.
 
-Podstawowy test modelu:
+Przykład:
 
 ```bash
 python scripts/smoke_test_voice.py \
   --model pl_PL-mateusz-medium.onnx
 ```
 
-Dokładne argumenty należy sprawdzić przez `--help`, ponieważ skrypt jest częścią rozwijanego repozytorium.
+Aktualne argumenty skryptu należy w razie potrzeby sprawdzić przez `--help`.
 
-## 3. Wdrożenie przez interfejs wiersza poleceń
+## Test przez CLI
 
-Interfejs wiersza poleceń (command-line interface, CLI) jest najprostszą metodą weryfikacji modelu przed uruchomieniem go jako usługi.
-
-Przykład:
+Interfejs wiersza poleceń (command-line interface, CLI) jest najprostszą metodą niezależnego sprawdzenia modelu przed uruchomieniem go jako usługi.
 
 ```bash
 piper \
   --model pl_PL-mateusz-medium.onnx \
-  --output_file test.wav \
+  --output-file test.wav \
   -- "To jest test polskiego głosu."
 ```
 
-Nazwa `--output_file` musi odpowiadać rzeczywistemu interfejsowi używanej wersji Pipera. Nie należy zmieniać istniejącej nazwy opcji tylko po to, aby dopasować ją do konwencji dokumentacji. Opcje CLI są zewnętrznym interfejsem programu, a nie identyfikatorami Pythona.
+Pythonowy CLI Pipera akceptuje obecnie zarówno `--output-file`, jak i zgodnościowy alias `--output_file`. W dokumentacji należy preferować kanoniczną postać `--output-file`. Wewnętrzna zmienna Pythona pozostaje zapisana jako `output_file` zgodnie z `snake_case`.
 
-Jeżeli dana wersja programu używa innej nazwy opcji, źródłem prawdy jest:
+Szczegóły CLI znajdują się w [CLI.md](CLI.md).
 
-```bash
-piper --help
-```
+## Wyoming Piper i Home Assistant
 
-## 4. Wyoming Piper
+Wyoming Piper utrzymuje model w procesie usługi, dzięki czemu nie trzeba wczytywać go ponownie dla każdej wypowiedzi.
 
-Wyoming jest protokołem używanym między innymi do komunikacji usług głosowych z Home Assistant. Wyoming Piper utrzymuje model w procesie usługi, dzięki czemu nie trzeba ponownie wczytywać go dla każdej wypowiedzi.
-
-W środowisku kontenerowym katalog z modelem i konfiguracją należy montować jako wolumin tylko do odczytu, jeżeli usługa nie musi modyfikować tych plików.
-
-Przykładowy układ:
+Przykładowy katalog głosu:
 
 ```text
 /srv/piper/voices/
@@ -78,123 +63,77 @@ Przykładowy układ:
 └── pl_PL-mateusz-medium.onnx.json
 ```
 
-Po uruchomieniu lub restarcie usługi należy najpierw wykonać lokalny test syntezy. Dopiero później należy diagnozować integrację z kolejnymi warstwami systemu.
-
-## 5. Home Assistant
-
-Home Assistant powinien korzystać z Pipera przez integrację Wyoming. Dane uwierzytelniające, tokeny i inne sekrety nie mogą być przechowywane w repozytorium `piper-mat`.
+Jeżeli usługa nie musi modyfikować modelu, katalog powinien być montowany tylko do odczytu.
 
 Walidację integracji należy wykonywać warstwowo:
 
-1. sprawdzić, czy proces Wyoming Piper działa,
-2. sprawdzić, czy port usługi jest osiągalny z Home Assistant,
-3. sprawdzić, czy Home Assistant wykrywa usługę,
+1. sprawdzić proces Wyoming Piper,
+2. sprawdzić osiągalność usługi,
+3. sprawdzić wykrywanie usługi przez Home Assistant,
 4. sprawdzić dostępność `pl_PL-mateusz-medium`,
-5. wykonać syntezę krótkiego zdania,
-6. sprawdzić przekazanie wygenerowanego dźwięku do odtwarzacza,
+5. wykonać krótką syntezę,
+6. sprawdzić przekazanie dźwięku do odtwarzacza,
 7. sprawdzić początek i koniec wypowiedzi,
-8. zmierzyć całkowite opóźnienie od żądania do rozpoczęcia odtwarzania.
+8. zmierzyć całkowite opóźnienie.
 
-Takie rozdzielenie diagnostyki pozwala ustalić, czy problem występuje w modelu TTS, usłudze Wyoming, Home Assistant, sieci czy urządzeniu odtwarzającym.
+Sekrety i tokeny integracji nie mogą być przechowywane w repozytorium.
 
-## 6. Opóźnienie końcowe
+## Opóźnienie końcowe
 
-Opóźnienie końcowe (end-to-end latency) oznacza czas od wysłania żądania syntezy do momentu, w którym użytkownik rzeczywiście zaczyna słyszeć wypowiedź. Nie jest ono równe samemu czasowi wnioskowania modelu.
+Opóźnienie końcowe (end-to-end latency) oznacza czas od wysłania żądania do rozpoczęcia słyszalnego odtwarzania. Obejmuje więcej niż samo wnioskowanie modelu.
 
-Na opóźnienie mogą wpływać:
+Wpływają na nie między innymi fonemizacja, synteza, buforowanie, sieć, warstwa Home Assistant i urządzenie odtwarzające.
 
-- przygotowanie tekstu,
-- fonemizacja,
-- wnioskowanie modelu,
-- buforowanie dźwięku,
-- komunikacja sieciowa,
-- Home Assistant,
-- inicjalizacja odtwarzacza,
-- buforowanie po stronie urządzenia docelowego.
+Dlatego obok współczynnika czasu rzeczywistego (Real-Time Factor, RTF) warto mierzyć czas do pierwszego fragmentu dźwięku oraz całkowite opóźnienie systemu.
 
-Dlatego obok współczynnika czasu rzeczywistego (Real-Time Factor, RTF) warto mierzyć również czas do pierwszego fragmentu dźwięku i całkowite opóźnienie systemu.
+## Obcinanie początku wypowiedzi
 
-## 7. Problem obcinania początku wypowiedzi
+Jeżeli urządzenie odtwarzające potrzebuje czasu na rozpoczęcie reprodukcji, pierwsze głoski mogą zostać utracone. Nie jest to automatycznie wada modelu TTS.
 
-Niektóre urządzenia odtwarzające mogą rozpocząć słyszalne odtwarzanie z opóźnieniem względem rozpoczęcia strumienia. W efekcie pierwsze głoski wypowiedzi mogą zostać obcięte.
+Rozwiązaniem na poziomie integracji może być dodanie krótkiego odcinka ciszy przed wypowiedzią. Jego długość należy dobrać pomiarowo dla konkretnego toru odtwarzania, zamiast wpisywać jedną wartość jako uniwersalny parametr modelu.
 
-Nie należy naprawiać tego problemu przez zmianę modelu TTS, jeżeli źródłem jest tor odtwarzania. Rozwiązaniem może być kontrolowane dodanie krótkiego odcinka ciszy przed właściwą wypowiedzią w warstwie integracyjnej.
+## Aktualizacja
 
-Długość takiego odcinka należy dobrać eksperymentalnie dla konkretnego urządzenia. Powinna być możliwie mała, ale wystarczająca do stabilnego rozpoczęcia odtwarzania.
+Nową wersję należy wdrażać jako kompletny zestaw artefaktów:
 
-## 8. Aktualizacja modelu
+1. pobrać wydanie,
+2. zweryfikować sumy kontrolne,
+3. wykonać lokalny test poprawności,
+4. zachować poprzednią wersję,
+5. podmienić model i konfigurację,
+6. uruchomić usługę,
+7. wykonać test funkcjonalny,
+8. zmierzyć RTF i opóźnienie,
+9. sprawdzić odtwarzanie docelowe,
+10. zaakceptować wdrożenie dopiero po zakończeniu walidacji.
 
-Nową wersję należy wdrażać jako kompletny zestaw artefaktów.
-
-Zalecana procedura:
-
-1. pobrać nowe wydanie,
-2. zweryfikować `checksums.txt`,
-3. wykonać lokalny podstawowy test poprawności,
-4. wykonać próbki regresyjne,
-5. zachować poprzednią wersję,
-6. zatrzymać lub przełączyć usługę w kontrolowany sposób,
-7. podmienić model i konfigurację,
-8. uruchomić usługę,
-9. wykonać test funkcjonalny,
-10. zmierzyć RTF i opóźnienie,
-11. sprawdzić integrację z docelowym odtwarzaczem,
-12. oznaczyć wdrożenie jako zaakceptowane dopiero po zakończeniu walidacji.
-
-## 9. Wycofanie wersji
+## Wycofanie wersji
 
 Wycofanie wersji (rollback) oznacza powrót do poprzedniego, znanego i poprawnie działającego wydania.
 
-Procedura wycofania powinna być przygotowana przed aktualizacją. Poprzedni model i konfiguracja powinny pozostać dostępne do czasu zakończenia testów nowej wersji.
+Należy je wykonać, jeżeli nowy model powoduje istotną regresję zrozumiałości, podobieństwa głosu, wymowy, stabilności, wydajności albo kompatybilności integracyjnej.
 
-Wycofanie jest wymagane, jeżeli nowy model powoduje istotną regresję dotyczącą na przykład:
+Poprzednie artefakty należy zachować co najmniej do zakończenia testów nowej wersji. Przyczynę wycofania trzeba powiązać z konkretnym wydaniem.
 
-- zrozumiałości,
-- podobieństwa głosu,
-- wymowy języka polskiego,
-- stabilności usługi,
-- czasu odpowiedzi,
-- zużycia zasobów,
-- kompatybilności z integracją.
+## Monitorowanie
 
-Po wycofaniu należy zapisać przyczynę i powiązać ją z konkretnym numerem wydania lub sumą kontrolną modelu.
+Monitorowanie (monitoring) powinno być proporcjonalne do środowiska. Warto obserwować:
 
-## 10. Monitorowanie
-
-Monitorowanie (monitoring) wdrożenia powinno obejmować co najmniej:
-
-- dostępność procesu TTS,
+- dostępność usługi,
 - czas odpowiedzi,
 - błędy syntezy,
 - zużycie pamięci RAM,
 - użycie CPU lub GPU,
-- liczbę żądań,
-- anomalie związane z wyjątkowo długimi tekstami.
+- nietypowo długie żądania.
 
-W środowisku domowym nie ma potrzeby budowania rozbudowanej infrastruktury obserwowalności, jeżeli prostsze rozwiązanie dostarcza wystarczających informacji. Jest to zgodne z zasadą KISS.
+Nie ma potrzeby budowania rozbudowanego systemu obserwowalności, jeżeli prostszy mechanizm dostarcza informacji potrzebnych do utrzymania usługi.
 
-## 11. Bezpieczeństwo
+## Bezpieczeństwo
 
-Usługa TTS powinna być dostępna tylko tam, gdzie jest potrzebna. Jeżeli Piper działa wyłącznie jako usługa dla Home Assistant w sieci lokalnej, nie ma uzasadnienia dla bezpośredniego wystawiania jego portu do Internetu.
+Jeżeli Piper jest potrzebny wyłącznie w zaufanej sieci lokalnej, nie należy bezpośrednio udostępniać jego portu w Internecie.
 
-Należy:
+Należy ograniczyć dostęp sieciowy, przechowywać sekrety poza repozytorium, stosować minimalne wymagane uprawnienia i montować artefakty modelu tylko do odczytu, jeżeli jest to możliwe.
 
-- ograniczyć dostęp sieciowy,
-- przechowywać sekrety poza repozytorium,
-- nie uruchamiać procesu z większymi uprawnieniami niż wymagane,
-- montować artefakty modelu tylko do odczytu, jeżeli jest to możliwe,
-- aktualizować zależności świadomie i testować zgodność po zmianie,
-- wykonywać kopie konfiguracji potrzebnej do odtworzenia usługi.
+## Kryterium zakończenia wdrożenia
 
-## 12. Kryterium zakończenia wdrożenia
-
-Wdrożenie można uznać za zakończone, gdy:
-
-- integralność artefaktów została potwierdzona,
-- model przechodzi podstawowy test poprawności,
-- usługa uruchamia się powtarzalnie,
-- synteza działa z docelowej aplikacji,
-- dźwięk jest poprawnie odtwarzany na urządzeniu docelowym,
-- zmierzono podstawowe parametry wydajności,
-- nie występuje nieakceptowalna regresja jakości,
-- istnieje sprawdzona procedura powrotu do poprzedniej wersji.
+Wdrożenie jest zakończone, gdy integralność artefaktów została potwierdzona, model przechodzi test poprawności, usługa uruchamia się powtarzalnie, aplikacja docelowa może wykonać syntezę, dźwięk jest poprawnie odtwarzany, zmierzono podstawową wydajność i sprawdzono procedurę powrotu do poprzedniej wersji.
