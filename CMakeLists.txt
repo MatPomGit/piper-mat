@@ -1,12 +1,12 @@
-# Builds Python module for Piper using espeak-ng and cmake.
+# Builds the Piper Python module with espeak-ng and CMake.
 #
-# This is called automatically by scikit-build from setup.py.
+# This file is invoked automatically by scikit-build from setup.py.
 cmake_minimum_required(VERSION 3.26)
 project(piper LANGUAGES C CXX)
 
 include(ExternalProject)
 
-# scikit-build-core will forward Python_* variables
+# scikit-build forwards the Python_* variables used by CMake's Python package.
 find_package(Python COMPONENTS Development.Module Development.SABIModule REQUIRED)
 
 # Install location for espeak-ng
