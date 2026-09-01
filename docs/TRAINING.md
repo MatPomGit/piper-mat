@@ -1,166 +1,217 @@
-# 🏋️ Trenowanie
+# Trenowanie modelu głosu
 
-Kod do trenowania nowych głosów znajduje się w `src/piper/train` i można go uruchomić za pomocą `python3 -m piper.train fit`.
-Wykorzystuje on [PyTorch Lightning][lighting] oraz `LightningCLI`.
+Ten rozdział opisuje podstawowy proces trenowania (training) i dostrajania (fine-tuning) głosu w projekcie `piper-mat`. Dla głosu `pl_PL-mateusz-medium` preferowane jest dostrajanie istniejącego modelu bazowego zamiast rozpoczynania trenowania od losowo zainicjalizowanych parametrów.
 
-Należy zainstalować następujące pakiety systemowe (`apt-get`):
+Obowiązujące polskie odpowiedniki terminów technicznych znajdują się w [słowniku terminologii](TERMINOLOGIA.md).
 
-* `build-essential`
-* `cmake`
-* `ninja-build`
+## 1. Przygotowanie środowiska
 
-Następnie sklonuj repozytorium i zainstaluj zależności do trenowania:
+Kod odpowiedzialny za trenowanie znajduje się w `src/piper/train`. Proces można uruchomić za pomocą modułu `piper.train`.
 
-``` sh
-git clone https://github.com/OHF-voice/piper1-gpl.git
-cd piper1-gpl
+Projekt wykorzystuje PyTorch oraz PyTorch Lightning. Przed rozpoczęciem trenowania należy utworzyć odizolowane środowisko Pythona i zainstalować zależności projektu.
+
+### Linux
+
+```bash
+git clone https://github.com/MatPomGit/piper-mat.git
+cd piper-mat
 python3 -m venv .venv
-source .venv/Scripts/activate # windows
-source .venv/bin/activate #linux
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
 python3 -m pip install -e '.[train]'
 ```
 
-a następnie zbuduj rozszerzenie Cython:
+W systemach opartych na Debianie lub Ubuntu mogą być również potrzebne pakiety `build-essential`, `cmake` i `ninja-build`.
 
-``` sh
+### Windows
+
+```powershell
+git clone https://github.com/MatPomGit/piper-mat.git
+cd piper-mat
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[train]"
+```
+
+Szczegółowy proces przygotowania środowiska w Windows opisano również w [kreatorze dla Windows 11](WINDOWS_GUI.md).
+
+## 2. Rozszerzenie `monotonic_align`
+
+`monotonic_align` realizuje monotoniczne dopasowanie (monotonic alignment) pomiędzy reprezentacją tekstu a sekwencją czasową mowy. W praktyce mechanizm pomaga modelowi nauczyć się, które fragmenty sygnału dźwiękowego odpowiadają kolejnym elementom wypowiedzi.
+
+Rozszerzenie należy zbudować zgodnie z procedurą właściwą dla używanego systemu. W środowisku zgodnym z powłoką POSIX można użyć:
+
+```bash
 ./build_monotonic_align.sh
 ```
 
-W przypadku uruchamiania z repozytorium należy wykonać kompilację deweloperską:
+Jeżeli wymagane jest zbudowanie rozszerzeń bezpośrednio w drzewie źródłowym:
 
-``` sh
-python3 setup.py build_ext --inplace
+```bash
+python setup.py build_ext --inplace
 ```
 
-Do trenowania potrzebny jest plik CSV z separatorem `|` w następującym formacie:
+## 3. Zbiór danych
 
-``` csv
-utt1.wav|Text for utterance 1.
-utt2.wav|Text for utterance 2.
-...
+Zbiór danych (dataset) składa się z nagrań oraz metadanych łączących każdy plik dźwiękowy z jego transkrypcją. Szczegółowe zasady przygotowania danych projektu opisano w [rozdziale o zbiorze danych](DATASET.md).
+
+Podstawowy plik `metadata.csv` używa separatora `|`:
+
+```text
+000001.wav|Dzień dobry, to jest pierwsza wypowiedź treningowa.
+000002.wav|Model powinien poprawnie odtwarzać polską wymowę.
 ```
 
-Pierwsza kolumna zawiera nazwę pliku dźwiękowego (w dowolnym formacie obsługiwanym przez [librosa][]), który musi znajdować się w `--data.audio_dir` (zobacz niżej).
+Pierwsza kolumna wskazuje plik dźwiękowy, a druga zawiera jego dokładną transkrypcję. Nagranie i tekst muszą odpowiadać sobie możliwie dokładnie. Błędy transkrypcji bezpośrednio pogarszają dane uczące model.
 
-Pozostałe kolumny zależą od [ustawień trenowania](#ustawienia). Domyślnie druga kolumna zawiera tekst przekazywany do [espeak-ng][] w celu fonemizacji (podobnie jak w `espeak-ng --ipa=3`).
+## 4. Najważniejsze parametry
 
-Uruchom skrypt trenujący:
+Przed uruchomieniem trenowania warto rozumieć znaczenie podstawowych parametrów. Nazwy argumentów programu pozostają niezmienione, ponieważ stanowią część interfejsu programu.
 
-``` sh
-python3 -m piper.train fit \
-  --data.voice_name "<name of voice>" \
-  --data.csv_path /path/to/metadata.csv \
-  --data.audio_dir /path/to/audio/ \
+### `model.sample_rate`
+
+Częstotliwość próbkowania (sample rate) określa liczbę próbek sygnału dźwiękowego przypadających na sekundę. Wartość `22050` oznacza 22 050 próbek na sekundę.
+
+Dla modelu bazowego i modelu dostrajanego częstotliwość próbkowania musi być zgodna z przyjętą konfiguracją. W projekcie głosu `pl_PL-mateusz-medium` typową wartością jest:
+
+```text
+22050 Hz
+```
+
+Nie należy zmieniać jej wyłącznie w celu uzyskania większej liczby próbek, ponieważ wpływa ona na architekturę i zgodność modelu.
+
+### `data.batch_size`
+
+Rozmiar partii (batch size) określa liczbę przykładów przetwarzanych przed wykonaniem pojedynczej aktualizacji parametrów modelu.
+
+Większa wartość zwykle zwiększa zapotrzebowanie na pamięć GPU, ale może poprawić wykorzystanie procesora graficznego. Mniejsza wartość ogranicza zużycie pamięci kosztem innej charakterystyki trenowania i często dłuższego czasu wykonania epoki.
+
+Przykładowe wartości to `8`, `16` i `32`. Dobór zależy od długości nagrań, konfiguracji modelu i dostępnej pamięci GPU. Nie należy traktować największej wartości mieszczącej się w pamięci jako automatycznie najlepszej.
+
+### `ckpt_path`
+
+`ckpt_path` wskazuje punkt kontrolny (checkpoint), z którego zostaną odtworzone parametry modelu. Użycie zgodnego modelu bazowego pozwala rozpocząć dostrajanie od już wyuczonej reprezentacji mowy.
+
+W projekcie `piper-mat` bazowe punkty kontrolne opisano w [osobnym rozdziale](CHECKPOINTS.md).
+
+### `data.espeak_voice`
+
+Parametr wybiera konfigurację językową eSpeak NG używaną podczas fonemizacji (phonemization), czyli zamiany tekstu na reprezentację fonetyczną. Dla języka polskiego należy używać konfiguracji zgodnej z językiem danych, np. `pl`.
+
+## 5. Uruchomienie trenowania
+
+Przykładowe polecenie dla głosu projektu:
+
+```bash
+python -m piper.train fit \
+  --data.voice_name "pl_PL-mateusz-medium" \
+  --data.csv_path dataset/metadata.csv \
+  --data.audio_dir dataset/wavs \
   --model.sample_rate 22050 \
-  --data.espeak_voice "<espeak voice name>" \
-  --data.cache_dir /path/to/cache/dir/ \
-  --data.config_path /path/to/write/config.json \
-  --data.batch_size 32 \
-  --ckpt_path /path/to/finetune.ckpt  # optional but highly recommended
+  --data.espeak_voice "pl" \
+  --data.cache_dir cache \
+  --data.config_path output/pl_PL-mateusz-medium.onnx.json \
+  --data.batch_size 16 \
+  --ckpt_path checkpoints/base.ckpt
 ```
 
-gdzie:
+Ścieżki należy dostosować do rzeczywistego układu lokalnego zbioru danych. Nie należy umieszczać dużych, roboczych danych dźwiękowych ani sekretów w repozytorium tylko po to, aby odpowiadały przykładowemu poleceniu.
 
-* `data.voice_name` to nazwa głosu (może być dowolna)
-* `data.csv_path` to ścieżka do pliku CSV z nazwami plików dźwiękowych i tekstem
-* `data.audio_dir` to katalog zawierający pliki dźwiękowe (zwykle `.wav`)
-* `model.sample_rate` to częstotliwość próbkowania dźwięku w hercach (zwykle 22050)
-* `data.espeak_voice` to głos/język espeak-ng, na przykład `en-us` (zobacz `espeak-ng --voices`)
-* `data.cache_dir` to katalog, w którym buforowane są artefakty trenowania (fonemy, przycięty dźwięk itd.)
-* `data.config_path` to ścieżka zapisu pliku konfiguracji JSON głosu
-* `data.batch_size` to rozmiar partii podczas trenowania
-* `ckpt_path` to ścieżka do istniejącego [punktu kontrolnego Pipera][piper-checkpoints]
+Pełną listę opcji można sprawdzić poleceniem:
 
-Zaleca się użycie `--ckpt_path`, ponieważ znacznie przyspiesza trenowanie, nawet jeśli punkt kontrolny pochodzi z innego języka. Bez [dostosowania innych ustawień][audio-config] obsługiwane są tylko punkty kontrolne jakości `medium`.
-
-Uruchom `python3 -m piper.train fit --help`, aby poznać wiele innych opcji.
-
-## Ustawienia
-
-Niektóre ustawienia trenowania zmieniają format danych wejściowych.
-
-### Wielu mówców
-
-Jeśli zbiór danych zawiera więcej niż jednego mówcę, format wejściowego pliku CSV zmienia się na:
-
-``` csv
-utt1.wav|speaker_1|Text for utterance 1 with first speaker.
-utt2.wav|speaker_2|Text for utterance 2 with second speaker.
-...
+```bash
+python -m piper.train fit --help
 ```
 
-gdzie `speaker_1` i `speaker_2` są **nazwami** mówców. Po rozpoczęciu trenowania Piper policzy unikatowe nazwy mówców i utworzy mapowanie nazw mówców na identyfikatory. Mapowanie zostanie zapisane w pliku `config.json` głosu (`--data.config_path`).
+## 6. Wznowienie trenowania
 
-### Własne fonemy
+Wznowienie trenowania (resume training) oznacza kontynuowanie wcześniejszego przebiegu wraz ze stanem zapisanym w punkcie kontrolnym. Nie jest tym samym co rozpoczęcie nowego eksperymentu z parametrami skopiowanymi z modelu bazowego.
 
-Aby pominąć fonemizację za pomocą `espeak-ng`, ustaw `--data.phoneme_type text` i użyj formatu CSV:
+Projekt udostępnia osobny proces trenowania etapowego i wznawiania. Został on opisany w [rozdziale o trenowaniu etapowym](STAGED_TRAINING.md).
 
-``` csv
-utt1.wav|phonemes_for_utt_1
-utt2.wav|phonemes_for_utt_2
-...
+## 7. Wiele głosów w jednym zbiorze
+
+W przypadku zbioru zawierającego wielu mówców (multi-speaker dataset) metadane mogą zawierać dodatkową kolumnę identyfikującą mówcę:
+
+```text
+000001.wav|speaker_1|Pierwsza wypowiedź pierwszego mówcy.
+000002.wav|speaker_2|Pierwsza wypowiedź drugiego mówcy.
 ```
 
-Ostatnia kolumna zawiera teraz punkty kodowe UTF-8, które mają być fonemami każdej wypowiedzi. W języku Python są one przekształcane w listę za pomocą:
+Piper tworzy mapowanie nazw mówców na identyfikatory i zapisuje je w konfiguracji modelu. Głos `pl_PL-mateusz-medium` jest jednak projektem konkretnego mówcy, dlatego nie należy wprowadzać dodatkowych mówców do jego podstawowego zbioru treningowego.
+
+## 8. Własne fonemy
+
+Domyślnie tekst jest poddawany fonemizacji przez eSpeak NG. Zmiana tego mechanizmu jest funkcją zaawansowaną i wymaga zachowania spójności między danymi, konfiguracją oraz modelem.
+
+Po ustawieniu:
+
+```text
+--data.phoneme_type text
+```
+
+ostatnia kolumna metadanych może bezpośrednio zawierać reprezentację fonemów. Tekst jest normalizowany w Pythonie między innymi za pomocą:
 
 ```python
 phonemes_list = list(unicodedata.normalize("NFD", phonemes_text))
 ```
 
-Fonemy przechodzą zwykły proces tworzenia identyfikatorów fonemów, obejmujący dodanie identyfikatorów BOS/EOS i wstawienie PAD.
+Nie należy wprowadzać własnego systemu fonemów bez wyraźnej potrzeby eksperymentalnej i odpowiedniej walidacji wymowy języka polskiego.
 
-### Własne identyfikatory fonemów
+## 9. Własne identyfikatory fonemów
 
-Aby uzyskać pełną kontrolę nad fonemizacją, użyj `--data.data_type phoneme_ids` oraz formatu CSV:
+Tryb `--data.data_type phoneme_ids` pozwala przekazać bezpośrednio identyfikatory fonemów (phoneme IDs). Daje to pełniejszą kontrolę nad reprezentacją wejściową, ale jednocześnie przenosi odpowiedzialność za jej poprawność na przygotowanie danych.
 
-``` csv
-utt1.wav|Text for utterance 1.|0 1 2 3 4 5
-utt2.wav|Text for utterance 2.|5 4 3 2 1 0
-...
+Przykład:
+
+```text
+000001.wav|Przykładowa wypowiedź.|0 1 2 3 4 5
 ```
 
-Model zostanie wytrenowany dokładnie z podanymi identyfikatorami fonemów. Należy ustawić `--data.num_symbols <N>` na liczbę posiadanych identyfikatorów fonemów, chyba że ma zostać użyta wartość domyślna 256.
+Liczba symboli musi być zgodna z konfiguracją `--data.num_symbols`. Opcja `--data.phonemes_path` może służyć do przekazania mapowania fonemów na identyfikatory.
 
-Ustawienie `--data.phonemes_path <FILE>` skopiuje mapę fonemów i identyfikatorów do pliku konfiguracji głosu (`--data.config_path`). Plik ten jest obiektem JSON mapującym fonemy na identyfikatory:
+## 10. Wstępna inicjalizacja wokodera
 
-```json
-{
-  "phoneme_1": 0,
-  "phoneme_2": 1,
-  ...
-}
+Wokoder (vocoder) jest częścią systemu odpowiedzialną za przekształcenie reprezentacji generowanej przez model w końcowy przebieg sygnału dźwiękowego.
+
+Opcja:
+
+```text
+--model.vocoder_warmstart_ckpt <CHECKPOINT>
 ```
 
-### Wstępna inicjalizacja wokodera
+umożliwia wstępną inicjalizację (warm start) parametrów wokodera z istniejącego punktu kontrolnego bez kopiowania warstwy reprezentującej fonemy. Jest to przydatne przede wszystkim przy eksperymentach wymagających innej liczby symboli fonetycznych.
 
-Podczas trenowania nowego modelu od podstaw można znacznie przyspieszyć ten proces za pomocą `--model.vocoder_warmstart_ckpt <CHECKPOINT>`. Spowoduje to skopiowanie parametrów modelu wokodera, ale nie warstwy osadzania fonemów.
+Dla standardowego dostrajania `pl_PL-mateusz-medium` należy preferować sprawdzony, prostszy proces z odpowiednim `--ckpt_path`, jeżeli nie ma konkretnego powodu do zmiany architektury wejścia.
 
-W przeciwieństwie do `--ckpt_path` użycie `--model.vocoder_warmstart_ckpt` pozwala trenować model z inną liczbą fonemów bez rozpoczynania całkowicie od podstaw.
+## 11. Eksport do ONNX
 
-## Eksportowanie
+Po zakończeniu trenowania wybrany punkt kontrolny należy wyeksportować do ONNX:
 
-Po zakończeniu trenowania wyeksportuj model do formatu ONNX za pomocą:
-
-``` sh
-python3 -m piper.train.export_onnx \
+```bash
+python -m piper.train.export_onnx \
   --checkpoint /path/to/checkpoint.ckpt \
-  --output-file /path/to/model.onnx
+  --output-file output/pl_PL-mateusz-medium.onnx
 ```
 
-Aby zapewnić zgodność z innymi głosami Pipera, zmień nazwę `model.onnx` na `<language>-<name>-medium.onnx` (np. `en_US-lessac-medium.onnx`). Plikowi konfiguracji JSON zapisanemu w `--data.config_path` **podczas trenowania** nadaj tę samą nazwę z rozszerzeniem `.json`. Głos będzie więc składał się z dwóch plików:
+Docelowy głos składa się co najmniej z dwóch zgodnych plików:
 
-* `en_US-lessac-medium.onnx` (ze skryptu eksportującego)
-* `en_US-lessac-medium.onnx.json` (z trenowania)
+```text
+pl_PL-mateusz-medium.onnx
+pl_PL-mateusz-medium.onnx.json
+```
 
-## Sprzęt
+Sam poprawny eksport nie oznacza jeszcze, że model jest gotowy do publikacji. Należy wykonać test syntezy oraz ocenę jakości zgodnie z [procedurą oceny](EVALUATION.md).
 
-Większość głosów Pipera trenowano lub dostrajano na procesorze Threadripper 1900X ze 128 GB pamięci RAM oraz kartą NVIDIA A6000 (48 GB VRAM) albo 3090 (24 GB VRAM).
+## 12. Sprzęt i pamięć GPU
 
-Użytkownicy zgłaszali udane trenowanie nawet z 8 GB pamięci VRAM i alternatywnymi kartami GPU, takimi jak RX 7600.
+Zapotrzebowanie na pamięć GPU zależy między innymi od rozmiaru partii, długości nagrań i konfiguracji modelu. Trenowanie jest możliwe na różnych kartach graficznych, dlatego dokumentacja projektu nie powinna zakładać jednej konkretnej konfiguracji sprzętowej jako wymogu.
 
-<!-- Odnośniki -->
-[espeak-ng]: https://github.com/espeak-ng/espeak-ng
-[lighting]: https://lightning.ai/docs/pytorch/stable/
-[librosa]: https://librosa.org/doc/latest/index.html
-[piper-checkpoints]: https://huggingface.co/datasets/rhasspy/piper-checkpoints
-[audio-config]: https://github.com/rhasspy/piper/blob/9b1c6397698b1da11ad6cca2b318026b628328ec/src/python/piper_train/vits/config.py#L20
+W przypadku błędu braku pamięci GPU należy najpierw zmniejszyć `data.batch_size`, a następnie zweryfikować długości przykładów i pozostałe ustawienia. Zmiany parametrów powinny być dokumentowane, aby eksperyment można było później odtworzyć.
+
+## 13. Zasady prowadzenia eksperymentu
+
+Każdy istotny przebieg trenowania powinien pozostawić informacje pozwalające go odtworzyć: użyty zbiór i jego podział, konfigurację, bazowy punkt kontrolny, ziarno losowania (seed), wersję kodu oraz wybrany wynikowy punkt kontrolny.
+
+Nie należy zmieniać jednocześnie wielu parametrów bez uzasadnienia. Prostsze eksperymenty ułatwiają ustalenie, która zmiana rzeczywiście wpłynęła na wynik. Jest to zgodne z zasadą KISS i ogranicza ryzyko powstania konfiguracji, której zachowania nie można później wyjaśnić.
