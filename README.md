@@ -1,18 +1,20 @@
 # piper-mat
 
-`piper-mat` jest eksperymentalną gałęzią rozwojową projektu [OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl), ukierunkowaną na przygotowanie, trenowanie, walidację i publikację własnego polskiego głosu **`pl_PL-mateusz-medium`** dla silnika Piper TTS.
+`piper-mat` jest eksperymentalną gałęzią rozwojową projektu [OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl), ukierunkowaną na przygotowanie, trenowanie, walidację i publikację własnego polskiego głosu **`pl_PL-mateusz-medium`** dla silnika syntezy mowy Piper TTS.
 
-Repozytorium zachowuje bazową implementację Pipera w `src/piper` oraz dodaje warstwę projektu głosu: konfigurację treningu, walidację zbioru danych, dokumentację eksperymentu, karty zbioru danych i modelu oraz lekkie kontrole ciągłej integracji.
+Repozytorium zachowuje bazową implementację Pipera w `src/piper` oraz dodaje warstwę projektu głosu: konfigurację trenowania, walidację zbioru danych, dokumentację eksperymentu, karty zbioru danych i modelu oraz lekkie kontrole ciągłej integracji.
+
+Dokumentacja użytkowa jest prowadzona w języku polskim. Przy pierwszym użyciu charakterystycznego pojęcia technicznego stosowana jest polska nazwa wraz z angielskim odpowiednikiem w nawiasie. Obowiązujące odpowiedniki znajdują się w [słowniku terminologii](docs/TERMINOLOGIA.md).
 
 ## Stan projektu
 
-Projekt jest w fazie rozwoju. Kod wnioskowania i treningu pochodzi z Pipera, natomiast proces tworzenia `pl_PL-mateusz-medium` jest stopniowo wydzielany do powtarzalnej struktury eksperymentalnej.
+Projekt jest w fazie rozwoju. Kod wnioskowania (inference) i trenowania (training) pochodzi z Pipera, natomiast proces tworzenia `pl_PL-mateusz-medium` jest stopniowo wydzielany do powtarzalnej struktury eksperymentalnej.
 
 Aktualne cele:
 
-1. zwalidować i ustabilizować zbiór danych,
-2. prowadzić powtarzalny trening możliwy do zatrzymania między sesjami i wznowienia innego dnia,
-3. eksportować model do ONNX i wykonywać test poprawności wnioskowania,
+1. zwalidować i ustabilizować zbiór danych (dataset),
+2. prowadzić powtarzalne trenowanie możliwe do zatrzymania między sesjami i wznowienia innego dnia,
+3. eksportować model do ONNX i wykonywać podstawowy test poprawności (smoke test) wnioskowania,
 4. oceniać jakość i wydajność modelu,
 5. publikować model wraz z `MODEL_CARD.md`, próbkami i informacją licencyjną.
 
@@ -26,17 +28,17 @@ piper-mat/
 ├── docs/                       # dokumentacja Pipera i projektu głosu
 ├── models/                     # karty modeli bez ciężkich artefaktów treningowych
 ├── samples/                    # krótkie próbki referencyjne i syntetyczne
-├── scripts/                    # trening, walidacja, raporty, eksport i ewaluacja
+├── scripts/                    # trenowanie, walidacja, raporty, eksport i ocena
 ├── src/piper/                  # bazowy kod Piper
 ├── tests/                      # testy projektu i testy regresyjne języka polskiego
-├── checkpoints/                # bazowe punkty kontrolne
-├── train.sh                    # trening etapowy Linux
-└── train.ps1                   # trening etapowy Windows PowerShell
+├── checkpoints/                # bazowe punkty kontrolne (checkpoints)
+├── train.sh                    # trenowanie etapowe w systemie Linux
+└── train.ps1                   # trenowanie etapowe w Windows PowerShell
 ```
 
-Duże punkty kontrolne i finalne modele ONNX powinny być publikowane jako wydania GitHub lub w repozytorium modeli na Hugging Face, a nie jako zwykłe pliki śledzone w historii Git.
+Duże punkty kontrolne i finalne modele ONNX powinny być publikowane jako wydania GitHub albo w repozytorium modeli na Hugging Face, a nie jako zwykłe pliki śledzone w historii Git.
 
-## Szybki start: trening
+## Szybki start: trenowanie
 
 ### 1. Środowisko
 
@@ -71,9 +73,9 @@ python scripts/validate_dataset.py \
   --audio-dir dataset/wavs
 ```
 
-Walidator sprawdza spójność metadanych i parametry plików WAV. Przed właściwym treningiem raport nie powinien zawierać błędów.
+Walidator sprawdza spójność metadanych i parametry plików WAV. Przed właściwym trenowaniem raport nie powinien zawierać błędów.
 
-### 4. Plan treningu etapowego
+### 4. Plan trenowania etapowego
 
 Kanoniczna konfiguracja znajduje się w:
 
@@ -87,7 +89,7 @@ Domyślny plan:
 "epochs_per_session": [250, 250, 250, 250]
 ```
 
-oznacza cztery niezależne sesje po 250 dodatkowych epok. Plan można zmienić np. na 3–6 podejść.
+oznacza cztery niezależne sesje po 250 dodatkowych epok (epochs). Plan można zmienić np. na 3–6 podejść.
 
 ### 5. Uruchomienie następnej sesji
 
@@ -113,7 +115,7 @@ Po zakończeniu sesji automatycznie powstają:
 - wykresy SVG z metryk TensorBoard,
 - aktualny `output/training_state/state.json`.
 
-Po zakończeniu sesji komputer można wyłączyć. W kolejnym dniu uruchamia się to samo polecenie, a trening wznawia pełny stan Lightning z poprzedniego `last.ckpt`.
+Po zakończeniu sesji komputer można wyłączyć. W kolejnym dniu uruchamia się to samo polecenie, a trenowanie wznawia pełny stan Lightning z poprzedniego `last.ckpt`.
 
 Stan planu:
 
@@ -131,7 +133,7 @@ Szczegółowa procedura znajduje się w `docs/STAGED_TRAINING.md`.
 
 ### 6. Eksport ONNX
 
-Po zakończeniu treningu wybierz punkt kontrolny i wyeksportuj model:
+Po zakończeniu trenowania wybierz punkt kontrolny i wyeksportuj model:
 
 ```bash
 python3 -m piper.train.export_onnx \
@@ -149,19 +151,19 @@ MODEL_CARD.md
 
 ## Zbiór danych i model
 
-Opis zbioru danych znajduje się w `dataset/DATASET_CARD.md`. Informacje o finalnym modelu i wymagane dane dotyczące treningu znajdują się w `models/pl_PL-mateusz-medium/MODEL_CARD.md`.
+Opis zbioru danych znajduje się w `dataset/DATASET_CARD.md`. Informacje o finalnym modelu i wymagane dane dotyczące trenowania znajdują się w `models/pl_PL-mateusz-medium/MODEL_CARD.md`.
 
 Pola oznaczone jako `TODO` muszą zostać uzupełnione na podstawie faktycznego zbioru danych i zakończonego eksperymentu. Nie należy wpisywać wartości szacunkowych jako wyników pomiaru.
 
 ## Walidacja jakości
 
-Docelowa ewaluacja obejmuje trzy grupy miar:
+Docelowa ocena obejmuje trzy grupy miar:
 
-- zrozumiałość: WER i CER,
-- jakość i podobieństwo głosu: odsłuch ekspercki lub MOS oraz podobieństwo głosu,
-- wydajność: RTF, opóźnienie uzyskania pierwszego fragmentu dźwięku, użycie RAM/CPU i rozmiar modelu.
+- zrozumiałość: współczynnik błędów słów (Word Error Rate, WER) i współczynnik błędów znaków (Character Error Rate, CER),
+- jakość i podobieństwo głosu: odsłuch ekspercki lub średnia ocena opinii słuchaczy (Mean Opinion Score, MOS) oraz podobieństwo głosu,
+- wydajność: współczynnik czasu rzeczywistego (Real-Time Factor, RTF), opóźnienie uzyskania pierwszego fragmentu dźwięku, użycie pamięci RAM i procesora oraz rozmiar modelu.
 
-Plan ewaluacji oraz dalszych prac znajduje się w `docs/ROADMAP.md`.
+Plan oceny oraz dalszych prac znajduje się w `docs/ROADMAP.md`.
 
 ## Dokumentacja
 
