@@ -1,6 +1,6 @@
-# Trening etapowy i wznawianie
+# Trenowanie etapowe i wznawianie
 
-Projekt obsługuje trening podzielony na kilka niezależnych sesji. Po zakończeniu każdej sesji stan modelu i optymalizatora jest zapisywany w punkcie kontrolnym Lightning, powstaje raport z metrykami i wykresami, a komputer można bezpiecznie wyłączyć. Kolejne uruchomienie automatycznie wznawia trening od końca poprzedniej sesji.
+Trenowanie etapowe (staged training) polega na podzieleniu długiego procesu uczenia modelu na kilka niezależnych sesji. Po zakończeniu każdej sesji stan modelu i optymalizatora jest zapisywany w punkcie kontrolnym (checkpoint), powstaje raport z metrykami i wykresami, a komputer można bezpiecznie wyłączyć. Kolejne uruchomienie automatycznie wznawia trenowanie od końca poprzedniej sesji.
 
 ## Plan sesji
 
@@ -12,7 +12,7 @@ Plan znajduje się w `configs/pl_PL-mateusz-medium.json`:
 }
 ```
 
-Domyślnie są to cztery podejścia po 250 dodatkowych epok. Można zmienić plan, np.:
+Epoka (epoch) oznacza jedno pełne przejście przez zbiór treningowy. Domyślnie plan obejmuje cztery sesje po 250 dodatkowych epok. Można go zmienić, np.:
 
 ```json
 [200, 200, 200]
@@ -24,9 +24,9 @@ dla trzech sesji albo:
 [150, 150, 150, 150, 150, 150]
 ```
 
-dla sześciu sesji. Wartości oznaczają **dodatkowe epoki wykonywane w danej sesji**, a nie bezwzględne numery epok. Menedżer odczytuje epokę bazowego punktu kontrolnego i sam oblicza poprawne `trainer.max_epochs`.
+dla sześciu sesji. Wartości oznaczają dodatkowe epoki wykonywane w danej sesji, a nie bezwzględne numery epok. Menedżer odczytuje epokę bazowego punktu kontrolnego i sam oblicza poprawne `trainer.max_epochs`.
 
-## Kontrola przed pierwszym treningiem
+## Kontrola przed pierwszym trenowaniem
 
 Po sklonowaniu repozytorium i pobraniu Git LFS wykonaj:
 
@@ -46,8 +46,8 @@ python scripts/check_training_ready.py
 
 Kontrola sprawdza m.in.:
 
-- konfigurację treningu i plan sesji,
-- obecność `metadata.csv` i WAV,
+- konfigurację trenowania i plan sesji,
+- obecność `metadata.csv` i plików WAV,
 - czy pliki Git LFS zostały rzeczywiście pobrane,
 - bazowy punkt kontrolny,
 - moduły `torch`, `lightning`, `tensorboard`, `librosa` i `piper`,
@@ -101,11 +101,11 @@ albo:
 ./train.sh
 ```
 
-Menedżer odczyta `output/training_state/state.json`, wybierze końcowy punkt kontrolny poprzedniej sesji i wznowi pełny stan Lightning. Obejmuje to model, optymalizatory, harmonogramy uczenia oraz licznik epok i kroków zapisany w punkcie kontrolnym.
+Menedżer odczyta `output/training_state/state.json`, wybierze końcowy punkt kontrolny poprzedniej sesji i wznowi pełny stan Lightning. Obejmuje to model, optymalizatory, harmonogramy współczynnika uczenia (learning-rate schedulers) oraz licznik epok i kroków zapisany w punkcie kontrolnym.
 
-Nie trzeba ręcznie podawać ścieżki do poprzedniego checkpointu.
+Nie trzeba ręcznie podawać ścieżki do poprzedniego punktu kontrolnego.
 
-## Sprawdzenie postępu bez uruchamiania treningu
+## Sprawdzenie postępu bez uruchamiania trenowania
 
 Linux:
 
@@ -130,7 +130,7 @@ Następna sesja: 3, dodatkowe epoki: 250
 
 ## Podgląd następnej sesji
 
-Bez uruchamiania obliczeń:
+Tryb próbny (dry run) pozwala sprawdzić planowane polecenia bez uruchamiania właściwych obliczeń:
 
 ```bash
 ./train.sh --dry-run
@@ -187,17 +187,17 @@ best_val_mos.ckpt
 
 `last.ckpt` jest punktem używanym do wznowienia kolejnej sesji. Punkty `best_*` służą do późniejszego odsłuchu i wyboru kandydata do eksportu ONNX.
 
-Piper sam zapisuje `last.ckpt` i najlepsze modele dzięki callbackom `ModelCheckpoint`. Projekt po zakończeniu sesji archiwizuje wybrane pliki i może usunąć pozostałe tymczasowe checkpointy, aby ograniczyć zajętość dysku.
+Piper sam zapisuje `last.ckpt` i najlepsze modele dzięki mechanizmom wywołań zwrotnych (callbacks) `ModelCheckpoint`. Projekt po zakończeniu sesji archiwizuje wybrane pliki i może usunąć pozostałe tymczasowe punkty kontrolne, aby ograniczyć zajętość dysku.
 
 ## Przerwanie awaryjne
 
-Jeżeli trening zostanie przerwany błędem albo ręcznie przed dojściem do zaplanowanego końca sesji, `state.json` **nie jest przesuwany do kolejnej sesji**. Następne uruchomienie rozpocznie tę samą sesję od ostatniego oficjalnie zakończonego punktu kontrolnego poprzedniej sesji.
+Jeżeli trenowanie zostanie przerwane błędem albo ręcznie przed dojściem do zaplanowanego końca sesji, `state.json` nie jest przesuwany do kolejnej sesji. Następne uruchomienie rozpocznie tę samą sesję od ostatniego oficjalnie zakończonego punktu kontrolnego poprzedniej sesji.
 
-Nie należy wyłączać komputera przez odcięcie zasilania podczas zapisu checkpointu. Najbezpieczniej poczekać na zakończenie zaplanowanej sesji.
+Nie należy wyłączać komputera przez odcięcie zasilania podczas zapisu punktu kontrolnego. Najbezpieczniej poczekać na zakończenie zaplanowanej sesji.
 
-## Jednorazowy trening bez menedżera sesji
+## Jednorazowe trenowanie bez menedżera sesji
 
-Niski poziom pozostaje dostępny:
+Interfejs niskiego poziomu pozostaje dostępny:
 
 ```bash
 python scripts/train_voice.py --dry-run
@@ -214,3 +214,5 @@ python scripts/train_voice.py \
 ```
 
 Do normalnego trenowania głosu zalecany jest jednak `train.sh` lub `train.ps1`, ponieważ menedżer sesji pilnuje stanu, raportów i archiwizacji.
+
+Terminologię używaną w tym dokumencie należy utrzymywać zgodnie ze [słownikiem projektu](TERMINOLOGIA.md).
