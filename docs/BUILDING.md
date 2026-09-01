@@ -1,34 +1,27 @@
 # Budowanie projektu ze źródeł
 
-Budowanie projektu ze źródeł (building from source) jest potrzebne przede wszystkim podczas rozwijania samego Pipera, modyfikowania rozszerzeń natywnych lub przygotowywania pakietów dystrybucyjnych. Do zwykłego korzystania z gotowego modelu głosu nie trzeba wykonywać pełnego procesu kompilacji.
+Budowanie projektu ze źródeł (building from source) jest potrzebne podczas rozwijania Pipera, modyfikowania rozszerzeń natywnych i przygotowywania pakietów. Do samego używania gotowego modelu głosu nie trzeba wykonywać pełnego procesu kompilacji.
 
-Ten rozdział opisuje środowisko programistyczne repozytorium `piper-mat`.
+## System budowania
 
-## 1. Narzędzia
+Aktualne repozytorium wykorzystuje `setuptools` jako backend budowania oraz `scikit-build` do integracji z CMake. Źródłem prawdy są `pyproject.toml` i `setup.py`.
 
-Projekt wykorzystuje między innymi:
+Nie należy opisywać tego projektu jako korzystającego z `scikit-build-core`, dopóki konfiguracja repozytorium rzeczywiście nie zostanie na niego przeniesiona.
 
-- CMake do konfiguracji budowania części natywnych,
-- Ninja jako szybki system wykonywania zadań budowania,
-- scikit-build-core do integracji procesu budowania z pakietem Pythona,
-- kompilator języka C/C++ właściwy dla platformy,
-- Python i narzędzia pakietowe.
+Podstawowe składniki to:
 
-### CMake
+- `setuptools`,
+- `scikit-build`,
+- CMake,
+- Ninja,
+- kompilator C/C++ właściwy dla platformy,
+- Python.
 
-CMake jest generatorem systemu budowania (build-system generator). Nie jest samym kompilatorem. Na podstawie plików konfiguracyjnych przygotowuje instrukcje dla właściwego narzędzia budowania.
+CMake jest generatorem systemu budowania (build-system generator). Ninja jest narzędziem wykonującym zadania budowania. `scikit-build` łączy proces CMake z pakietem Pythona.
 
-### Ninja
+## Linux
 
-Ninja jest narzędziem budowania (build tool), które wykonuje zależności i polecenia wygenerowane przez system konfiguracji. Jest często używane z CMake ze względu na prostotę i szybkość.
-
-### scikit-build-core
-
-`scikit-build-core` łączy mechanizmy budowania CMake z ekosystemem pakietów Pythona. Dzięki temu rozszerzenia natywne mogą być budowane w procesie tworzenia lub instalowania pakietu.
-
-## 2. Zależności systemowe w Debianie i Ubuntu
-
-Przykładowy zestaw:
+W Debianie i Ubuntu przydatny jest zestaw:
 
 ```bash
 sudo apt-get update
@@ -38,114 +31,89 @@ sudo apt-get install \
   ninja-build
 ```
 
-`build-essential` dostarcza podstawowe narzędzia kompilacyjne. Dokładne zależności mogą różnić się pomiędzy systemami i wersjami projektu.
-
-## 3. Pobranie repozytorium
+Następnie:
 
 ```bash
 git clone https://github.com/MatPomGit/piper-mat.git
 cd piper-mat
-```
-
-Dokumentacja `piper-mat` nie powinna kierować użytkownika do klonowania projektu źródłowego zamiast tego repozytorium, chyba że dany rozdział wyraźnie opisuje porównanie lub synchronizację z projektem źródłowym.
-
-## 4. Środowisko wirtualne
-
-Środowisko wirtualne (virtual environment) izoluje zależności Pythona projektu od globalnej instalacji interpretera.
-
-Linux i macOS:
-
-```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
 ```
 
-Windows PowerShell:
+## Windows
+
+W Windows należy przygotować zgodne narzędzia kompilacyjne C/C++. Dla użytkownika wykonującego trenowanie preferowanym punktem wejścia jest [kreator Windows 11](WINDOWS_GUI.md), ponieważ zawiera diagnostykę środowiska.
+
+Ręczne środowisko Pythona:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-```
-
-Nie należy instalować zależności deweloperskich globalnie, jeżeli nie ma ku temu konkretnej potrzeby.
-
-## 5. Instalacja edytowalna
-
-Instalacja edytowalna (editable install) pozwala uruchamiać pakiet bez tworzenia nowej kopii kodu po każdej zmianie źródeł.
-
-Dla środowiska deweloperskiego:
-
-```bash
 python -m pip install -e ".[dev]"
 ```
 
-Jeżeli potrzebny jest zestaw zależności związany z trenowaniem, należy użyć odpowiedniej grupy zdefiniowanej przez bieżącą konfigurację projektu. Dostępność grup należy sprawdzać w pliku `pyproject.toml`.
+## Instalacja edytowalna
 
-## 6. Budowanie rozszerzeń natywnych
+Instalacja edytowalna (editable install) pozwala korzystać bezpośrednio z bieżącego drzewa źródeł:
 
-Jeżeli rozwijana część projektu wymaga ręcznego zbudowania rozszerzenia w bieżącym drzewie źródeł, można użyć mechanizmu właściwego dla aktualnej konfiguracji projektu.
+```bash
+python -m pip install -e '.[dev]'
+```
 
-Starszy proces może wykorzystywać:
+Dla środowiska przeznaczonego do trenowania używana jest grupa `train`:
+
+```bash
+python -m pip install -e '.[train]'
+```
+
+Dostępne grupy zależności są zdefiniowane w `setup.py`. Obecnie obejmują między innymi `train`, `dev`, `http`, `alignment`, `zh` i `ja`.
+
+## Rozszerzenia natywne
+
+Repozytorium nadal zawiera `setup.py`, dlatego polecenie:
 
 ```bash
 python setup.py build_ext --inplace
 ```
 
-Polecenie `setup.py` należy traktować jako mechanizm zgodności ze starszym sposobem budowania, a nie automatycznie jako preferowany interfejs dla nowego kodu. Jeżeli `pyproject.toml` i backend budowania obsługują wymagany proces, należy preferować współczesny mechanizm pakietowy.
+jest w tym projekcie rzeczywistym mechanizmem budowania rozszerzeń w bieżącym drzewie źródeł, a nie tylko historycznym przykładem.
 
-## 7. Uruchomienie po zbudowaniu
+Dla procesu trenowania należy również zbudować `monotonic_align` zgodnie z instrukcją w [TRAINING.md](TRAINING.md).
 
-Podstawowa kontrola:
+## Kontrola po zbudowaniu
+
+Najprostsza kontrola uruchomienia:
 
 ```bash
 python -m piper --help
 ```
 
-Następnie należy wykonać testy odpowiednie dla zmienianego komponentu. Sam fakt, że moduł można zaimportować, nie potwierdza poprawności działania całego systemu.
+Następnie należy wykonać testy odpowiadające zmienianemu komponentowi. Poprawny import modułu nie potwierdza jeszcze poprawności syntezy ani trenowania.
 
-## 8. Budowanie pakietu
+## Budowanie pakietu
 
-Pakiet dystrybucyjny można utworzyć za pomocą:
+Zależność `build` jest częścią grupy deweloperskiej. Pakiet można utworzyć poleceniem:
 
 ```bash
 python -m build
 ```
 
-Proces może wygenerować dystrybucję źródłową oraz pakiet wheel.
+Proces może utworzyć dystrybucję źródłową oraz pakiet wheel.
 
-### Pakiet wheel
+Wheel jest formatem dystrybucyjnym Pythona. Jeżeli pakiet zawiera kod natywny, jego zgodność zależy między innymi od platformy, architektury i interfejsu binarnego aplikacji (Application Binary Interface, ABI).
 
-Wheel jest binarnym lub gotowym do instalacji formatem dystrybucyjnym Pythona. Dla projektu zawierającego kod natywny zgodność pakietu zależy od platformy, ABI i sposobu zbudowania rozszerzeń.
+## eSpeak NG
 
-## 9. Stabilne ABI Pythona
+Piper wykorzystuje eSpeak NG do fonemizacji tekstu. Natywna integracja pozwala uzyskać informacje potrzebne przez syntezę, w tym zachować znaczenie interpunkcji wpływającej na przebieg wypowiedzi.
 
-Interfejs binarny aplikacji (Application Binary Interface, ABI) określa sposób współpracy skompilowanych komponentów na poziomie binarnym.
+Nie należy modyfikować tej warstwy w projekcie głosu bez konkretnej potrzeby, ponieważ zmiana fonemizacji może wpłynąć na zgodność danych treningowych, testów regresyjnych i modelu.
 
-Piper wykorzystuje ograniczony interfejs API Pythona (Limited C API), aby w odpowiednich przypadkach korzystać ze stabilnego ABI (Stable ABI). Pozwala to ograniczyć liczbę wariantów binarnych wymaganych dla różnych wersji Pythona.
+## Nazewnictwo
 
-Nie oznacza to automatycznie zgodności jednego pakietu ze wszystkimi systemami operacyjnymi i architekturami. Platforma nadal pozostaje istotnym wymiarem zgodności.
-
-## 10. eSpeak NG
-
-Piper wykorzystuje eSpeak NG do fonemizacji tekstu. Projekt korzysta z natywnej integracji, ponieważ potrzebuje informacji wykraczających poza prosty tekstowy wynik standardowego programu wiersza poleceń.
-
-Jednym z istotnych elementów jest zachowanie terminatora klauzuli, np. kropki, pytajnika lub wykrzyknika. Interpunkcja może być przekazywana do modelu jako część reprezentacji wejściowej i wpływać na prozodię.
-
-Przykładowo:
-
-```text
-To jest zdanie.
-Czy to jest pytanie?
-To jest wykrzyknienie!
-```
-
-mogą prowadzić do różnych realizacji intonacyjnych, jeżeli model nauczył się takich zależności z danych.
-
-## 11. Nazewnictwo w kodzie i narzędziach
-
-PEP 8 dotyczy kodu Pythona. W nowych modułach należy stosować między innymi:
+PEP 8 dotyczy identyfikatorów Pythona. Przykłady:
 
 ```text
 voice_loader.py
@@ -155,26 +123,22 @@ VoiceModel
 DEFAULT_SAMPLE_RATE
 ```
 
-Odpowiada to odpowiednio nazwie modułu w `snake_case`, zmiennej w `snake_case`, funkcji w `snake_case`, klasie w `CapWords` i stałej w `UPPER_CASE_WITH_UNDERSCORES`.
+Opcje CLI należy zapisywać dokładnie tak, jak definiuje je rzeczywisty interfejs. `kebab-case` w opcji CLI nie oznacza, że taka sama konwencja jest poprawna dla zmiennej Pythona.
 
-Opcje wiersza poleceń nie są identyfikatorami Pythona. Jeżeli interfejs definiuje opcję jako `--sample-rate`, należy zachować `kebab-case`. Jeżeli istniejący interfejs definiuje `--output_file`, należy zachować jego rzeczywistą nazwę do czasu świadomej zmiany API.
+## Kontrola jakości zmian
 
-## 12. Kontrola jakości po zmianach
-
-Po modyfikacji kodu należy uruchomić kontrole odpowiadające zakresowi zmiany. W zależności od komponentu mogą obejmować:
+Po zmianie kodu należy uruchomić kontrole adekwatne do zakresu modyfikacji, na przykład:
 
 - testy jednostkowe,
 - testy integracyjne,
-- kontrolę formatowania i stylu,
-- kontrolę statyczną,
+- kontrolę formatowania,
+- analizę statyczną,
 - budowanie pakietu,
-- podstawowy test uruchomienia,
-- test syntezy modelu.
+- test uruchomienia,
+- test syntezy, jeżeli zmiana dotyczy ścieżki wykonawczej.
 
-Nie należy wykonywać niezwiązanych refaktoryzacji wyłącznie przy okazji naprawy procesu budowania. Zasada KISS oraz mały zakres zmian ułatwiają diagnostykę i przegląd kodu.
+Nie należy wykonywać niezwiązanych refaktoryzacji przy okazji naprawy procesu budowania.
 
-## 13. Zgodność dokumentacji z implementacją
+## Zasada aktualności
 
-Polecenia w tym rozdziale powinny odpowiadać aktualnemu `pyproject.toml`, strukturze repozytorium i skryptom projektu. Jeżeli proces budowania zostanie zmieniony, dokumentację należy aktualizować razem z kodem.
-
-Dokumentacja nie może utrwalać poleceń historycznych tylko dlatego, że działały w poprzedniej wersji projektu.
+`pyproject.toml`, `setup.py`, skrypty budowania i dokumentacja muszą opisywać ten sam proces. Jeżeli konfiguracja zostanie przeniesiona na inny backend, dokumentację należy zmienić w tym samym zakresie prac.
