@@ -1,64 +1,141 @@
-# Dopasowania
+# Dopasowania fonemów do dźwięku
 
-Do interfejsów API Pipera dla języków Python i C++ dodano eksperymentalną obsługę dopasowań dźwięku.
-Udostępnia ona liczbę próbek dźwięku dla każdego **identyfikatora fonemu** użytego podczas syntezy i może służyć do [synchronizowania mowy z ruchem ust][visemes].
+Dopasowanie fonemów do dźwięku (phoneme alignment) określa, jaki fragment czasowy wygenerowanego sygnału odpowiada poszczególnym fonemom lub ich identyfikatorom. Informacja ta jest szczególnie użyteczna przy synchronizacji mowy z ruchem ust (lip-sync), ponieważ pozwala wyznaczać momenty zmian fonemów i na ich podstawie sterować wizemami (visemes).
 
-## Modyfikowanie głosów
+W projekcie `piper-mat` funkcja ta ma znaczenie również dla późniejszej integracji głosu `pl_PL-mateusz-medium` z animowanym awatarem.
 
-Aby uzyskać dostęp do dopasowań, najpierw należy „zmodyfikować” plik modelu ONNX głosu:
+Obowiązujące odpowiedniki terminów technicznych znajdują się w [słowniku terminologii](TERMINOLOGIA.md).
 
-``` sh
-python3 -m piper.patch_voice_with_alignment /path/to/model.onnx
+## Zasada działania
+
+Piper może udostępnić liczbę próbek dźwięku przypadających na każdy identyfikator fonemu użyty podczas syntezy. Znając częstotliwość próbkowania, liczbę próbek można przeliczyć na czas.
+
+Przykładowo przy częstotliwości próbkowania 22 050 Hz fragment długości 2 205 próbek trwa:
+
+```text
+2205 / 22050 = 0,1 s
 ```
 
-Wymaga to zainstalowania pakietu Python `onnx` (nie należy go mylić z `onnxruntime`). Po zmodyfikowaniu pakiet `onnx` nie jest już potrzebny. Zmodyfikowane modele ONNX powinny nadal poprawnie działać z istniejącymi instalacjami Pipera.
+Dopasowanie nie jest gotową animacją ust. Stanowi informację czasową, którą dalszy etap systemu może przekształcić na fonemy, wizemy i animację twarzy. Przy naturalnym ruchu ust należy dodatkowo uwzględnić koartykulację, czyli wpływ sąsiednich głosek na sposób realizacji bieżącej artykulacji.
 
-### Modyfikowanie podczas wczytywania
+## Przygotowanie modelu
 
-Alternatywnie można zmodyfikować głos w pamięci podczas jego wczytywania, bez zapisywania zmienionego modelu na dysku:
+Aby model ONNX udostępniał dopasowania, można zmodyfikować jego graf obliczeniowy poleceniem:
 
-``` python
-voice = PiperVoice.load("/path/to/model.onnx", include_alignments=True)
+```bash
+python -m piper.patch_voice_with_alignment /path/to/model.onnx
 ```
 
-To również wymaga pakietu `onnx` (zainstaluj go poleceniem `pip install piper-tts[alignment]`), ale pozostawia oryginalny plik `.onnx` bez zmian. Jeśli model został już zmodyfikowany albo pakiet `onnx` jest niedostępny, głos zostanie wczytany normalnie, a dopasowania po prostu nie będą dostępne.
+Operacja wymaga pakietu `onnx`, którego nie należy mylić z `onnxruntime`. `onnx` służy tutaj do modyfikowania struktury modelu, natomiast `onnxruntime` jest środowiskiem wykonawczym używanym do wnioskowania (inference).
 
-## API języka Python
+Po przygotowaniu model powinien nadal działać w instalacjach Pipera, które nie korzystają z informacji o dopasowaniach.
 
-Klasę `AudioChunk` rozszerzono o kilka nowych pól:
+## Modyfikowanie modelu podczas wczytywania
 
-* `phonemes` — lista fonemów użytych do utworzenia fragmentu dźwięku
-* `phoneme_ids` — lista identyfikatorów fonemów użytych do utworzenia fragmentu dźwięku
-* `phoneme_id_samples` — liczba próbek dźwięku dla każdego identyfikatora fonemu
-* `phoneme_alignments` — lista dopasowań fonemów do liczby próbek
+Alternatywnie model można przygotować w pamięci podczas wczytywania:
 
-Pola `phoneme_id_sample` i `phoneme_alignments` będą nieobecne, jeśli model głosu nie obsługuje dopasowań lub wyłączono je za pomocą `include_alignments=False`.
+```python
+voice = PiperVoice.load(
+    "/path/to/model.onnx",
+    include_alignments=True,
+)
+```
 
-## API języka C++
+Wymaga to pakietu `onnx`, który można zainstalować wraz z odpowiednim zestawem zależności:
 
-Strukturę `piper_audio_chunk` rozszerzono o kilka nowych pól:
+```bash
+pip install "piper-tts[alignment]"
+```
 
-* `phonemes` — tablica punktów kodowych o długości `num_phonemes`
-* `phoneme_ids` — tablica identyfikatorów o długości `num_phoneme_ids`
-* `alignments` — tablica liczb próbek o długości `num_alignments`
+Oryginalny plik ONNX pozostaje wtedy niezmieniony. Jeżeli model został wcześniej przygotowany albo pakiet `onnx` nie jest dostępny, głos może zostać wczytany bez danych o dopasowaniach.
 
-Tablica `alignments` będzie pusta, jeśli głos nie obsługuje dopasowań, ale tablice `phonemes` i `phonemes_ids` będą zawsze obecne.
+## Interfejs Python
 
-Tablica `phoneme_ids` zawiera identyfikatory użyte do syntezy dźwięku danego fragmentu. Ma postać [1, 0, id1, 0, id2, 0, ..., 2], gdzie:
+Klasa `AudioChunk` udostępnia pola związane z dopasowaniami:
 
-* 0 = wypełnienie
-* 1 = początek zdania
-* 2 = koniec zdania
+- `phonemes`: fonemy użyte do wygenerowania fragmentu dźwięku,
+- `phoneme_ids`: identyfikatory fonemów (phoneme IDs),
+- `phoneme_id_samples`: liczby próbek przypisane poszczególnym identyfikatorom,
+- `phoneme_alignments`: dopasowania fonemów do liczby próbek.
 
-Ponieważ jeden fonem może utworzyć wiele identyfikatorów fonemów, tablica `phonemes` jest nieco bardziej złożona. Ma postać [p1, p1, 0, p2, p2, 0, ...], w której ten sam punkt kodowy fonemu jest powtarzany dla każdego odpowiadającego mu identyfikatora w `phoneme_ids`. Wartość 0 oddziela poszczególne fonemy, a w większości przypadków na fonem przypadają dwa punkty kodowe odpowiadające identyfikatorowi fonemu i identyfikatorowi wypełnienia.
+Pola zależne od dopasowań mogą być niedostępne, jeżeli model ich nie obsługuje lub funkcję wyłączono przez `include_alignments=False`.
 
-Tablica `alignments` zawiera liczbę próbek dźwięku dla każdego identyfikatora fonemu. Przynależność próbek do fonemów można ustalić następująco:
+Kod korzystający z tej funkcji powinien sprawdzać dostępność danych zamiast zakładać, że każde wywołanie syntezy je zwróci.
 
-1. Odczytaj N (powtórzonych) punktów kodowych z `phonemes`, aż zostanie napotkane 0 (lub koniec)
-2. Następnych N identyfikatorów fonemów odpowiada temu fonemowi
-3. Następnych N dopasowań (liczb próbek) odpowiada temu fonemowi
-4. Przesuń iteratory w tablicach `phoneme_ids` i `alignments` o N
-5. Powtórz
+## Interfejs C++
 
-<!-- Odnośniki -->
-[visemes]: https://github.com/aflorithmic/viseme-to-video
+Struktura `piper_audio_chunk` udostępnia między innymi:
+
+- `phonemes`: tablicę punktów kodowych o długości `num_phonemes`,
+- `phoneme_ids`: tablicę identyfikatorów o długości `num_phoneme_ids`,
+- `alignments`: tablicę liczb próbek o długości `num_alignments`.
+
+Tablica `alignments` może być pusta, jeżeli model nie obsługuje dopasowań. Dane wejściowe użyte podczas syntezy pozostają dostępne niezależnie od tego.
+
+## Identyfikatory specjalne
+
+Sekwencja `phoneme_ids` może zawierać identyfikatory specjalne. Typowy układ ma postać:
+
+```text
+[1, 0, id1, 0, id2, 0, ..., 2]
+```
+
+gdzie:
+
+- `0` oznacza dopełnienie (padding),
+- `1` oznacza początek sekwencji (beginning of sequence, BOS),
+- `2` oznacza koniec sekwencji (end of sequence, EOS).
+
+Nie należy utożsamiać jednego znaku tekstowego, jednego fonemu i jednego identyfikatora fonemu. Są to różne poziomy reprezentacji, a pojedynczy fonem może odpowiadać więcej niż jednemu identyfikatorowi.
+
+## Odczytywanie czasu fonemów
+
+Tablica `alignments` przechowuje liczbę próbek dźwięku przypadających na kolejne identyfikatory fonemów. Czas można obliczyć ze wzoru:
+
+```text
+czas [s] = liczba próbek / częstotliwość próbkowania [Hz]
+```
+
+Dla częstotliwości 22 050 Hz:
+
+```text
+441 próbek  ≈ 0,020 s
+1102 próbek ≈ 0,050 s
+2205 próbek = 0,100 s
+```
+
+Wartości te są przykładami przeliczenia, a nie zalecanymi czasami trwania fonemów.
+
+## Integracja z wizemami
+
+Wizem (viseme) jest wizualnym odpowiednikiem realizacji głoski lub grupy podobnie wyglądających głosek. Kilka fonemów może prowadzić do tego samego wizemu, ponieważ różnice akustyczne nie zawsze są widoczne na twarzy.
+
+Docelowy przepływ danych może mieć postać:
+
+```text
+tekst
+  ↓
+Piper TTS
+  ↓
+fonemy i dopasowania czasowe
+  ↓
+mapowanie fonem → wizem
+  ↓
+koartykulacja i wygładzanie przejść
+  ↓
+sterowanie kształtami morfującymi lub riggiem twarzy
+```
+
+Nie należy przełączać wizemów skokowo dokładnie na granicach fonemów. Naturalna artykulacja wymaga nakładania się ruchów, wyprzedzania części gestów artykulacyjnych oraz płynnego zanikania poprzedniej pozycji. Parametry koartykulacji powinny być później dobierane eksperymentalnie dla konkretnego systemu animacji.
+
+## Walidacja
+
+Po przygotowaniu modelu z obsługą dopasowań należy sprawdzić co najmniej:
+
+1. czy synteza bez dopasowań nadal działa,
+2. czy liczba zwracanych dopasowań jest zgodna z identyfikatorami fonemów,
+3. czy suma długości dopasowań odpowiada długości analizowanego fragmentu dźwięku,
+4. czy przeliczone znaczniki czasu są monotoniczne,
+5. czy dane są wystarczająco stabilne do sterowania systemem lip-sync.
+
+Dopiero po takiej walidacji należy traktować dopasowania jako wiarygodne źródło czasu dla animacji awatara.
