@@ -5,21 +5,24 @@ nav:
   - Strona główna: index.md
   - Projekt głosu:
       - Plan rozwoju: ROADMAP.md
-      - Ewaluacja: EVALUATION.md
       - Zbiór danych: DATASET.md
-      - Model: MODEL.md
+      - Model głosu: MODEL.md
       - Punkty kontrolne: CHECKPOINTS.md
-      - Wydania: RELEASES.md
+      - Ocena jakości: EVALUATION.md
+      - Wydawanie modelu: RELEASES.md
       - Wdrożenie: DEPLOYMENT.md
-      - Terminologia: TERMINOLOGIA.md
   - Trenowanie:
       - Kreator Windows 11: WINDOWS_GUI.md
-      - Podstawy: TRAINING.md
-      - Trening etapowy i wznawianie: STAGED_TRAINING.md
-  - Głosy: VOICES.md
-  - Dopasowania: ALIGNMENTS.md
-  - Kompilowanie: BUILDING.md
-  - Wiersz poleceń: CLI.md
-  - Interfejs Python: API_PYTHON.md
-  - Interfejs HTTP: API_HTTP.md
-  - Starsze plany: PLANS.md
+      - Podstawy trenowania: TRAINING.md
+      - Trenowanie etapowe i wznawianie: STAGED_TRAINING.md
+  - Integracja:
+      - Głosy i modele: VOICES.md
+      - Dopasowania fonemów: ALIGNMENTS.md
+      - Interfejs wiersza poleceń: CLI.md
+      - Interfejs Python: API_PYTHON.md
+      - Interfejs HTTP: API_HTTP.md
+  - Rozwój oprogramowania:
+      - Budowanie ze źródeł: BUILDING.md
+      - Terminologia: TERMINOLOGIA.md
+  - Archiwum:
+      - Starsze plany projektu źródłowego: PLANS.md
