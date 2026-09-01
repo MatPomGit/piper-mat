@@ -12,11 +12,28 @@ Nie należy tworzyć prostych kalek z języka angielskiego, jeżeli istnieje utr
 
 Nazwy techniczne wymagane przez kod, np. `batch_size`, `--checkpoint`, `ONNX`, `PyTorch` lub `CUDA`, pozostają bez zmian. Ich znaczenie jest jednak opisywane po polsku, np. „parametr `batch_size` określa rozmiar partii (batch size)”.
 
+W dokumentacji nie należy używać pauzy em (em dash, `—`). Zamiast niej należy zastosować znak interpunkcyjny właściwy dla konstrukcji zdania, np. przecinek, dwukropek, średnik, nawias albo kropkę.
+
 ## Standard kodu
 
 Kod Python rozwijany w projekcie powinien być zgodny z [PEP 8](https://peps.python.org/pep-0008/) oraz konwencją łańcuchów dokumentacyjnych (docstrings) określoną w [PEP 257](https://peps.python.org/pep-0257/).
 
 PEP 8 określa przede wszystkim zasady formatowania, nazewnictwa, organizacji importów i czytelności kodu. PEP 257 określa sposób dokumentowania publicznych modułów, klas, funkcji i metod za pomocą docstringów.
+
+### Nazewnictwo
+
+W projekcie należy stosować konwencję właściwą dla rodzaju elementu:
+
+- funkcje, metody, zmienne i parametry: `snake_case`, np. `sample_rate`, `load_voice_model()`;
+- klasy i wyjątki: `CapWords` / `PascalCase`, np. `VoiceModel`, `DatasetValidationError`;
+- stałe modułu: `UPPER_CASE_WITH_UNDERSCORES`, np. `DEFAULT_SAMPLE_RATE`;
+- moduły Pythona: małe litery, w razie potrzeby z podkreśleniami, np. `voice_export.py`;
+- pakiety Pythona: krótkie nazwy małymi literami;
+- opcje interfejsu wiersza poleceń mogą używać `kebab-case`, np. `--sample-rate`, jeśli tak definiuje je interfejs.
+
+`kebab-case` nie jest poprawną konwencją dla identyfikatorów Pythona. Nazwa `sample-rate` nie może być nazwą zmiennej ani funkcji w Pythonie. Odpowiednikiem jest `sample_rate`.
+
+PEP 8 nie określa jednej obowiązkowej konwencji nazw dla wszystkich plików w repozytorium. Pliki dokumentacyjne i inne artefakty niebędące modułami Pythona mogą zachowywać właściwe dla siebie nazwy, np. `README.md`, `AGENTS.md` lub `MODEL_CARD.md`.
 
 W projekcie obowiązują ponadto następujące zasady:
 
@@ -36,12 +53,12 @@ Szczegółowe instrukcje dla agentów programistycznych i osób modyfikujących 
 
 ## Główne obszary
 
-- `dataset/` — metadane i karta zbioru danych,
-- `configs/` — wersjonowana konfiguracja trenowania,
-- `models/` — karta finalnego modelu,
-- `scripts/` — walidacja, podziały danych, ocena i testy jakości,
-- `tests/` — zamrożony korpus regresyjny języka polskiego,
-- `docs/` — dokumentacja procesu badawczego i wdrożeniowego.
+- `dataset/`: metadane i karta zbioru danych,
+- `configs/`: wersjonowana konfiguracja trenowania,
+- `models/`: karta finalnego modelu,
+- `scripts/`: walidacja, podziały danych, ocena i testy jakości,
+- `tests/`: zamrożony korpus regresyjny języka polskiego,
+- `docs/`: dokumentacja procesu badawczego i wdrożeniowego.
 
 ## Aktualny cel
 
