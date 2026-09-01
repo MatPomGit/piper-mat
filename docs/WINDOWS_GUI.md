@@ -1,126 +1,186 @@
-# Kreator treningu dla Windows 11
+# Kreator trenowania dla Windows 11
 
-To jest najprostsza metoda przygotowania i trenowania głosu `pl_PL-mateusz-medium` na Windows 11. Nie trzeba znać Git, Pythona, PowerShell ani PyTorch.
+Kreator Windows prowadzi przez przygotowanie środowiska i trenowanie `pl_PL-mateusz-medium` bez konieczności ręcznego wykonywania wszystkich poleceń Git, PowerShell, Pythona i PyTorch.
 
-## Najkrótsza instrukcja
+Interfejs upraszcza proces, ale nie zmienia jego podstawowych etapów. Pod spodem nadal istnieją repozytorium Git, środowisko Pythona, zależności, zbiór danych, punkt kontrolny i proces trenowania.
 
-1. Otwórz folder `piper-mat`.
-2. Kliknij dwa razy `START_PIPER_MAT_GUI.bat`.
-3. Wykonuj kroki od 1 do 11.
-4. Zielony komunikat oznacza, że można przejść dalej.
-5. Przy czerwonym komunikacie najpierw kliknij **Napraw bezpiecznie**.
-6. Jeżeli problem pozostanie, przeczytaj dolne pole **Szczegóły techniczne**.
+## Najkrótsza ścieżka
 
-## Co kreator potrafi naprawić sam
+1. Otwórz katalog `piper-mat`.
+2. Uruchom `START_PIPER_MAT_GUI.bat`.
+3. Wykonuj kroki kreatora w podanej kolejności.
+4. Po komunikacie o poprawnym zakończeniu przejdź do następnego etapu.
+5. Jeżeli pojawi się błąd, najpierw użyj funkcji **Napraw bezpiecznie**.
+6. Jeżeli problem pozostaje, sprawdź pole **Szczegóły techniczne**.
 
-Przycisk **Napraw bezpiecznie** uruchamia narzędzie `tools/windows_doctor.py`. Naprawa nie usuwa nagrań, punktów kontrolnych ani wyników treningu.
+## Diagnostyka a naprawa
 
-Program może m.in.:
+Diagnostyka sprawdza stan systemu, ale nie powinna samodzielnie wykonywać ryzykownych zmian. Naprawa automatyczna jest ograniczona do operacji, które można wykonać bez utraty danych użytkownika.
 
-- włączyć obsługę długich ścieżek w lokalnym repozytorium Git,
+Przycisk **Napraw bezpiecznie** uruchamia `tools/windows_doctor.py`.
+
+Narzędzie może między innymi:
+
+- skonfigurować obsługę długich ścieżek dla lokalnego repozytorium Git,
 - ponownie zainicjalizować Git LFS,
 - ponowić `git lfs pull`,
-- wykryć uszkodzone `.venv`, zachować je jako kopię i utworzyć nowe,
+- wykryć uszkodzone `.venv`,
+- zachować stare środowisko przed utworzeniem nowego,
 - zaktualizować `pip`, `setuptools` i `wheel`,
-- ponownie zainstalować zależności treningowe.
+- ponownie zainstalować wymagane zależności.
 
-Niektórych rzeczy kreator celowo nie naprawia bez pytania, np. nie usuwa lokalnych zmian Git i nie podmienia checkpointów.
+Automatyczna naprawa nie powinna:
 
-## Co jest sprawdzane przez „Sprawdź system”
+- usuwać nagrań,
+- usuwać punktów kontrolnych,
+- usuwać wyników trenowania,
+- odrzucać lokalnych zmian Git,
+- zastępować nieznanego punktu kontrolnego bez weryfikacji.
 
-Diagnostyka kontroluje:
+## Kontrola systemu
 
-- Windows i wersję Pythona,
-- Git i Git LFS,
-- ilość wolnego miejsca na dysku,
+Funkcja **Sprawdź system** kontroluje co najmniej:
+
+- wersję Windows,
+- wersję Pythona,
+- Git,
+- Git LFS,
+- wolne miejsce na dysku,
 - poprawność repozytorium,
 - stan `.venv`,
-- obecność Pipera, Lightning, TensorBoard i librosa,
+- wymagane biblioteki Pythona,
 - działanie PyTorch,
 - dostępność CUDA,
-- `monotonic_align`,
-- bazowy checkpoint,
-- obecność prawdziwych WAV zamiast wskaźników Git LFS.
+- rozszerzenie `monotonic_align`,
+- bazowy punkt kontrolny,
+- obecność rzeczywistych plików WAV zamiast wskaźników Git LFS.
 
-Wynik może być `OK`, `WARNING` albo `ERROR`. Ostrzeżenie nie zawsze blokuje pracę, ale błąd przed treningiem powinien zostać usunięty.
+Wynik diagnostyki może mieć poziom informacyjny, ostrzegawczy albo błędu. Błąd dotyczący wymaganego elementu powinien blokować rozpoczęcie trenowania.
 
 ## Odporność na typowe problemy Windows
 
-Kreator wykonuje dodatkowe zabezpieczenia:
+Kreator powinien obsługiwać typowe problemy bez niszczenia istniejącego środowiska:
 
-- `git clone`, `git fetch`, `git lfs pull` i instalacja bibliotek są ponawiane po chwilowym błędzie sieci,
-- aktualizacja repozytorium używa `pull --ff-only`, więc nie nadpisuje lokalnej historii,
-- istniejący niepusty folder, który nie jest repozytorium, nie zostanie automatycznie skasowany,
-- uszkodzone `.venv` dostaje nazwę `.venv_broken_DATA_GODZINA`, zamiast być kasowane bez śladu,
-- trening nie ruszy, jeśli diagnostyka wykryje błąd,
-- przy błędzie treningu poprzedni punkt wznowienia pozostaje bezpieczny.
+- operacje sieciowe mogą być ponawiane po błędach przejściowych,
+- aktualizacja repozytorium powinna unikać automatycznego przepisywania lokalnej historii,
+- niepusty katalog, który nie jest oczekiwanym repozytorium, nie powinien być automatycznie usuwany,
+- uszkodzone `.venv` powinno zostać zachowane pod jednoznaczną nazwą kopii,
+- trenowanie nie powinno rozpoczynać się po wykryciu błędu blokującego,
+- awaria nowej sesji nie powinna niszczyć ostatniego poprawnego punktu wznowienia.
 
-## Starter uruchamiany dwuklikiem
+## Starter
 
 `START_PIPER_MAT_GUI.bat` uruchamia `tools/start_windows_gui.ps1`.
 
-Starter sprawdza przed pokazaniem GUI:
+Starter sprawdza podstawowe wymagania przed uruchomieniem graficznego interfejsu użytkownika (graphical user interface, GUI), między innymi:
 
-- Python 3.11 lub nowszy,
+- obsługiwaną wersję Pythona,
 - Git for Windows,
 - Git LFS.
 
-Jeżeli dostępny jest `winget`, może zaproponować automatyczną instalację brakującego Pythona, Git albo Git LFS. Po instalacji systemowego narzędzia najbezpieczniej ponownie uruchomić starter.
+Jeżeli dostępny jest `winget`, kreator może pomóc w instalacji brakujących narzędzi systemowych. Po instalacji komponentu zmieniającego `PATH` najbezpieczniej zamknąć i ponownie uruchomić starter.
 
-## Kroki kreatora
+## Etapy kreatora
 
-### 1. Wybierz miejsce na projekt
+### 1. Wybór katalogu projektu
 
-Wskaż zwykły folder na lokalnym SSD. Unikaj pendrive'a, katalogu tymczasowego i plików OneDrive dostępnych tylko online.
+Wybierz katalog na lokalnym dysku SSD z wystarczającą ilością wolnego miejsca. Należy unikać nośników wymiennych i katalogów synchronizowanych wyłącznie na żądanie.
 
-### 2. Pobierz albo zaktualizuj projekt
+### 2. Pobranie lub aktualizacja repozytorium
 
-Program pobiera repozytorium z GitHub albo wykonuje bezpieczną aktualizację istniejącego repozytorium.
+Kreator pobiera `piper-mat` albo aktualizuje istniejące repozytorium.
 
-### 3. Pobierz duże pliki
+Przed aktualizacją nie powinien automatycznie usuwać lokalnych zmian użytkownika. Konflikt wymagający decyzji użytkownika należy zgłosić zamiast ukrywać.
 
-Git LFS pobiera nagrania WAV i duże checkpointy. Przerwane pobieranie można uruchomić ponownie.
+### 3. Pobranie dużych artefaktów
 
-### 4. Przygotuj `.venv`
+Git LFS pobiera duże pliki przechowywane poza zwykłymi obiektami Git. Przerwaną operację można ponowić.
 
-Powstaje osobne środowisko Pythona. Jeżeli stare środowisko jest uszkodzone, zostaje zachowane jako kopia.
+Po zakończeniu należy sprawdzić, czy wymagane pliki nie są jedynie wskaźnikami Git LFS.
 
-### 5. Zainstaluj biblioteki
+### 4. Przygotowanie `.venv`
 
-Instalowane są składniki treningu. Przy chwilowych błędach połączenia instalacja jest ponawiana.
+Środowisko wirtualne (virtual environment) izoluje zależności Pythona projektu od globalnej instalacji.
 
-### 6. Zbuduj `monotonic_align`
+Jeżeli istniejące środowisko jest uszkodzone, kreator powinien zachować je jako kopię i dopiero potem utworzyć nowe.
 
-Ten krok wymaga narzędzi C++. Jeśli ich brakuje, zainstaluj **Visual Studio 2022 Build Tools** z komponentem **Desktop development with C++**, uruchom ponownie Windows i powtórz krok.
+### 5. Instalacja bibliotek
 
-### 7. Sprawdź nagrania
+Instalowane są zależności wymagane przez projekt i proces trenowania.
 
-Walidator sprawdza WAV i metadane bez zmieniania plików.
+Wersje zależności mają znaczenie dla powtarzalności. Po przygotowaniu działającego środowiska jego stan powinien być możliwy do zapisania w raporcie eksperymentu.
 
-### 8. Sprawdź cały komputer
+### 6. Budowanie `monotonic_align`
 
-Uruchamia pełną diagnostykę. To obowiązkowa kontrola przed treningiem.
+`monotonic_align` jest rozszerzeniem używanym podczas trenowania do wyznaczania monotonicznego dopasowania pomiędzy reprezentacją tekstową i przebiegiem czasowym mowy.
 
-### 9. Sprawdź plan treningu
+Krok wymaga narzędzi kompilacyjnych C/C++. W Windows może być potrzebny Visual Studio Build Tools z komponentem obsługującym rozwój aplikacji C++ dla komputerów stacjonarnych.
 
-Pokazuje liczbę zaplanowanych sesji i ostatni zapisany postęp.
+Brak tego komponentu jest problemem środowiska budowania, a nie błędem zbioru danych ani modelu.
 
-### 10. Uruchom następną sesję
+### 7. Walidacja nagrań
 
-Przed startem pełna diagnostyka jest wykonywana ponownie. Jeżeli wykryje błąd, trening nie zostanie rozpoczęty.
+Walidator sprawdza metadane i pliki WAV bez modyfikowania nagrań.
 
-### 11. Otwórz raport
+Należy przeanalizować nie tylko błędy, ale również ostrzeżenia dotyczące jakości sygnału, długości segmentów, ciszy i przesterowania.
 
-Otwiera raport i wykresy z ostatniej ukończonej sesji.
+### 8. Pełna diagnostyka
 
-## Następny dzień treningu
+Przed trenowaniem należy wykonać pełną kontrolę systemu. Ten etap potwierdza, że środowisko jest spójne po wszystkich wcześniejszych zmianach.
 
-Po ponownym włączeniu komputera nie trzeba wykonywać wszystkiego od początku:
+### 9. Kontrola planu trenowania
 
-1. uruchom `START_PIPER_MAT_GUI.bat`,
-2. kliknij **Sprawdź system**,
-3. jeśli wynik jest poprawny, przejdź do kroku 9,
-4. sprawdź plan,
-5. uruchom następną sesję w kroku 10.
+Kreator pokazuje liczbę zaplanowanych sesji, dotychczasowy postęp i punkt, od którego zostanie wznowione trenowanie.
 
-Kreator użyje ostatniego zapisanego `last.ckpt` i wznowi pełny stan Lightning.
+Przed rozpoczęciem należy sprawdzić, czy wskazany punkt kontrolny odpowiada oczekiwanemu eksperymentowi.
+
+### 10. Uruchomienie następnej sesji
+
+Bezpośrednio przed startem wykonywana jest ponowna diagnostyka. Błąd blokujący powinien zatrzymać operację przed uruchomieniem kosztownego procesu trenowania.
+
+Po rozpoczęciu sesji nie należy równolegle modyfikować zbioru danych, konfiguracji ani aktywnego punktu kontrolnego.
+
+### 11. Analiza raportu
+
+Po sesji należy otworzyć raport i wykresy. Celem nie jest tylko potwierdzenie, że proces się zakończył.
+
+Należy sprawdzić:
+
+- przebieg funkcji straty,
+- wyniki walidacji,
+- ewentualne wartości nietypowe,
+- czas sesji,
+- zapisane punkty kontrolne,
+- komunikaty ostrzegawcze.
+
+## Kolejny dzień pracy
+
+Po ponownym uruchomieniu komputera nie trzeba odtwarzać całego środowiska.
+
+1. Uruchom `START_PIPER_MAT_GUI.bat`.
+2. Wykonaj **Sprawdź system**.
+3. Sprawdź plan trenowania.
+4. Potwierdź, że wykryty został właściwy punkt wznowienia.
+5. Uruchom następną sesję.
+6. Po zakończeniu przeanalizuj raport.
+
+Kreator powinien użyć ostatniego poprawnego `last.ckpt` i wznowić pełny stan Lightning, jeżeli konfiguracja eksperymentu jest zgodna.
+
+## Kiedy nie używać automatycznej naprawy
+
+Nie należy wielokrotnie uruchamiać automatycznej naprawy, jeżeli problem dotyczy:
+
+- lokalnych zmian w kodzie,
+- nieznanego pochodzenia punktu kontrolnego,
+- ręcznie zmodyfikowanej konfiguracji eksperymentu,
+- uszkodzonych danych źródłowych,
+- braku miejsca wymagającego decyzji o usunięciu danych,
+- konfliktu wersji, którego rozwiązanie może zmienić wynik eksperymentu.
+
+W takich przypadkach należy najpierw ustalić przyczynę problemu.
+
+## Nazewnictwo techniczne
+
+Nazwy plików i skryptów, takie jak `START_PIPER_MAT_GUI.bat`, `start_windows_gui.ps1` i `windows_doctor.py`, należy zapisywać dokładnie tak, jak występują w repozytorium.
+
+PEP 8 ma zastosowanie do identyfikatorów i modułów Pythona. Dlatego `windows_doctor.py` używa `snake_case`. Nazwa pliku wsadowego Windows nie musi być zmieniana na `snake_case`, jeżeli pełni rolę stabilnego punktu wejścia dla użytkownika.
