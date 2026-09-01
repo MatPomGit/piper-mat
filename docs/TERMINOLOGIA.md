@@ -74,6 +74,23 @@ Nie tłumaczy się nazw własnych, nazw bibliotek, formatów, standardów i iden
 
 Jeżeli taki identyfikator pojawia się w zdaniu opisowym, należy wyjaśnić jego znaczenie po polsku. Przykład: „parametr `batch_size` określa **rozmiar partii (batch size)**”.
 
+## Konwencje nazewnicze kodu
+
+W kodzie Pythona obowiązuje nazewnictwo zgodne z PEP 8.
+
+- funkcje, metody, zmienne i parametry: `snake_case`, np. `load_voice_model`, `sample_rate`;
+- klasy i wyjątki: `CapWords` / `PascalCase`, np. `VoiceModel`, `DatasetValidationError`;
+- stałe modułu: `UPPER_CASE_WITH_UNDERSCORES`, np. `DEFAULT_SAMPLE_RATE`;
+- moduły Pythona: małe litery, w razie potrzeby z podkreśleniami, np. `voice_export.py`;
+- pakiety Pythona: krótkie nazwy zapisane małymi literami, z podkreśleniami tylko wtedy, gdy poprawiają czytelność i są rzeczywiście potrzebne;
+- elementy przeznaczone do użytku wewnętrznego mogą mieć pojedyncze podkreślenie z przodu, np. `_load_metadata`.
+
+`kebab-case`, np. `sample-rate`, nie jest konwencją identyfikatorów Pythona i nie wolno go stosować w nazwach funkcji, zmiennych, klas ani modułów importowanych w Pythonie.
+
+`kebab-case` jest natomiast właściwy dla wielu opcji interfejsu wiersza poleceń, np. `--sample-rate`, `--output-file` lub `--data-dir`, jeżeli dokładnie tak definiuje je istniejący interfejs programu.
+
+PEP 8 nie nakazuje stosowania `snake_case` ani `kebab-case` dla wszystkich plików repozytorium. Pliki niebędące modułami Pythona powinny zachowywać konwencję odpowiednią dla danego typu artefaktu, np. `README.md`, `AGENTS.md`, `MODEL_CARD.md`.
+
 ## Zasady redakcyjne
 
 1. Najpierw używaj poprawnego terminu polskiego, a angielski odpowiednik podawaj w nawiasie przy pierwszym istotnym wystąpieniu.
@@ -82,3 +99,5 @@ Jeżeli taki identyfikator pojawia się w zdaniu opisowym, należy wyjaśnić je
 4. Jeżeli pojęcie może mieć kilka znaczeń, doprecyzuj je w kontekście uczenia maszynowego, przetwarzania mowy lub inżynierii oprogramowania.
 5. Nowe terminy wprowadzane do dokumentacji należy najpierw dopisać do tego słownika, a następnie konsekwentnie stosować w pozostałych plikach.
 6. W dokumentach dydaktycznych nowe pojęcie powinno zostać krótko wyjaśnione przed opisem parametrów i procedur, które się do niego odnoszą.
+7. Nie używaj pauzy em (em dash, `—`). Dobierz poprawny polski znak interpunkcyjny do funkcji składniowej zdania.
+8. Zachowuj wielkość liter wymaganą przez kod, API, standard lub nazwę własną. Nie normalizuj samodzielnie zapisów takich jak `ONNX`, `CUDA`, `PiperVoice` czy `Git LFS`.
