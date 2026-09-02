@@ -42,7 +42,10 @@ function Find-CompatiblePython {
     if ($PyLauncher) {
         & $PyLauncher.Source -3.11 -c "import sys; assert sys.version_info >= (3, 11)" 1>$null 2>$null
         if ($LASTEXITCODE -eq 0) {
-            return @($PyLauncher.Source, @("-3.11"))
+            return [PSCustomObject]@{
+                Executable = $PyLauncher.Source
+                Prefix = @("-3.11")
+            }
         }
     }
 
@@ -50,7 +53,10 @@ function Find-CompatiblePython {
     if ($PythonCommand) {
         & $PythonCommand.Source -c "import sys; assert sys.version_info >= (3, 11)" 1>$null 2>$null
         if ($LASTEXITCODE -eq 0) {
-            return @($PythonCommand.Source, @())
+            return [PSCustomObject]@{
+                Executable = $PythonCommand.Source
+                Prefix = @()
+            }
         }
     }
 
@@ -146,9 +152,6 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 
-$PythonExe = $Python[0]
-$PythonPrefix = @($Python[1])
-$Arguments = @($PythonPrefix) + @($Gui)
-
-& $PythonExe @Arguments
+$Arguments = @($Python.Prefix) + @($Gui)
+& $Python.Executable @Arguments
 exit $LASTEXITCODE
