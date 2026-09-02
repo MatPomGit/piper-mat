@@ -6,9 +6,28 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$argsList = @("scripts/train_sessions.py", "--config", $Config)
-if ($Status) { $argsList += "--status" }
-if ($DryRun) { $argsList += "--dry-run" }
+$ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$VenvPython = Join-Path $ProjectDir ".venv\Scripts\python.exe"
+$PythonExe = if (Test-Path $VenvPython) { $VenvPython } else { "python" }
 
-python @argsList
-exit $LASTEXITCODE
+$Arguments = @(
+    "scripts/train_sessions.py",
+    "--config",
+    $Config
+)
+
+if ($Status) {
+    $Arguments += "--status"
+}
+if ($DryRun) {
+    $Arguments += "--dry-run"
+}
+
+Push-Location $ProjectDir
+try {
+    & $PythonExe @Arguments
+    exit $LASTEXITCODE
+}
+finally {
+    Pop-Location
+}
