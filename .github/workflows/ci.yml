@@ -21,7 +21,42 @@ jobs:
       - name: Compile project Python files
         run: |
           python -m compileall -q scripts
-          python -m py_compile setup.py tools/windows_setup_gui.py tools/windows_doctor.py
+          python -m py_compile \
+            setup.py \
+            tools/windows_setup_gui.py \
+            tools/windows_doctor.py \
+            src/piper/alignment_timing.py \
+            src/piper/patch_voice_with_alignment.py \
+            tests/test_alignment_timing.py
+      - name: Validate phoneme timing converter
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from dataclasses import dataclass
+          from pathlib import Path
+
+          module_path = Path('src/piper/alignment_timing.py')
+          spec = importlib.util.spec_from_file_location('alignment_timing', module_path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+
+          @dataclass
+          class Alignment:
+              phoneme: str
+              phoneme_ids: tuple[int, ...]
+              num_samples: int
+
+          timings = module.phoneme_alignments_to_timings(
+              [Alignment('a', (10, 0), 2205), Alignment('b', (11, 0), 1102)],
+              22050,
+          )
+          assert timings[0].start_sample == 0
+          assert timings[0].end_sample == 2205
+          assert abs(timings[0].end_seconds - 0.1) < 1e-12
+          assert timings[1].start_sample == timings[0].end_sample
+          assert timings[1].end_sample == 3307
+          PY
       - name: Validate Bash launchers
         run: |
           bash -n train.sh
