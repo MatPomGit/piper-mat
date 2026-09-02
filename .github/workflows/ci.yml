@@ -18,10 +18,26 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - name: Compile project scripts and Windows tools
+      - name: Compile project Python files
         run: |
           python -m compileall -q scripts
-          python -m py_compile tools/windows_setup_gui.py tools/windows_doctor.py
+          python -m py_compile setup.py tools/windows_setup_gui.py tools/windows_doctor.py
+      - name: Validate Bash launchers
+        run: |
+          bash -n train.sh
+          bash -n build_monotonic_align.sh
+          bash train.sh --status
+      - name: Validate pyproject.toml
+        run: |
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
+          build = data['build-system']
+          assert build['build-backend'] == 'setuptools.build_meta'
+          assert 'scikit-build' in build['requires']
+          PY
       - name: Check repository structure and voice config
         run: python scripts/check_project.py
       - name: Validate canonical training command
@@ -32,14 +48,27 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          c=json.loads(Path('configs/pl_PL-mateusz-medium.json').read_text(encoding='utf-8'))
-          e=c['training']['sessions']['epochs_per_session']
-          assert 3 <= len(e) <= 6 and all(isinstance(x,int) and x>0 for x in e)
+
+          config = json.loads(
+              Path('configs/pl_PL-mateusz-medium.json').read_text(encoding='utf-8')
+          )
+          epochs = config['training']['sessions']['epochs_per_session']
+          assert 3 <= len(epochs) <= 6
+          assert all(
+              isinstance(value, int)
+              and not isinstance(value, bool)
+              and value > 0
+              for value in epochs
+          )
           PY
       - name: Record experiment environment
         run: python scripts/record_environment.py --output /tmp/environment.json
       - name: Validate dataset metadata
-        run: python scripts/validate_dataset.py --metadata dataset/metadata.csv --audio-dir dataset/wavs --skip-audio
+        run: >-
+          python scripts/validate_dataset.py
+          --metadata dataset/metadata.csv
+          --audio-dir dataset/wavs
+          --skip-audio
       - name: Verify deterministic dataset split generation
         run: |
           python scripts/create_splits.py --output /tmp/splits-a.json
@@ -75,19 +104,36 @@ jobs:
         run: |
           python tools/windows_doctor.py --json
           $DoctorExitCode = $LASTEXITCODE
-          if (($DoctorExitCode -ne 0) -and ($DoctorExitCode -ne 2)) { exit $DoctorExitCode }
+          if (($DoctorExitCode -ne 0) -and ($DoctorExitCode -ne 2)) {
+              exit $DoctorExitCode
+          }
           exit 0
-      - name: Parse PowerShell launcher
+      - name: Parse PowerShell launchers
         shell: powershell
         run: |
-          $tokens=$null; $errors=$null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'tools/start_windows_gui.ps1'),[ref]$tokens,[ref]$errors) | Out-Null
-          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          $Paths = @('train.ps1', 'tools/start_windows_gui.ps1')
+          foreach ($Path in $Paths) {
+              $Tokens = $null
+              $Errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                  (Resolve-Path $Path),
+                  [ref]$Tokens,
+                  [ref]$Errors
+              ) | Out-Null
+              if ($Errors.Count -gt 0) {
+                  $Errors | ForEach-Object { Write-Error $_.Message }
+                  exit 1
+              }
+          }
+      - name: Validate PowerShell training launcher
+        shell: powershell
+        run: .\train.ps1 -Status
       - name: Verify double-click launcher
         shell: powershell
         run: |
           if (-not (Test-Path 'START_PIPER_MAT_GUI.bat')) { exit 1 }
           if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'start_windows_gui.ps1' -Quiet)) { exit 1 }
+          if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'exit /b' -Quiet)) { exit 1 }
 
   docs:
     runs-on: ubuntu-latest
