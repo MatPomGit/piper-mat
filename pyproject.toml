@@ -1,8 +1,16 @@
 [build-system]
-requires = ["scikit-build", "setuptools", "wheel", "cmake", "ninja"]
+requires = [
+    "scikit-build>=0.18,<1",
+    "setuptools>=68",
+    "wheel>=0.41",
+    "cmake>=3.18,<4",
+    "ninja>=1,<2",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.black]
+line-length = 88
+target-version = ["py39"]
 exclude = '''
 (
     \.pyi$
