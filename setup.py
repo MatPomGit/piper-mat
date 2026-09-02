@@ -1,4 +1,4 @@
-"""Needed so package data is included."""
+"""Configure packaging for the Piper engine used by the piper-mat project."""
 
 import itertools
 from pathlib import Path
@@ -9,12 +9,14 @@ MODULE_DIR = Path(__file__).parent / "src" / "piper"
 PIPER_DATA_FILES = ["py.typed", "espeakbridge.pyi"]
 ESPEAK_NG_DATA_DIR = MODULE_DIR / "espeak-ng-data"
 ESPEAK_NG_DATA_FILES = [
-    f.relative_to(MODULE_DIR) for f in ESPEAK_NG_DATA_DIR.rglob("*") if f.is_file()
+    path.relative_to(MODULE_DIR)
+    for path in ESPEAK_NG_DATA_DIR.rglob("*")
+    if path.is_file()
 ]
 TASHKEEL_DATA_DIR = MODULE_DIR / "tashkeel"
 TASHKEEL_DATA_FILES = [
-    (TASHKEEL_DATA_DIR / f_name).relative_to(MODULE_DIR)
-    for f_name in (
+    (TASHKEEL_DATA_DIR / file_name).relative_to(MODULE_DIR)
+    for file_name in (
         "model.onnx",
         "input_id_map.json",
         "target_id_map.json",
@@ -23,28 +25,31 @@ TASHKEEL_DATA_FILES = [
 ]
 HEBREW_DATA_DIR = MODULE_DIR / "hebrew"
 HEBREW_DATA_FILES = [
-    (HEBREW_DATA_DIR / f_name).relative_to(MODULE_DIR)
-    for f_name in (
+    (HEBREW_DATA_DIR / file_name).relative_to(MODULE_DIR)
+    for file_name in (
         "nakdimon.onnx",
         "LICENSE",
         "SOURCE",
     )
 ]
-# Web page and images for the HTTP server
 HTTP_DATA_FILES = [
-    f.relative_to(MODULE_DIR)
-    for f in itertools.chain(
+    path.relative_to(MODULE_DIR)
+    for path in itertools.chain(
         (MODULE_DIR / "templates").rglob("*"),
         (MODULE_DIR / "img").rglob("*"),
     )
-    if f.is_file()
+    if path.is_file()
 ]
 
 setup(
     name="piper-tts",
     version="1.7.0",
     description="Fast and local neural text-to-speech engine",
-    url="http://github.com/OHF-voice/piper1-gpl",
+    url="https://github.com/MatPomGit/piper-mat",
+    project_urls={
+        "Project repository": "https://github.com/MatPomGit/piper-mat",
+        "Upstream Piper": "https://github.com/OHF-voice/piper1-gpl",
+    },
     license="GPL-3.0-or-later",
     # g2pW is Apache-2.0; see src/piper/g2pw_onnx.py.
     license_files=["COPYING", "licenses/LICENSE.g2pW-Apache-2.0"],
@@ -81,7 +86,7 @@ setup(
         "dev": [
             "black==24.8.0",
             "flake8==7.1.1",
-            "isort==5.13.2",  # used by script/lint and script/format
+            "isort==5.13.2",
             "mypy==1.14.0",
             "pylint==3.2.7",
             "pytest==8.3.4",
@@ -89,7 +94,7 @@ setup(
             "scikit-build<1",
             "cmake>=3.18,<4",
             "ninja>=1,<2",
-            "onnx>=1,<2",  # for alignments
+            "onnx>=1,<2",
             "mkdocs>=1.6,<2",
         ],
         "http": [
@@ -100,8 +105,8 @@ setup(
         ],
         "zh": [
             # g2pW supplies the pinyin/bopomofo lookup tables. Its model is run
-            # by piper.g2pw_onnx rather than g2pw.api, which is what keeps torch
-            # (~750 MB) out of this extra: g2pw.api imports it for a DataLoader.
+            # by piper.g2pw_onnx rather than g2pw.api, which keeps torch out of
+            # this extra because g2pw.api imports it for a DataLoader.
             "g2pW>=0.1.1,<1",
             "transformers>=4,<6",
             "sentence-stream>=1.2.1,<2",
@@ -123,8 +128,8 @@ setup(
     include_package_data=True,
     package_data={
         "piper": [
-            str(p)
-            for p in itertools.chain(
+            str(path)
+            for path in itertools.chain(
                 PIPER_DATA_FILES,
                 ESPEAK_NG_DATA_FILES,
                 TASHKEEL_DATA_FILES,
