@@ -8,7 +8,7 @@ Celem procesu wydawania jest zapewnienie, że odbiorca może ustalić, jaki mode
 
 Kandydat do wydania (release candidate) jest modelem, który zakończył trenowanie i został wybrany do pełnej walidacji przed publikacją.
 
-Nie należy wybierać kandydata wyłącznie na podstawie numeru epoki lub pojedynczej wartości funkcji straty. Decyzja powinna uwzględniać co najmniej poprawność techniczną, odsłuch, zrozumiałość i brak istotnych regresji.
+Nie należy wybierać kandydata wyłącznie na podstawie numeru epoki lub pojedynczej wartości funkcji straty. Decyzja powinna uwzędniać co najmniej poprawność techniczną, odsłuch, zrozumiałość i brak istotnych regresji.
 
 ## 2. Warunki rozpoczęcia procesu wydania
 
@@ -74,7 +74,22 @@ python scripts/package_release.py \
   --output dist/pl_PL-mateusz-medium
 ```
 
-Opcje takie jak `--model`, `--config`, `--samples` i `--output` są nazwami interfejsu CLI i należy zachowywać ich zapis dokładnie zgodnie z implementacją.
+Skrypt wymaga pustej, nieistniejącej ścieżki wyjściowej. Dzięki temu starsze pliki nie pozostają przypadkowo w nowej paczce i nie omijają manifestu.
+
+Jeżeli katalog wyjściowy ma zostać świadomie zastąpiony, należy użyć:
+
+```bash
+python scripts/package_release.py \
+  --model output/pl_PL-mateusz-medium.onnx \
+  --config output/pl_PL-mateusz-medium.onnx.json \
+  --samples samples/pl_PL-mateusz-medium \
+  --output dist/pl_PL-mateusz-medium \
+  --overwrite
+```
+
+Opcja `--overwrite` usuwa wyłącznie wskazany katalog `--output` przed utworzeniem nowej paczki. Nie powinna być używana z przypadkową lub zbyt ogólną ścieżką.
+
+Opcje takie jak `--model`, `--config`, `--samples`, `--output` i `--overwrite` są nazwami interfejsu CLI i należy zachowywać ich zapis dokładnie zgodnie z implementacją.
 
 Katalog `dist/` jest lokalnym katalogiem artefaktów budowania i nie powinien być wersjonowany jako zwykła część kodu źródłowego.
 
@@ -177,5 +192,3 @@ Wydanie można zaakceptować, gdy:
 - manifest i sumy kontrolne są kompletne,
 - próbki reprezentują rzeczywiste zachowanie modelu,
 - istnieje możliwość odtworzenia pochodzenia modelu od zbioru danych do artefaktu ONNX.
-
-Szczegółowe kryteria jakości opisano w [MODEL.md](MODEL.md), a proces instalacji w [DEPLOYMENT.md](DEPLOYMENT.md).
