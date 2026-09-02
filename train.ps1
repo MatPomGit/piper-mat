@@ -8,7 +8,12 @@ $ErrorActionPreference = "Stop"
 
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $VenvPython = Join-Path $ProjectDir ".venv\Scripts\python.exe"
-$PythonExe = if (Test-Path $VenvPython) { $VenvPython } else { "python" }
+$PythonExe = if (Test-Path $VenvPython -PathType Leaf) {
+    $VenvPython
+}
+else {
+    (Get-Command python.exe -ErrorAction Stop).Source
+}
 
 $Arguments = @(
     "scripts/train_sessions.py",
@@ -23,11 +28,14 @@ if ($DryRun) {
     $Arguments += "--dry-run"
 }
 
+$ProcessExitCode = 1
 Push-Location $ProjectDir
 try {
     & $PythonExe @Arguments
-    exit $LASTEXITCODE
+    $ProcessExitCode = $LASTEXITCODE
 }
 finally {
     Pop-Location
 }
+
+exit $ProcessExitCode
