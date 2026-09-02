@@ -1,10 +1,14 @@
-"""Patches a voice ONNX model with phoneme width alignment output.
+"""Expose phoneme-width alignment data from a Piper ONNX voice model.
 
-Requires the onnx package to be installed (not onnxruntime).
+This module requires the ``onnx`` package, not only ``onnxruntime``.
 """
+
+from __future__ import annotations
 
 import argparse
 import logging
+import sys
+from pathlib import Path
 from typing import Optional, Set
 
 import onnx
@@ -15,80 +19,99 @@ _LOGGER = logging.getLogger(__name__)
 def add_alignment_output(
     model: onnx.ModelProto, tensor_name: Optional[str] = None
 ) -> str:
-    """Mark the model's w_ceil (Ceil) tensor as a graph output.
+    """Mark the model's phoneme-width ``Ceil`` tensor as a graph output.
 
-    The model is modified in place. This exposes the per-phoneme-id audio
-    sample counts needed for alignments.
+    The model is modified in place. The exposed tensor contains the values used
+    to derive the number of audio samples assigned to individual phoneme IDs.
 
     :param model: ONNX model to modify in place.
-    :param tensor_name: Name of tensor to mark as output (autodetected if None).
-    :return: Name of the tensor that was marked as an output.
-    :raises ValueError: If the tensor cannot be autodetected or is already an output.
+    :param tensor_name: Explicit tensor name, or ``None`` for autodetection.
+    :return: Name of the tensor marked as an output.
+    :raises ValueError: If autodetection is ambiguous or the output already exists.
     """
     if tensor_name:
         ceil_tensor_name = tensor_name
     else:
         ceil_tensor_names: Set[str] = set()
         for node in model.graph.node:
-            if node.op_type != "Ceil":
-                continue
-
-            ceil_tensor_names.update(node.output)
+            if node.op_type == "Ceil":
+                ceil_tensor_names.update(node.output)
 
         if not ceil_tensor_names:
-            raise ValueError("No ceil tensors detected. Provide tensor_name manually.")
-
-        if len(ceil_tensor_names) > 1:
             raise ValueError(
-                f"Multiple ceil tensors detected, provide tensor_name manually: "
-                f"{ceil_tensor_names}"
+                "No Ceil tensor was detected. Provide --tensor-name explicitly."
+            )
+        if len(ceil_tensor_names) > 1:
+            candidates = ", ".join(sorted(ceil_tensor_names))
+            raise ValueError(
+                "Multiple Ceil tensors were detected. Provide --tensor-name "
+                f"explicitly. Candidates: {candidates}"
             )
 
         ceil_tensor_name = next(iter(ceil_tensor_names))
-        _LOGGER.debug("Detected tensor name: %s", ceil_tensor_name)
+        _LOGGER.debug("Detected alignment tensor: %s", ceil_tensor_name)
 
     if any(output.name == ceil_tensor_name for output in model.graph.output):
-        raise ValueError(f"Tensor is already marked as output: {ceil_tensor_name}")
+        raise ValueError(f"Tensor is already a graph output: {ceil_tensor_name}")
 
     ceil_value_info = onnx.helper.ValueInfoProto()
     ceil_value_info.name = ceil_tensor_name
     model.graph.output.append(ceil_value_info)
-
     return ceil_tensor_name
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Expose phoneme alignment data in a Piper ONNX voice model."
+    )
+    parser.add_argument("model", type=Path, help="Path to the ONNX voice model")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Output model path. The input model is overwritten when omitted.",
+    )
+    parser.add_argument(
+        "--tensor-name",
+        help="Tensor to expose. By default the Ceil tensor is autodetected.",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
-    """Main entry point."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("model", help="Path to ONNX voice model")
-    parser.add_argument(
-        "--output", help="Path to write output model (default: overwrite)"
-    )
-    parser.add_argument(
-        "--tensor-name", help="Name of tensor to mark as output (default: autodetect)"
-    )
-    args = parser.parse_args()
+    """Patch an ONNX voice model and return a process exit code."""
+    args = parse_args()
     logging.basicConfig(level=logging.INFO)
 
-    if not args.output:
-        # Overwrite
-        args.output = args.model
+    if not args.model.is_file():
+        _LOGGER.error("Model does not exist: %s", args.model)
+        return 2
 
-    model = onnx.load(args.model)
+    output_path = args.output or args.model
 
     try:
-        ceil_tensor_name = add_alignment_output(model, args.tensor_name)
-    except ValueError as error:
-        _LOGGER.fatal("%s", error)
+        model = onnx.load(str(args.model))
+    except (OSError, ValueError) as exc:
+        _LOGGER.error("Could not load ONNX model %s: %s", args.model, exc)
+        return 2
+
+    try:
+        tensor_name = add_alignment_output(model, args.tensor_name)
+    except ValueError as exc:
+        _LOGGER.error("Could not expose alignment output: %s", exc)
         return 1
 
-    _LOGGER.info("Marked tensor as output: %s", ceil_tensor_name)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        onnx.save(model, str(output_path))
+    except OSError as exc:
+        _LOGGER.error("Could not write ONNX model %s: %s", output_path, exc)
+        return 2
 
-    onnx.save(model, args.output)
-    _LOGGER.info("Successfully wrote %s", args.output)
-
+    _LOGGER.info("Exposed alignment tensor: %s", tensor_name)
+    _LOGGER.info("Wrote patched model: %s", output_path)
     return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
