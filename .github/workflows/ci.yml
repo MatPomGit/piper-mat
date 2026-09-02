@@ -35,8 +35,12 @@ jobs:
 
           data = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
           build = data['build-system']
+          requirements = build['requires']
           assert build['build-backend'] == 'setuptools.build_meta'
-          assert 'scikit-build' in build['requires']
+          assert any(item.startswith('scikit-build') for item in requirements)
+          assert any(item.startswith('setuptools') for item in requirements)
+          assert any(item.startswith('cmake') for item in requirements)
+          assert any(item.startswith('ninja') for item in requirements)
           PY
       - name: Check repository structure and voice config
         run: python scripts/check_project.py
