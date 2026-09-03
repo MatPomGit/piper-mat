@@ -1,6 +1,6 @@
 # piper-mat
 
-`piper-mat` jest projektem rozwijającym Piper w celu przygotowania, trenowania, oceny, wydania i wdrożenia polskiego modelu głosu `pl_PL-mateusz-medium`.
+`piper-mat` jest projektem rozwijającym Piper w celu przygotowania, [trenowania (training)](terminologia/trenowanie.md), oceny, wydania i wdrożenia polskiego modelu głosu `pl_PL-mateusz-medium`.
 
 Dokumentacja opisuje proces projektu głosu. Szczegóły implementacyjne odziedziczone po Piper są dokumentowane tylko wtedy, gdy są potrzebne do trenowania, uruchamiania, rozwijania lub integracji `piper-mat`.
 
@@ -77,7 +77,7 @@ Dokumentacja jest prowadzona po polsku. Przy pierwszym użyciu specjalistycznego
 
 Nazwy wymagane przez kod lub format, np. `batch_size`, `--checkpoint`, `ONNX`, `PyTorch` i `CUDA`, zachowują oryginalny zapis.
 
-W dokumentacji nie stosuje się pauzy em (`—`).
+W dokumentacji nie stosuje się pauzy em.
 
 ## Standard kodu
 

@@ -1,6 +1,6 @@
 # Model głosu
 
-Model głosu (voice model) jest wytrenowanym modelem syntezy mowy wraz z konfiguracją potrzebną do poprawnego wnioskowania (inference). W `piper-mat` docelowym modelem jest `pl_PL-mateusz-medium`.
+[Model głosu (voice model)](terminologia/model-glosu.md) jest wytrenowanym modelem syntezy mowy wraz z konfiguracją potrzebną do poprawnego [wnioskowania (inference)](terminologia/wnioskowanie.md). W `piper-mat` docelowym modelem jest `pl_PL-mateusz-medium`.
 
 Kanoniczna karta modelu znajduje się w `models/pl_PL-mateusz-medium/MODEL_CARD.md`. Ten rozdział opisuje natomiast kryteria techniczne, które muszą zostać spełnione przed uznaniem modelu za gotowy do wydania.
 
@@ -15,7 +15,7 @@ pl_PL-mateusz-medium.onnx
 pl_PL-mateusz-medium.onnx.json
 ```
 
-ONNX przechowuje graf obliczeniowy i parametry modelu. Plik JSON zawiera konfigurację wymaganą przez Pipera, między innymi informacje potrzebne do poprawnej interpretacji wejścia i wyjścia modelu.
+[ONNX](terminologia/onnx.md) przechowuje graf obliczeniowy i parametry modelu. Plik JSON zawiera konfigurację wymaganą przez Pipera, między innymi informacje potrzebne do poprawnej interpretacji wejścia i wyjścia modelu.
 
 Pliki te należy traktować jako jedną wersjonowaną całość. Nie wolno mieszać modelu ONNX z konfiguracją pochodzącą z innego eksperymentu lub wydania.
 

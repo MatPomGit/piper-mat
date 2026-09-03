@@ -18,7 +18,7 @@ Dodatkowy zestaw `tests/polish_sentences.txt` służy do regresji polskiej norma
 
 ## Zrozumiałość: WER i CER
 
-Współczynnik błędów słów (Word Error Rate, WER) oraz współczynnik błędów znaków (Character Error Rate, CER) opisują zgodność rozpoznanej wypowiedzi syntetycznej z tekstem wzorcowym. Niższa wartość oznacza mniejszą liczbę błędów.
+[Współczynnik błędów słów (Word Error Rate, WER)](terminologia/wer-i-cer.md) oraz współczynnik błędów znaków (Character Error Rate, CER) opisują zgodność rozpoznanej wypowiedzi syntetycznej z tekstem wzorcowym. Niższa wartość oznacza mniejszą liczbę błędów.
 
 Po syntezie zamrożonych zdań należy wykonać transkrypcję niezależnym systemem automatycznego rozpoznawania mowy (Automatic Speech Recognition, ASR). Dane wejściowe mają format JSONL:
 
@@ -41,7 +41,7 @@ Do porównania podobieństwa należy użyć stałego modelu reprezentacji wektor
 
 ## Ocena percepcyjna: MOS i CMOS
 
-Średnia ocena opinii słuchaczy (Mean Opinion Score, MOS) służy do ilościowej oceny jakości odbieranej przez człowieka. Porównawcza średnia ocena opinii słuchaczy (Comparative Mean Opinion Score, CMOS) jest przeznaczona do bezpośredniego porównania dwóch wariantów.
+[Średnia ocena opinii słuchaczy (Mean Opinion Score, MOS)](terminologia/mos-i-cmos.md) służy do ilościowej oceny jakości odbieranej przez człowieka. Porównawcza średnia ocena opinii słuchaczy (Comparative Mean Opinion Score, CMOS) jest przeznaczona do bezpośredniego porównania dwóch wariantów.
 
 Dla oceny percepcyjnej zalecany jest ślepy odsłuch ze stałym zestawem zdań. Należy raportować co najmniej liczbę oceniających, skalę, procedurę randomizacji, średnią, odchylenie standardowe i przedział ufności.
 
@@ -55,7 +55,7 @@ Każde wydanie powinno być mierzone przynajmniej na:
 
 Raportowane wartości:
 
-- współczynnik czasu rzeczywistego (Real-Time Factor, RTF),
+- [współczynnik czasu rzeczywistego (Real-Time Factor, RTF)](terminologia/wspolczynnik-czasu-rzeczywistego.md),
 - czas do uzyskania pierwszego fragmentu dźwięku, jeżeli używane jest przesyłanie strumieniowe,
 - całkowity czas syntezy,
 - maksymalne użycie pamięci RAM (peak RAM usage),

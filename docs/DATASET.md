@@ -1,13 +1,13 @@
 # Zbiór danych
 
-Zbiór danych (dataset) to uporządkowany zestaw nagrań i odpowiadających im metadanych używanych do trenowania, walidacji i testowania modelu głosu. Jakość zbioru danych bezpośrednio wpływa na zrozumiałość, naturalność oraz stabilność syntezy.
+[Zbiór danych (dataset)](terminologia/zbior-danych.md) to uporządkowany zestaw nagrań i odpowiadających im metadanych używanych do trenowania, walidacji i testowania modelu głosu. Jakość zbioru danych bezpośrednio wpływa na zrozumiałość, naturalność oraz stabilność syntezy.
 
 Kanoniczna karta zbioru danych znajduje się w `dataset/DATASET_CARD.md`. Nie jest kopiowana do dokumentacji, aby uniknąć dwóch rozbieżnych źródeł prawdy.
 
 ## Procedura przed trenowaniem
 
 1. Uruchom walidację metadanych i plików WAV.
-2. Wygeneruj deterministyczny podział zbioru danych (data split) na część treningową, walidacyjną i testową.
+2. Wygeneruj deterministyczny [podział zbioru danych (data split)](terminologia/podzial-zbioru-danych.md) na część treningową, walidacyjną i testową.
 3. Zapisz ziarno losowania (seed) i sumę kontrolną SHA-256 pliku `metadata.csv`.
 4. Uzupełnij `DATASET_CARD.md` rzeczywistymi statystykami i informacją o licencji.
 

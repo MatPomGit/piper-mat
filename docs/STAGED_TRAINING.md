@@ -1,6 +1,6 @@
 # Trenowanie etapowe i wznawianie
 
-Trenowanie etapowe (staged training) polega na podzieleniu długiego procesu uczenia modelu na kilka niezależnych sesji. Po zakończeniu każdej sesji stan modelu i optymalizatora jest zapisywany w punkcie kontrolnym (checkpoint), powstaje raport z metrykami i wykresami, a komputer można bezpiecznie wyłączyć. Kolejne uruchomienie automatycznie wznawia trenowanie od końca poprzedniej sesji.
+[Trenowanie etapowe (staged training)](terminologia/trenowanie.md) polega na podzieleniu długiego procesu uczenia modelu na kilka niezależnych sesji. Po zakończeniu każdej sesji stan modelu i optymalizatora jest zapisywany w [punkcie kontrolnym (checkpoint)](terminologia/punkt-kontrolny.md), powstaje raport z metrykami i wykresami, a komputer można bezpiecznie wyłączyć. Kolejne uruchomienie automatycznie [wznawia trenowanie (resume training)](terminologia/wznowienie-trenowania.md) od końca poprzedniej sesji.
 
 ## Plan sesji
 

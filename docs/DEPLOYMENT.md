@@ -1,6 +1,6 @@
 # Wdrożenie modelu głosu
 
-Wdrożenie (deployment) jest procesem przeniesienia zweryfikowanego modelu z etapu eksperymentalnego do środowiska, w którym będzie wykonywana rzeczywista synteza mowy. Obejmuje sprawdzenie integralności artefaktów, konfigurację usługi, test funkcjonalny, pomiar wydajności i przygotowanie możliwości wycofania wersji.
+Wdrożenie (deployment) jest procesem przeniesienia zweryfikowanego [modelu głosu (voice model)](terminologia/model-glosu.md) z etapu eksperymentalnego do środowiska, w którym będzie wykonywana rzeczywista synteza mowy. Obejmuje sprawdzenie integralności artefaktów, konfigurację usługi, test funkcjonalny, pomiar wydajności i przygotowanie możliwości wycofania wersji.
 
 Ten rozdział opisuje wdrożenie `pl_PL-mateusz-medium` po przygotowaniu kompletnego wydania modelu.
 
@@ -15,7 +15,7 @@ pl_PL-mateusz-medium.onnx.json
 
 W paczce wydania powinny znajdować się również karta modelu, manifest, sumy kontrolne i reprezentatywne próbki. Ich przygotowanie opisano w [RELEASES.md](RELEASES.md).
 
-Model ONNX i konfiguracja JSON stanowią jedną wersjonowaną całość. Nie należy łączyć plików pochodzących z różnych wydań.
+Model [ONNX (Open Neural Network Exchange)](terminologia/onnx.md) i konfiguracja JSON stanowią jedną wersjonowaną całość. Nie należy łączyć plików pochodzących z różnych wydań.
 
 ## Weryfikacja przed wdrożeniem
 
@@ -80,11 +80,11 @@ Sekrety i tokeny integracji nie mogą być przechowywane w repozytorium.
 
 ## Opóźnienie końcowe
 
-Opóźnienie końcowe (end-to-end latency) oznacza czas od wysłania żądania do rozpoczęcia słyszalnego odtwarzania. Obejmuje więcej niż samo wnioskowanie modelu.
+Opóźnienie końcowe (end-to-end latency) oznacza czas od wysłania żądania do rozpoczęcia słyszalnego odtwarzania. Obejmuje więcej niż samo [wnioskowanie (inference)](terminologia/wnioskowanie.md) modelu.
 
 Wpływają na nie między innymi fonemizacja, synteza, buforowanie, sieć, warstwa Home Assistant i urządzenie odtwarzające.
 
-Dlatego obok współczynnika czasu rzeczywistego (Real-Time Factor, RTF) warto mierzyć czas do pierwszego fragmentu dźwięku oraz całkowite opóźnienie systemu.
+Dlatego obok [współczynnika czasu rzeczywistego (Real-Time Factor, RTF)](terminologia/wspolczynnik-czasu-rzeczywistego.md) warto mierzyć czas do pierwszego fragmentu dźwięku oraz całkowite opóźnienie systemu.
 
 ## Obcinanie początku wypowiedzi
 
