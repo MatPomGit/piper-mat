@@ -1,6 +1,6 @@
 # Dopasowania fonemów do dźwięku
 
-Dopasowanie fonemów do dźwięku (phoneme alignment) określa, jaki fragment czasowy wygenerowanego sygnału odpowiada poszczególnym fonemom lub ich identyfikatorom. Informacja ta jest szczególnie użyteczna przy synchronizacji mowy z ruchem ust (lip-sync), ponieważ pozwala wyznaczać momenty zmian fonemów i na ich podstawie sterować wizemami (visemes).
+[Dopasowanie fonemów do dźwięku (phoneme alignment)](terminologia/dopasowanie-fonemow.md) określa, jaki fragment czasowy wygenerowanego sygnału odpowiada poszczególnym fonemom lub ich identyfikatorom. Informacja ta jest szczególnie użyteczna przy synchronizacji mowy z ruchem ust (lip-sync), ponieważ pozwala wyznaczać momenty zmian fonemów i na ich podstawie sterować wizemami (visemes).
 
 W projekcie `piper-mat` funkcja ta ma znaczenie również dla późniejszej integracji głosu `pl_PL-mateusz-medium` z animowanym awatarem.
 
@@ -8,7 +8,7 @@ Obowiązujące odpowiedniki terminów technicznych znajdują się w [słowniku t
 
 ## Zasada działania
 
-Piper może udostępnić liczbę próbek dźwięku przypadających na każdy identyfikator fonemu użyty podczas syntezy. Znając częstotliwość próbkowania, liczbę próbek można przeliczyć na czas.
+Piper może udostępnić liczbę próbek dźwięku przypadających na każdy identyfikator fonemu użyty podczas syntezy. Znając [częstotliwość próbkowania (sample rate)](terminologia/czestotliwosc-probkowania.md), liczbę próbek można przeliczyć na czas.
 
 Przykładowo przy częstotliwości próbkowania 22 050 Hz fragment długości 2 205 próbek trwa:
 

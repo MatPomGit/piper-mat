@@ -1,6 +1,6 @@
 # Trenowanie modelu głosu
 
-Ten rozdział opisuje kanoniczny proces trenowania (training) `pl_PL-mateusz-medium`. Projekt wykorzystuje dostrajanie (fine-tuning) zgodnego modelu bazowego zamiast trenowania od losowo zainicjalizowanych parametrów.
+Ten rozdział opisuje kanoniczny proces [trenowania (training)](terminologia/trenowanie.md) `pl_PL-mateusz-medium`. Projekt wykorzystuje [dostrajanie (fine-tuning)](terminologia/dostrajanie.md) zgodnego modelu bazowego zamiast trenowania od losowo zainicjalizowanych parametrów.
 
 Zaawansowane tryby Pipera, które nie są potrzebne w bieżącym eksperymencie, nie są tutaj opisywane. Ogranicza to ryzyko przypadkowego zmieszania kilku różnych metod przygotowania danych.
 
@@ -73,7 +73,7 @@ python scripts/validate_dataset.py \
 
 ### `model.sample_rate`
 
-Częstotliwość próbkowania (sample rate) określa liczbę próbek sygnału na sekundę. Dla bieżącego modelu przyjęto:
+[Częstotliwość próbkowania (sample rate)](terminologia/czestotliwosc-probkowania.md) określa liczbę próbek sygnału na sekundę. Dla bieżącego modelu przyjęto:
 
 ```text
 22050 Hz
@@ -91,13 +91,13 @@ Wartość należy dobrać przed właściwą serią eksperymentów i zapisać w k
 
 ### `ckpt_path`
 
-`ckpt_path` wskazuje punkt kontrolny (checkpoint), z którego odtwarzany jest stan modelu. W pierwszej sesji dostrajania jest to zweryfikowany model bazowy. Przy wznowieniu trenowania używany jest punkt kontrolny poprzedniej sesji.
+`ckpt_path` wskazuje [punkt kontrolny (checkpoint)](terminologia/punkt-kontrolny.md), z którego odtwarzany jest stan modelu. W pierwszej sesji dostrajania jest to zweryfikowany model bazowy. Przy wznowieniu trenowania używany jest punkt kontrolny poprzedniej sesji.
 
 Szczegóły znajdują się w [CHECKPOINTS.md](CHECKPOINTS.md).
 
 ### `data.espeak_voice`
 
-Parametr wybiera głos eSpeak NG używany do fonemizacji (phonemization). Dla polskiego zbioru projektu używana jest wartość:
+Parametr wybiera głos eSpeak NG używany do [fonemizacji (phonemization)](terminologia/fonemizacja.md). Dla polskiego zbioru projektu używana jest wartość:
 
 ```text
 pl
@@ -132,7 +132,7 @@ W codziennej pracy nad `pl_PL-mateusz-medium` preferowane są jednak `train.ps1`
 
 ## Wznowienie a nowy eksperyment
 
-Wznowienie trenowania (resume training) kontynuuje wcześniejszy przebieg wraz z zapisanym stanem optymalizatora i harmonogramu. Jest czymś innym niż rozpoczęcie nowego eksperymentu z wagami modelu bazowego.
+[Wznowienie trenowania (resume training)](terminologia/wznowienie-trenowania.md) kontynuuje wcześniejszy przebieg wraz z zapisanym stanem optymalizatora i harmonogramu. Jest czymś innym niż rozpoczęcie nowego eksperymentu z wagami modelu bazowego.
 
 Jeżeli zmiana konfiguracji wpływa na znaczenie eksperymentu, należy rozważyć rozpoczęcie nowego przebiegu zamiast ukrywania zmiany we wznowionej sesji.
 
@@ -142,7 +142,7 @@ Piper obsługuje również bezpośrednie fonemy i wcześniej wygenerowane identy
 
 Jeżeli przyszły eksperyment będzie ich wymagał, należy utworzyć osobną konfigurację i dokumentację. W aktualnej implementacji tryb danych z identyfikatorami fonemów jest określany przez `--data.dataset_type phoneme_ids`, nie przez historyczne lub błędne warianty nazwy argumentu.
 
-## Eksport ONNX
+## Eksport [ONNX](terminologia/onnx.md)
 
 Po zakończeniu trenowania należy najpierw wybrać punkt kontrolny na podstawie walidacji i odsłuchu. Dopiero wybrany kandydat jest eksportowany:
 

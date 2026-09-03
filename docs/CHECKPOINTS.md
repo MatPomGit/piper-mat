@@ -1,12 +1,12 @@
 # Punkty kontrolne modelu
 
-Punkt kontrolny (checkpoint) jest zapisem stanu modelu powstałym podczas trenowania. Może zawierać parametry sieci, a zależnie od sposobu zapisu również stan optymalizatora, harmonogramu współczynnika uczenia i inne informacje potrzebne do wznowienia trenowania.
+[Punkt kontrolny (checkpoint)](terminologia/punkt-kontrolny.md) jest zapisem stanu modelu powstałym podczas trenowania. Może zawierać parametry sieci, a zależnie od sposobu zapisu również stan optymalizatora, harmonogramu współczynnika uczenia i inne informacje potrzebne do wznowienia trenowania.
 
 Punkty kontrolne są dużymi artefaktami binarnymi. Nie należy traktować ich tak samo jak kodu źródłowego ani tworzyć wielu nieopisanych kopii o nazwach typu `final2.ckpt` lub `fixed_new.ckpt`.
 
 ## Rola bazowego punktu kontrolnego
 
-Dostrajanie (fine-tuning) rozpoczyna trenowanie od parametrów istniejącego modelu zamiast od losowej inicjalizacji. Pozwala wykorzystać reprezentacje mowy wyuczone wcześniej i zwykle znacząco skraca proces uzyskiwania użytecznego modelu.
+[Dostrajanie (fine-tuning)](terminologia/dostrajanie.md) rozpoczyna trenowanie od parametrów istniejącego modelu zamiast od losowej inicjalizacji. Pozwala wykorzystać reprezentacje mowy wyuczone wcześniej i zwykle znacząco skraca proces uzyskiwania użytecznego modelu.
 
 Bazowy punkt kontrolny nie musi reprezentować tego samego mówcy. Musi natomiast być technicznie zgodny z konfiguracją modelu, którą zamierzamy dostrajać.
 
@@ -57,7 +57,7 @@ Skrypt rozpoznaje również wskaźnik Git LFS. Wskaźnik Git LFS (Git LFS pointe
 Należy rozróżnić dwa przypadki:
 
 1. **dostrajanie z modelu bazowego**, gdy wykorzystujemy parametry istniejącego modelu jako punkt startowy nowego eksperymentu,
-2. **wznowienie trenowania (resume training)**, gdy kontynuujemy konkretny wcześniejszy przebieg wraz z jego zapisanym stanem.
+2. **[wznowienie trenowania (resume training)](terminologia/wznowienie-trenowania.md)**, gdy kontynuujemy konkretny wcześniejszy przebieg wraz z jego zapisanym stanem.
 
 Rozróżnienie jest ważne dla powtarzalności eksperymentów. Samo wskazanie pliku `.ckpt` nie opisuje jeszcze intencji jego użycia.
 

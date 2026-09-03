@@ -21,6 +21,49 @@ nav:
       - Interfejs wiersza poleceń: CLI.md
       - Interfejs Python: API_PYTHON.md
       - Interfejs HTTP: API_HTTP.md
+  - Pojęcia:
+      - Dźwięk i fonetyka:
+          - Częstotliwość próbkowania: terminologia/czestotliwosc-probkowania.md
+          - Fonemizacja: terminologia/fonemizacja.md
+          - Dopasowanie fonemów: terminologia/dopasowanie-fonemow.md
+          - Próbka: terminologia/probka.md
+          - Przesterowanie: terminologia/przesterowanie.md
+          - Wokoder: terminologia/wokoder.md
+      - Dane i trenowanie:
+          - Zbiór danych: terminologia/zbior-danych.md
+          - Podział zbioru danych: terminologia/podzial-zbioru-danych.md
+          - Trenowanie: terminologia/trenowanie.md
+          - Wznowienie trenowania: terminologia/wznowienie-trenowania.md
+          - Dostrajanie: terminologia/dostrajanie.md
+          - Punkt kontrolny: terminologia/punkt-kontrolny.md
+          - Partia i rozmiar partii: terminologia/partia.md
+          - Pamięć podręczna: terminologia/pamiec-podreczna.md
+          - Mechanizm wczytywania danych: terminologia/mechanizm-wczytywania-danych.md
+          - Epoka: terminologia/epoka.md
+          - Współczynnik uczenia: terminologia/wspolczynnik-uczenia.md
+          - Funkcja straty: terminologia/funkcja-straty.md
+          - Metadane: terminologia/metadane.md
+          - Wstępna inicjalizacja: terminologia/wstepna-inicjalizacja.md
+          - Zbiory treningowy, walidacyjny i testowy: terminologia/zbiory-treningowy-walidacyjny-testowy.md
+          - Walidacja: terminologia/walidacja.md
+      - Modele i wykonanie:
+          - Model głosu: terminologia/model-glosu.md
+          - ONNX: terminologia/onnx.md
+          - Wnioskowanie: terminologia/wnioskowanie.md
+          - Interfejs wiersza poleceń: terminologia/interfejs-wiersza-polecen.md
+          - Wydanie: terminologia/wydanie.md
+          - Suma kontrolna: terminologia/suma-kontrolna.md
+          - Projekt źródłowy: terminologia/projekt-zrodlowy.md
+      - Ocena jakości:
+          - Współczynnik czasu rzeczywistego: terminologia/wspolczynnik-czasu-rzeczywistego.md
+          - WER i CER: terminologia/wer-i-cer.md
+          - MOS i CMOS: terminologia/mos-i-cmos.md
+          - Ocena: terminologia/ocena.md
+          - Reprezentacja wektorowa mówcy: terminologia/reprezentacja-wektorowa-mowcy.md
+          - Podobieństwo głosu mówcy: terminologia/podobienstwo-glosu-mowcy.md
+          - Podstawowy test poprawności: terminologia/podstawowy-test-poprawnosci.md
+          - Monitorowanie: terminologia/monitorowanie.md
+          - Maksymalne użycie pamięci RAM: terminologia/maksymalne-uzycie-pamieci-ram.md
   - Rozwój oprogramowania:
       - Budowanie ze źródeł: BUILDING.md
       - Terminologia: TERMINOLOGIA.md

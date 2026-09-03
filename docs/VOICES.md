@@ -1,6 +1,6 @@
 # Głosy i modele Piper
 
-Głos Piper jest zestawem artefaktów pozwalających wykonywać syntezę mowy dla określonego języka, wariantu językowego i jednego lub wielu mówców. W `piper-mat` głównym artefaktem jest rozwijany model `pl_PL-mateusz-medium`.
+Głos Piper jest zestawem artefaktów pozwalających wykonywać syntezę mowy dla określonego języka, wariantu językowego i jednego lub wielu mówców. W `piper-mat` głównym artefaktem jest rozwijany [model głosu (voice model)](terminologia/model-glosu.md) `pl_PL-mateusz-medium`.
 
 Ten dokument wyjaśnia sposób identyfikowania głosów i relację pomiędzy modelem projektu a publicznymi modelami Piper. Nie utrzymujemy tutaj ręcznej kopii pełnej listy wszystkich publicznie dostępnych głosów, ponieważ taka lista szybko się dezaktualizuje.
 
@@ -77,7 +77,7 @@ W dokumentacji użytkowej nie należy sprowadzać jakości modelu do samej nazwy
 
 ## ONNX i środowisko wykonawcze
 
-ONNX jest formatem reprezentacji modelu. ONNX Runtime jest środowiskiem wykonawczym służącym do wykonywania modelu ONNX.
+[ONNX (Open Neural Network Exchange)](terminologia/onnx.md) jest formatem reprezentacji modelu. ONNX Runtime jest środowiskiem wykonawczym służącym do wykonywania modelu ONNX.
 
 Nie należy używać nazw `ONNX` i `ONNX Runtime` zamiennie:
 
