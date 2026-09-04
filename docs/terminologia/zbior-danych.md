@@ -45,4 +45,4 @@ python scripts/validate_dataset.py \
 - [Podział zbioru danych](podzial-zbioru-danych.md)
 - [Częstotliwość próbkowania](czestotliwosc-probkowania.md)
 - [Procedura danych](../DATASET.md)
-- [Karta zbioru](../../dataset/DATASET_CARD.md)
+- [Karta zbioru](https://github.com/MatPomGit/piper-mat/blob/main/dataset/DATASET_CARD.md)
