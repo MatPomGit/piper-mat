@@ -28,13 +28,21 @@ if ($DryRun) {
     $Arguments += "--dry-run"
 }
 
+$PreviousPythonUtf8 = $env:PYTHONUTF8
 $ProcessExitCode = 1
 Push-Location $ProjectDir
 try {
+    $env:PYTHONUTF8 = "1"
     & $PythonExe @Arguments
     $ProcessExitCode = $LASTEXITCODE
 }
 finally {
+    if ($null -eq $PreviousPythonUtf8) {
+        Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PYTHONUTF8 = $PreviousPythonUtf8
+    }
     Pop-Location
 }
 
