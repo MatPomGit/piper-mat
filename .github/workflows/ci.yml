@@ -32,6 +32,7 @@ jobs:
         run: |
           python - <<'PY'
           import importlib.util
+          import sys
           from dataclasses import dataclass
           from pathlib import Path
 
@@ -39,6 +40,7 @@ jobs:
           spec = importlib.util.spec_from_file_location('alignment_timing', module_path)
           module = importlib.util.module_from_spec(spec)
           assert spec.loader is not None
+          sys.modules[spec.name] = module
           spec.loader.exec_module(module)
 
           @dataclass
