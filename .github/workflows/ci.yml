@@ -139,7 +139,32 @@ jobs:
           python-version: '3.11'
       - name: Compile Windows Python tools
         shell: powershell
-        run: python -m py_compile tools/windows_setup_gui.py tools/windows_doctor.py
+        run: python -m py_compile tools/windows_setup_gui.py tools/windows_doctor.py scripts/checkpoint_compat.py scripts/piper_train_compat.py scripts/train_sessions.py scripts/train_voice.py
+      - name: Verify POSIX checkpoint path compatibility
+        shell: powershell
+        run: |
+          @'
+          import pathlib
+          import pickle
+
+          from scripts.checkpoint_compat import checkpoint_path_compatibility
+
+          payload = b"cpathlib\nPosixPath\n(V/tmp/piper/base.ckpt\ntR."
+          original = pathlib.PosixPath
+
+          try:
+              pickle.loads(payload)
+          except NotImplementedError:
+              pass
+          else:
+              raise AssertionError("Windows unexpectedly accepted PosixPath without compatibility")
+
+          with checkpoint_path_compatibility():
+              restored = pickle.loads(payload)
+              assert isinstance(restored, pathlib.WindowsPath)
+
+          assert pathlib.PosixPath is original
+          '@ | python -
       - name: Basic validity test for Windows doctor
         shell: powershell
         run: |
