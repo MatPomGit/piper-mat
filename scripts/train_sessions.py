@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from checkpoint_compat import torch_load_checkpoint
 from train_voice import build_command
 
 CONFIG_DEFAULT = Path("configs/pl_PL-mateusz-medium.json")
@@ -81,13 +82,17 @@ def get_session_increments(config: dict[str, Any]) -> list[int]:
 def checkpoint_epoch(path: Path) -> int:
     """Odczytaj numer epoki zapisany w punkcie kontrolnym PyTorch."""
     try:
-        import torch
+        import torch  # noqa: F401
     except ImportError as exc:
         raise RuntimeError("Brak modułu PyTorch potrzebnego do odczytu checkpointu") from exc
 
     try:
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
-    except (OSError, RuntimeError, ValueError) as exc:
+        checkpoint = torch_load_checkpoint(
+            path,
+            map_location="cpu",
+            weights_only=False,
+        )
+    except (OSError, RuntimeError, ValueError, NotImplementedError) as exc:
         raise RuntimeError(f"Nie można odczytać punktu kontrolnego {path}: {exc}") from exc
 
     if not isinstance(checkpoint, dict) or "epoch" not in checkpoint:
