@@ -36,8 +36,7 @@ def build_command(
     resume_checkpoint = checkpoint or Path(training["base_checkpoint"])
     command = [
         sys.executable,
-        "-m",
-        "piper.train",
+        "scripts/piper_train_compat.py",
         "fit",
         "--data.voice_name",
         str(config["voice_name"]),
