@@ -40,19 +40,41 @@ function Refresh-ProcessPath {
 function Find-CompatiblePython {
     $PyLauncher = Get-Command py.exe -ErrorAction SilentlyContinue
     if ($PyLauncher) {
-        & $PyLauncher.Source -3.11 -c "import sys; assert sys.version_info >= (3, 11)" 1>$null 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            return [PSCustomObject]@{
-                Executable = $PyLauncher.Source
-                Prefix = @("-3.11")
+        $InstalledPythons = @()
+        try {
+            $InstalledPythons = @(& $PyLauncher.Source -0p 2>$null)
+        }
+        catch {
+            $InstalledPythons = @()
+        }
+
+        foreach ($Version in @("3.13", "3.12", "3.11")) {
+            $VersionMarker = "-V:$Version"
+            $Found = $InstalledPythons | Where-Object {
+                $_ -like "*$VersionMarker*"
+            }
+            if ($Found) {
+                return [PSCustomObject]@{
+                    Executable = $PyLauncher.Source
+                    Prefix = @("-$Version")
+                }
             }
         }
     }
 
     $PythonCommand = Get-Command python.exe -ErrorAction SilentlyContinue
     if ($PythonCommand) {
-        & $PythonCommand.Source -c "import sys; assert sys.version_info >= (3, 11)" 1>$null 2>$null
-        if ($LASTEXITCODE -eq 0) {
+        $PreviousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "SilentlyContinue"
+            & $PythonCommand.Source -c "import sys; assert (3, 11) <= sys.version_info[:2] <= (3, 13)" 1>$null 2>$null
+            $PythonExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $PreviousErrorActionPreference
+        }
+
+        if ($PythonExitCode -eq 0) {
             return [PSCustomObject]@{
                 Executable = $PythonCommand.Source
                 Prefix = @()
@@ -88,7 +110,7 @@ $Winget = Get-Command winget.exe -ErrorAction SilentlyContinue
 $Python = Find-CompatiblePython
 if (-not $Python) {
     $CanInstallPython = $Winget -and (Ask-YesNo (
-        "Nie znaleziono Python 3.11 lub nowszego. " +
+        "Nie znaleziono zgodnego Python 3.11-3.13. " +
         "Czy zainstalować Python 3.11 automatycznie przez winget?"
     ))
 
@@ -103,7 +125,7 @@ if (-not $Python) {
     }
 
     Show-ErrorMessage (
-        "Potrzebny jest Python 3.11 lub nowszy. " +
+        "Potrzebny jest Python w wersji 3.11, 3.12 lub 3.13. " +
         "Zainstaluj go i uruchom starter ponownie."
     )
     exit 2
