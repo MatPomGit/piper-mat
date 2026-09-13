@@ -16,6 +16,12 @@ from checkpoint_compat import checkpoint_path_compatibility
 # the removed parameters in the signature lets Lightning resume a trusted old
 # checkpoint without rewriting the checkpoint or discarding optimizer state.
 _LEGACY_MODEL_PARAMETERS: dict[str, tuple[Any, type[Any] | Any]] = {
+    # Older checkpoints may contain a dataset path in model hyperparameters.
+    # Dataset configuration now belongs to the data module, but LightningCLI
+    # still validates checkpoint metadata before constructing VitsModel.
+    # ``object`` deliberately accepts pathlib.Path values serialized by older
+    # Linux training runs as well as plain strings.
+    "dataset_dir": (None, object),
     "sample_bytes": (2, int),
     "channels": (1, int),
     "num_workers": (1, int),
