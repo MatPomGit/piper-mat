@@ -211,7 +211,6 @@ jobs:
           if (-not (Test-Path 'START_PIPER_MAT_GUI.bat')) { exit 1 }
           if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'start_windows_gui.ps1' -Quiet)) { exit 1 }
           if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'exit /b' -Quiet)) { exit 1 }
-          '@ | python -
 
   docs:
     runs-on: ubuntu-latest
