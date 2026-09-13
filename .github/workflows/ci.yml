@@ -28,6 +28,17 @@ jobs:
             src/piper/alignment_timing.py \
             src/piper/patch_voice_with_alignment.py \
             tests/test_alignment_timing.py
+      - name: Verify legacy checkpoint CLI compatibility
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import piper_train_compat
+
+          legacy = piper_train_compat._LEGACY_MODEL_PARAMETERS
+          assert 'dataset_dir' in legacy
+          assert legacy['dataset_dir'][0] is None
+          PY
       - name: Validate phoneme timing converter
         run: |
           python - <<'PY'
@@ -200,6 +211,7 @@ jobs:
           if (-not (Test-Path 'START_PIPER_MAT_GUI.bat')) { exit 1 }
           if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'start_windows_gui.ps1' -Quiet)) { exit 1 }
           if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'exit /b' -Quiet)) { exit 1 }
+          '@ | python -
 
   docs:
     runs-on: ubuntu-latest
