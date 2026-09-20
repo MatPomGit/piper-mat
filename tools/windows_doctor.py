@@ -99,6 +99,75 @@ def refresh_path() -> None:
     os.environ["PATH"] = machine + os.pathsep + user
 
 
+def _vswhere_path() -> Path | None:
+    """Return the standard vswhere.exe path when Visual Studio Installer is present."""
+    if os.name != "nt":
+        return None
+
+    program_files_x86 = os.environ.get("ProgramFiles(x86)")
+    if not program_files_x86:
+        return None
+
+    candidate = (
+        Path(program_files_x86)
+        / "Microsoft Visual Studio"
+        / "Installer"
+        / "vswhere.exe"
+    )
+    return candidate if candidate.is_file() else None
+
+
+def check_cpp_build_tools() -> Check:
+    """Check for the MSVC C++ toolchain required to build monotonic_align."""
+    if os.name != "nt":
+        return Check(
+            "cpp_tools",
+            "Visual Studio C++ Build Tools",
+            "error",
+            "Kontrola kompilatora MSVC jest dostępna tylko w Windows.",
+        )
+
+    vswhere = _vswhere_path()
+    if vswhere is None:
+        return Check(
+            "cpp_tools",
+            "Visual Studio C++ Build Tools",
+            "error",
+            "Nie znaleziono Visual Studio Build Tools z obsługą C++.",
+            True,
+        )
+
+    return_code, output = run(
+        [
+            str(vswhere),
+            "-latest",
+            "-products",
+            "*",
+            "-requires",
+            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+            "-property",
+            "installationPath",
+        ],
+        timeout=30,
+    )
+    install_path = output.strip().splitlines()[-1] if output.strip() else ""
+    if return_code == 0 and install_path:
+        return Check(
+            "cpp_tools",
+            "Visual Studio C++ Build Tools",
+            "ok",
+            f"Kompilator MSVC jest dostępny: {install_path}.",
+        )
+
+    return Check(
+        "cpp_tools",
+        "Visual Studio C++ Build Tools",
+        "error",
+        "Visual Studio jest zainstalowane, ale brakuje składników C++ wymaganych przez Cython.",
+        True,
+    )
+
+
 def check_windows() -> Check:
     """Check whether the script is running on Windows."""
     if os.name == "nt":
@@ -459,6 +528,7 @@ def check_all() -> list[Check]:
 
     checks.append(check_disk_space())
     checks.extend(check_repository(git))
+    checks.append(check_cpp_build_tools())
     checks.append(check_venv())
     checks.extend(check_training_dependencies())
     checks.extend(check_checkpoint())
@@ -470,6 +540,49 @@ def _log_result(log: list[str], label: str, return_code: int, output: str) -> No
     """Append a normalized repair command result to the repair log."""
     status = "OK" if return_code == 0 else "BŁĄD"
     log.append(f"{status}: {label}: {output}")
+
+
+def _repair_cpp_build_tools(log: list[str]) -> None:
+    """Install the Visual Studio 2022 C++ Build Tools workload when it is missing."""
+    check = check_cpp_build_tools()
+    if check.status == "ok" or os.name != "nt":
+        return
+
+    winget = shutil.which("winget")
+    if not winget:
+        log.append(
+            "BŁĄD: Visual Studio C++ Build Tools: brak winget. "
+            "Zainstaluj Visual Studio 2022 Build Tools z workloadem "
+            "'Desktop development with C++'."
+        )
+        return
+
+    command = [
+        winget,
+        "install",
+        "--id",
+        "Microsoft.VisualStudio.2022.BuildTools",
+        "-e",
+        "--source",
+        "winget",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+        "--override",
+        "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended",
+    ]
+    return_code, output = run(command, timeout=5400)
+    _log_result(log, "instalacja Visual Studio 2022 C++ Build Tools", return_code, output)
+    refresh_path()
+
+    post_check = check_cpp_build_tools()
+    if post_check.status == "ok":
+        log.append(f"OK: Visual Studio C++ Build Tools: {post_check.message}")
+    else:
+        log.append(
+            "BŁĄD: Visual Studio C++ Build Tools nadal nie są kompletne. "
+            "Może być wymagane ponowne uruchomienie Windows albo dokończenie "
+            "instalacji w Visual Studio Installer."
+        )
 
 
 def _repair_git_lfs(log: list[str], git: str | None) -> None:
@@ -612,6 +725,7 @@ def repair() -> list[str]:
     git = shutil.which("git")
 
     _repair_git_lfs(log, git)
+    _repair_cpp_build_tools(log)
     _backup_broken_venv(log)
     _ensure_venv(log)
     if _install_dependencies(log):
