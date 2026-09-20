@@ -44,6 +44,8 @@ def build_command(
         str(dataset["metadata"]),
         "--data.audio_dir",
         str(dataset["audio_dir"]),
+        "--data.splits_path",
+        str(dataset["splits_path"]),
         "--model.sample_rate",
         str(config["sample_rate"]),
         "--data.espeak_voice",
@@ -69,9 +71,7 @@ def build_command(
         command.extend(["--trainer.max_epochs", str(effective_max_epochs)])
 
     if default_root_dir is not None:
-        command.extend(
-            ["--trainer.default_root_dir", str(default_root_dir)]
-        )
+        command.extend(["--trainer.default_root_dir", str(default_root_dir)])
 
     return command
 

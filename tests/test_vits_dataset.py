@@ -1,5 +1,6 @@
 """Unit tests for the VITS training dataset."""
 
+import json
 import logging
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +12,11 @@ import pytest
 dataset = pytest.importorskip("piper.train.vits.dataset")
 
 
-def _create_data_module(tmp_path: Path, utterances: list[tuple[str, str]]):
+def _create_data_module(
+    tmp_path: Path,
+    utterances: list[tuple[str, str]],
+    splits: Optional[dict[str, list[str]]] = None,
+):
     """Create a data module and its source audio files."""
     csv_path = tmp_path / "metadata.csv"
     csv_path.write_text(
@@ -20,9 +25,14 @@ def _create_data_module(tmp_path: Path, utterances: list[tuple[str, str]]):
     )
 
     cache_dir = tmp_path / "cache"
-    cache_dir.mkdir()
+    cache_dir.mkdir(exist_ok=True)
     for utterance_id, _ in utterances:
         (tmp_path / f"{utterance_id}.wav").touch()
+
+    splits_path = None
+    if splits is not None:
+        splits_path = tmp_path / "splits.json"
+        splits_path.write_text(json.dumps({"splits": splits}), encoding="utf-8")
 
     data_module = dataset.VitsDataModule(
         csv_path=csv_path,
@@ -30,11 +40,25 @@ def _create_data_module(tmp_path: Path, utterances: list[tuple[str, str]]):
         espeak_voice="en-us",
         config_path=tmp_path / "config.json",
         voice_name="test",
+        splits_path=splits_path,
     )
     data_module.piper_config = SimpleNamespace(
         speaker_id_map={}, phoneme_id_map=dataset.DEFAULT_PHONEME_ID_MAP
     )
     return data_module
+
+
+def _split_identifiers(data_module) -> dict[str, set[str]]:
+    """Return recording identifiers assigned to each configured subset."""
+    return {
+        "train": {
+            utterance.utterance_id for utterance in data_module.train_dataset.utts
+        },
+        "validation": {
+            utterance.utterance_id for utterance in data_module.val_dataset.utts
+        },
+        "test": {utterance.utterance_id for utterance in data_module.test_dataset.utts},
+    }
 
 
 def _create_cached_artifacts(
@@ -229,6 +253,44 @@ def test_setup_rejects_dataset_without_complete_utterances(
     assert "Missing phoneme ids" in caplog.text
     assert "Missing normalized audio" in caplog.text
     assert "Missing mel spec" in caplog.text
+
+
+def test_setup_uses_identifier_splits_independently_of_metadata_order(
+    tmp_path: Path,
+) -> None:
+    """Fixed splits prevent test recordings from leaking into training."""
+    utterances = [
+        ("train_a", "Training A"),
+        ("test_a", "Testing A"),
+        ("train_b", "Training B"),
+        ("validation_a", "Validation A"),
+    ]
+    splits = {
+        "train": ["train_a", "train_b"],
+        "validation": ["validation_a"],
+        "test": ["test_a"],
+    }
+
+    first_module = _create_data_module(tmp_path, utterances, splits)
+    for row_number, (_, text) in enumerate(utterances, start=1):
+        _create_cached_artifacts(first_module, row_number, text)
+    first_module.setup("fit")
+    first_membership = _split_identifiers(first_module)
+
+    reordered = list(reversed(utterances))
+    second_module = _create_data_module(tmp_path, reordered, splits)
+    for row_number, (_, text) in enumerate(reordered, start=1):
+        _create_cached_artifacts(second_module, row_number, text)
+    second_module.setup("fit")
+    second_membership = _split_identifiers(second_module)
+
+    assert first_membership == second_membership
+    assert first_membership == {
+        "train": {"train_a", "train_b"},
+        "validation": {"validation_a"},
+        "test": {"test_a"},
+    }
+    assert first_membership["train"].isdisjoint(first_membership["test"])
 
 
 def test_prepare_data_versions_cache_artifacts_by_dependencies(
