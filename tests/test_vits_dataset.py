@@ -16,6 +16,7 @@ def _create_data_module(
     tmp_path: Path,
     utterances: list[tuple[str, str]],
     splits: Optional[dict[str, list[str]]] = None,
+    **data_module_kwargs,
 ):
     """Create a data module and its source audio files."""
     csv_path = tmp_path / "metadata.csv"
@@ -41,6 +42,7 @@ def _create_data_module(
         config_path=tmp_path / "config.json",
         voice_name="test",
         splits_path=splits_path,
+        **data_module_kwargs,
     )
     data_module.piper_config = SimpleNamespace(
         speaker_id_map={}, phoneme_id_map=dataset.DEFAULT_PHONEME_ID_MAP
@@ -205,7 +207,7 @@ def test_setup_skips_utterance_with_missing_cached_artifact(
 ) -> None:
     """Setup skips an utterance when any required cache file is missing."""
     utterances = [("incomplete", "Missing cache"), ("complete", "Ready")]
-    data_module = _create_data_module(tmp_path, utterances)
+    data_module = _create_data_module(tmp_path, utterances, validation_split=0)
     _create_cached_artifacts(data_module, 1, utterances[0][1], missing_suffix)
     _create_cached_artifacts(data_module, 2, utterances[1][1])
 
@@ -246,13 +248,119 @@ def test_setup_rejects_dataset_without_complete_utterances(
 
     with (
         caplog.at_level(logging.WARNING),
-        pytest.raises(ValueError, match="No complete utterances found"),
+        pytest.raises(dataset.DatasetValidationError, match="at least 2"),
     ):
         data_module.setup("fit")
 
     assert "Missing phoneme ids" in caplog.text
     assert "Missing normalized audio" in caplog.text
     assert "Missing mel spec" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("num_utterances", "expected_sizes"),
+    [
+        (0, None),
+        (1, None),
+        (2, (1, 0, 1)),
+        (3, (1, 1, 1)),
+        (4, (1, 2, 1)),
+        (5, (1, 3, 1)),
+    ],
+)
+def test_setup_requires_training_and_validation_utterances(
+    tmp_path: Path,
+    num_utterances: int,
+    expected_sizes: Optional[tuple[int, int, int]],
+) -> None:
+    """Enabled validation reserves records for both required datasets."""
+    utterances = [
+        (f"recording_{index}", f"Text {index}") for index in range(num_utterances)
+    ]
+    data_module = _create_data_module(tmp_path, utterances)
+    for row_number, (_, text) in enumerate(utterances, start=1):
+        _create_cached_artifacts(data_module, row_number, text)
+
+    if expected_sizes is None:
+        with pytest.raises(dataset.DatasetValidationError, match="at least 2"):
+            data_module.setup("fit")
+        return
+
+    data_module.setup("fit")
+
+    assert (
+        len(data_module.train_dataset),
+        len(data_module.test_dataset),
+        len(data_module.val_dataset),
+    ) == expected_sizes
+
+
+@pytest.mark.parametrize("validation_split", [0, 1e-12, 0.5, 0.999999])
+def test_setup_accepts_validation_split_boundaries(
+    tmp_path: Path, validation_split: float
+) -> None:
+    """Valid split boundaries retain at least one training recording."""
+    utterances = [(f"recording_{index}", "Text") for index in range(4)]
+    data_module = _create_data_module(
+        tmp_path,
+        utterances,
+        validation_split=validation_split,
+        num_test_examples=0,
+    )
+    for row_number, (_, text) in enumerate(utterances, start=1):
+        _create_cached_artifacts(data_module, row_number, text)
+
+    data_module.setup("fit")
+
+    assert len(data_module.train_dataset) >= 1
+    assert len(data_module.val_dataset) == (
+        0 if validation_split == 0 else max(1, int(4 * validation_split))
+    )
+
+
+@pytest.mark.parametrize(
+    "validation_split", [-0.1, 1, 1.1, float("inf"), float("nan"), True]
+)
+def test_setup_rejects_invalid_validation_split(
+    tmp_path: Path, validation_split
+) -> None:
+    """Invalid validation fractions fail before dataset splitting."""
+    utterances = [("first", "One"), ("second", "Two")]
+    data_module = _create_data_module(
+        tmp_path, utterances, validation_split=validation_split
+    )
+    for row_number, (_, text) in enumerate(utterances, start=1):
+        _create_cached_artifacts(data_module, row_number, text)
+
+    with pytest.raises(dataset.DatasetValidationError, match="validation_split"):
+        data_module.setup("fit")
+
+
+@pytest.mark.parametrize("num_test_examples", [-1, 1.5, True])
+def test_setup_rejects_invalid_num_test_examples(
+    tmp_path: Path, num_test_examples
+) -> None:
+    """The requested number of test records must be a non-negative integer."""
+    utterances = [("first", "One"), ("second", "Two")]
+    data_module = _create_data_module(
+        tmp_path, utterances, num_test_examples=num_test_examples
+    )
+    for row_number, (_, text) in enumerate(utterances, start=1):
+        _create_cached_artifacts(data_module, row_number, text)
+
+    with pytest.raises(dataset.DatasetValidationError, match="num_test_examples"):
+        data_module.setup("fit")
+
+
+def test_setup_rejects_empty_fixed_validation_split(tmp_path: Path) -> None:
+    """A fixed split supplies metrics required by the val_mel checkpoint."""
+    utterances = [("train", "Training")]
+    splits = {"train": ["train"], "validation": [], "test": []}
+    data_module = _create_data_module(tmp_path, utterances, splits)
+    _create_cached_artifacts(data_module, 1, utterances[0][1])
+
+    with pytest.raises(dataset.DatasetValidationError, match=r"validation.*val_mel"):
+        data_module.setup("fit")
 
 
 def test_setup_uses_identifier_splits_independently_of_metadata_order(
