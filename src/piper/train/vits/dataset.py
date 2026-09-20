@@ -33,6 +33,9 @@ VAD_SAMPLE_RATE = 16000
 
 @dataclass
 class CachedUtterance:
+    """Paths and metadata for one cached recording."""
+
+    utterance_id: str
     phoneme_ids_path: Path
     audio_norm_path: Path
     audio_spec_path: Path
@@ -99,6 +102,7 @@ class VitsDataModule(L.LightningDataModule):
         dataset_type: Union[str, DatasetType] = DatasetType.TEXT.value,
         phonemes_path: Optional[Union[str, Path]] = None,
         vowel_clusters: Optional[str] = None,
+        splits_path: Optional[Union[str, Path]] = None,
     ) -> None:
         super().__init__()
 
@@ -107,6 +111,7 @@ class VitsDataModule(L.LightningDataModule):
         self.espeak_voice = espeak_voice
         self.config_path = Path(config_path)
         self.voice_name = voice_name
+        self.splits_path = Path(splits_path) if splits_path is not None else None
 
         self.sample_rate = sample_rate
         self.num_symbols = num_symbols
@@ -578,6 +583,7 @@ class VitsDataModule(L.LightningDataModule):
 
                 all_utts.append(
                     CachedUtterance(
+                        utterance_id=utt_id,
                         phoneme_ids_path=phoneme_ids_path,
                         audio_norm_path=audio_norm_path,
                         audio_spec_path=audio_spec_path,
@@ -592,8 +598,19 @@ class VitsDataModule(L.LightningDataModule):
                 "cached artifacts are present."
             )
 
-        full_dataset = VitsDataset(all_utts)
+        if self.splits_path is not None:
+            split_utts = self._load_split_utterances(all_utts)
+            self.train_dataset = VitsDataset(split_utts["train"])
+            self.val_dataset = VitsDataset(split_utts["validation"])
+            self.test_dataset = VitsDataset(split_utts["test"])
+            return
 
+        # Zachowanie awaryjne dla starszych konfiguracji bez pliku podziału:
+        # utwórz dotychczasowy losowy podział zależny od kolejności metadanych.
+        _LOGGER.warning(
+            "No splits_path configured; using the legacy random dataset split"
+        )
+        full_dataset = VitsDataset(all_utts)
         n = len(full_dataset)
         valid_set_size = int(n * self.validation_split)
         num_test = min(self.num_test_examples, max(0, n - valid_set_size - 1))
@@ -601,6 +618,70 @@ class VitsDataModule(L.LightningDataModule):
         self.train_dataset, self.test_dataset, self.val_dataset = random_split(
             full_dataset, [train_set_size, num_test, valid_set_size]
         )
+
+    def _load_split_utterances(
+        self, all_utts: list[CachedUtterance]
+    ) -> dict[str, list[CachedUtterance]]:
+        """Load and validate identifier-based dataset splits."""
+        assert self.splits_path is not None
+        with self.splits_path.open("r", encoding="utf-8") as splits_file:
+            payload = json.load(splits_file)
+
+        splits = payload.get("splits") if isinstance(payload, dict) else None
+        if not isinstance(splits, dict):
+            raise DatasetValidationError("Split file must contain an object 'splits'")
+
+        split_names = ("train", "validation", "test")
+        split_ids: dict[str, list[str]] = {}
+        assigned_to: dict[str, str] = {}
+        for split_name in split_names:
+            identifiers = splits.get(split_name)
+            if not isinstance(identifiers, list) or not all(
+                isinstance(identifier, str) and identifier for identifier in identifiers
+            ):
+                raise DatasetValidationError(
+                    f"splits.{split_name} must be a list of non-empty identifiers"
+                )
+
+            split_ids[split_name] = identifiers
+            for identifier in identifiers:
+                previous_split = assigned_to.get(identifier)
+                if previous_split is not None:
+                    raise DatasetValidationError(
+                        f"Recording identifier '{identifier}' occurs in both "
+                        f"splits.{previous_split} and splits.{split_name}"
+                    )
+                assigned_to[identifier] = split_name
+
+        utterances_by_id: dict[str, CachedUtterance] = {}
+        for utterance in all_utts:
+            if utterance.utterance_id in utterances_by_id:
+                raise DatasetValidationError(
+                    f"Duplicate processed recording identifier: "
+                    f"'{utterance.utterance_id}'"
+                )
+            utterances_by_id[utterance.utterance_id] = utterance
+
+        unknown_ids = set(assigned_to) - set(utterances_by_id)
+        if unknown_ids:
+            raise DatasetValidationError(
+                "Split file contains unknown recording identifiers: "
+                + ", ".join(sorted(unknown_ids))
+            )
+
+        unassigned_ids = set(utterances_by_id) - set(assigned_to)
+        if unassigned_ids:
+            raise DatasetValidationError(
+                "Processed recordings missing from split file: "
+                + ", ".join(sorted(unassigned_ids))
+            )
+
+        return {
+            split_name: [
+                utterances_by_id[identifier] for identifier in split_ids[split_name]
+            ]
+            for split_name in split_names
+        }
 
     def _get_cache_paths(
         self,
