@@ -802,9 +802,9 @@ class WindowsSetupWizard(Tk):
         if return_code != 0:
             return (
                 False,
-                "Nie udało się zbudować modułu. Zainstaluj Visual Studio 2022 "
-                "Build Tools z komponentem Desktop development with C++, "
-                "uruchom ponownie Windows i ponów krok.",
+                "Nie udało się zbudować modułu. Kliknij „Napraw bezpiecznie”. "
+                "Program sprawdzi i w razie potrzeby automatycznie doinstaluje "
+                "Visual Studio 2022 C++ Build Tools, a następnie ponów ten krok.",
             )
 
         for built in source.glob("core*.pyd"):
