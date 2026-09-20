@@ -22,6 +22,11 @@ _LEGACY_MODEL_PARAMETERS: dict[str, tuple[Any, type[Any] | Any]] = {
     # ``object`` deliberately accepts pathlib.Path values serialized by older
     # Linux training runs as well as plain strings.
     "dataset_dir": (None, object),
+    # Legacy Piper checkpoints may also persist how often training wrote
+    # checkpoints. This is a training/Trainer concern in current Piper, but
+    # LightningCLI validates the old value as a model hyperparameter while
+    # restoring --ckpt_path, so expose it only for compatibility.
+    "checkpoint_epochs": (None, int | None),
     "sample_bytes": (2, int),
     "channels": (1, int),
     "num_workers": (1, int),
