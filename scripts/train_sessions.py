@@ -355,7 +355,23 @@ def run_next(config_path: Path, dry_run: bool) -> int:
     increments = get_session_increments(config)
     sessions = config["training"]["sessions"]
 
-    state = load_state(config) or initialize_state(config)
+    state = load_state(config)
+    if state is None:
+        if dry_run:
+            base_checkpoint = Path(config["training"]["base_checkpoint"])
+            if not base_checkpoint.is_file():
+                raise RuntimeError(
+                    f"Brak bazowego punktu kontrolnego: {base_checkpoint}"
+                )
+            initial_epoch = checkpoint_epoch(base_checkpoint)
+            state = {
+                "initial_checkpoint": str(base_checkpoint),
+                "initial_epoch": initial_epoch,
+                "latest_checkpoint": str(base_checkpoint),
+                "completed_sessions": [],
+            }
+        else:
+            state = initialize_state(config)
     validate_state(state)
     completed = len(state["completed_sessions"])
     if completed >= len(increments):
@@ -370,8 +386,6 @@ def run_next(config_path: Path, dry_run: bool) -> int:
 
     cumulative_extra = sum(increments[:number])
     target_max_epochs = int(state["initial_epoch"]) + 1 + cumulative_extra
-    run_dir.mkdir(parents=True, exist_ok=True)
-
     metadata: dict[str, Any] = {
         "schema_version": SESSION_METADATA_SCHEMA_VERSION,
         "session": number,
@@ -384,7 +398,6 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         "started_at": utc_now(),
     }
     metadata_path = run_dir / "session.json"
-    write_session_metadata(metadata_path, metadata)
 
     command = build_command(
         config_path,
@@ -397,6 +410,9 @@ def run_next(config_path: Path, dry_run: bool) -> int:
     print(subprocess.list2cmdline(command))
     if dry_run:
         return 0
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+    write_session_metadata(metadata_path, metadata)
 
     previous_modification_times = checkpoint_modification_times(run_dir)
     result = subprocess.run(command, check=False)
