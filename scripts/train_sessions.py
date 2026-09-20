@@ -16,6 +16,11 @@ from typing import Any
 from checkpoint_compat import torch_load_checkpoint
 from train_voice import build_command
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 CONFIG_DEFAULT = Path("configs/pl_PL-mateusz-medium.json")
 STATE_SCHEMA_VERSION = 1
 SESSION_METADATA_SCHEMA_VERSION = 1
