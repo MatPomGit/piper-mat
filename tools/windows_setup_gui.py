@@ -210,7 +210,7 @@ class WindowsSetupWizard(Tk):
         ttk.Button(
             tools,
             text="Sprawdź system",
-            command=lambda: self._run_in_background(self._diagnose),
+            command=lambda: self._run_in_background(self._diagnose, advance_on_success=False),
         ).pack(side=LEFT, padx=3)
         ttk.Button(
             tools,
@@ -270,7 +270,7 @@ class WindowsSetupWizard(Tk):
         ttk.Button(
             parent,
             text="Pełna diagnoza",
-            command=lambda: self._run_in_background(self._diagnose),
+            command=lambda: self._run_in_background(self._diagnose, advance_on_success=False),
         ).pack(fill=X, pady=3)
 
     def _build_step_panel(self, parent: ttk.Frame) -> None:
@@ -472,7 +472,12 @@ class WindowsSetupWizard(Tk):
 
         return return_code
 
-    def _run_in_background(self, action: Action) -> None:
+    def _run_in_background(
+        self,
+        action: Action,
+        *,
+        advance_on_success: bool = False,
+    ) -> None:
         """Execute a long action on a worker thread."""
         if self.running:
             return
@@ -482,12 +487,16 @@ class WindowsSetupWizard(Tk):
         self.action_button.config(state="disabled")
         worker = threading.Thread(
             target=self._background_worker,
-            args=(action,),
+            args=(action, advance_on_success),
             daemon=True,
         )
         worker.start()
 
-    def _background_worker(self, action: Action) -> None:
+    def _background_worker(
+        self,
+        action: Action,
+        advance_on_success: bool,
+    ) -> None:
         """Run an action and marshal its result back to the Tk thread."""
         try:
             success, message = action()
@@ -498,10 +507,15 @@ class WindowsSetupWizard(Tk):
 
         self.after(
             0,
-            lambda: self._finish_action(success, message),
+            lambda: self._finish_action(success, message, advance_on_success),
         )
 
-    def _finish_action(self, success: bool, message: str) -> None:
+    def _finish_action(
+        self,
+        success: bool,
+        message: str,
+        advance_on_success: bool,
+    ) -> None:
         """Restore controls and present the result of a completed action."""
         self.running = False
         self.action_button.config(state="normal")
@@ -509,14 +523,25 @@ class WindowsSetupWizard(Tk):
         self.status_label.config(text=prefix + message)
 
         if not success:
-            messagebox.showerror(
-                "Problem",
-                message
-                + "\n\nKliknij „Napraw bezpiecznie” albo przeczytaj log na dole.",
-            )
+            step = STEPS[self.current_step]
+            if step.action_name == "start_training":
+                hint = (
+                    "\n\nNie uruchamiaj automatycznej naprawy środowiska dla błędu "
+                    "samego treningu. Sprawdź szczegóły techniczne; sesja pozostaje "
+                    "na tym samym etapie i można ją ponowić po usunięciu przyczyny."
+                )
+            else:
+                hint = (
+                    "\n\nKliknij „Napraw bezpiecznie” albo przeczytaj log na dole."
+                )
+            messagebox.showerror("Problem", message + hint)
             return
 
-        if self.auto_continue.get() and self.current_step < len(STEPS) - 1:
+        if (
+            advance_on_success
+            and self.auto_continue.get()
+            and self.current_step < len(STEPS) - 1
+        ):
             self.after(600, lambda: self._show_step(self.current_step + 1))
 
     def _run_current_step(self) -> None:
@@ -539,7 +564,7 @@ class WindowsSetupWizard(Tk):
                 return
 
         action = getattr(self, f"_action_{step.action_name}")
-        self._run_in_background(action)
+        self._run_in_background(action, advance_on_success=True)
 
     def _ask_repair(self) -> None:
         """Ask for confirmation before running safe repair operations."""
@@ -549,7 +574,7 @@ class WindowsSetupWizard(Tk):
             "nagrań, punktów kontrolnych ani wyników trenowania. Kontynuować?",
         )
         if confirmed:
-            self._run_in_background(self._repair)
+            self._run_in_background(self._repair, advance_on_success=False)
 
     def _run_doctor(self, repair: bool = False) -> ActionResult:
         """Run windows_doctor.py in diagnostic or repair mode."""
