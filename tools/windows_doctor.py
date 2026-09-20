@@ -52,6 +52,11 @@ def run(
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
+            env={
+                **os.environ,
+                "PYTHONIOENCODING": "utf-8",
+                "PYTHONUTF8": "1",
+            },
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             check=False,
         )
