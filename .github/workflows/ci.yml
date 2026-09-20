@@ -38,6 +38,8 @@ jobs:
           legacy = piper_train_compat._LEGACY_MODEL_PARAMETERS
           assert 'dataset_dir' in legacy
           assert legacy['dataset_dir'][0] is None
+          assert 'checkpoint_epochs' in legacy
+          assert legacy['checkpoint_epochs'][0] is None
           PY
       - name: Validate phoneme timing converter
         run: |
