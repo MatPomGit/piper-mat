@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
 
+import numpy as np
 import pytest
 
 dataset = pytest.importorskip("piper.train.vits.dataset")
@@ -30,7 +31,9 @@ def _create_data_module(tmp_path: Path, utterances: list[tuple[str, str]]):
         config_path=tmp_path / "config.json",
         voice_name="test",
     )
-    data_module.piper_config = SimpleNamespace(speaker_id_map={})
+    data_module.piper_config = SimpleNamespace(
+        speaker_id_map={}, phoneme_id_map=dataset.DEFAULT_PHONEME_ID_MAP
+    )
     return data_module
 
 
@@ -38,10 +41,27 @@ def _create_cached_artifacts(
     data_module, row_number: int, text: str, missing_suffix: Optional[str] = None
 ) -> None:
     """Create cached artifacts for an utterance except the selected one."""
-    cache_id = dataset.get_cache_id(row_number, text, speaker_id=None)
-    for suffix in ("phonemes.pt", "audio.pt", "spec.pt"):
+    utterance_id = (
+        data_module.csv_path.read_text(encoding="utf-8")
+        .splitlines()[row_number - 1]
+        .split("|", maxsplit=1)[0]
+    )
+    audio_path = data_module.audio_dir / f"{utterance_id}.wav"
+    cache_paths = data_module._get_cache_paths(
+        row_number,
+        text,
+        None,
+        audio_path,
+        dataset.DEFAULT_PHONEME_ID_MAP,
+    )
+    artifacts = {
+        "phonemes.pt": cache_paths.phoneme_ids,
+        "audio.pt": cache_paths.audio,
+        "spec.pt": cache_paths.spectrogram,
+    }
+    for suffix, path in artifacts.items():
         if suffix != missing_suffix:
-            (data_module.cache_dir / f"{cache_id}.{suffix}").touch()
+            path.touch()
 
 
 @pytest.mark.parametrize(
@@ -107,3 +127,73 @@ def test_setup_rejects_dataset_without_complete_utterances(
     assert "Missing phoneme ids" in caplog.text
     assert "Missing normalized audio" in caplog.text
     assert "Missing mel spec" in caplog.text
+
+
+def test_prepare_data_versions_cache_artifacts_by_dependencies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Preparation rebuilds only artifacts affected by changed inputs."""
+    csv_path = tmp_path / "metadata.csv"
+    csv_path.write_text("recording|Original text|1 2 3\n", encoding="utf-8")
+    audio_path = tmp_path / "recording.wav"
+    audio_path.write_bytes(b"first recording")
+    cache_dir = tmp_path / "cache"
+    calls = {"load": 0, "spectrogram": 0}
+
+    def load_audio(path, sr, mono):
+        del path, mono
+        calls["load"] += 1
+        return np.ones(32, dtype=np.float32), sr
+
+    def make_spectrogram(**kwargs):
+        del kwargs
+        calls["spectrogram"] += 1
+        return dataset.torch.ones((1, 3, 4))
+
+    monkeypatch.setattr(dataset.librosa, "load", load_audio)
+    monkeypatch.setattr(dataset, "spectrogram_torch", make_spectrogram)
+    monkeypatch.setattr(dataset, "SileroVoiceActivityDetector", lambda: object())
+
+    def prepare(sample_rate=22050, filter_length=1024):
+        data_module = dataset.VitsDataModule(
+            csv_path=csv_path,
+            cache_dir=cache_dir,
+            espeak_voice="en-us",
+            config_path=tmp_path / "config.json",
+            voice_name="test",
+            dataset_type=dataset.DatasetType.PHONEME_IDS,
+            sample_rate=sample_rate,
+            filter_length=filter_length,
+            trim_silence=False,
+        )
+        data_module.prepare_data()
+
+    prepare()
+    assert calls == {"load": 1, "spectrogram": 1}
+    assert len(list(cache_dir.glob("*.phonemes.pt"))) == 1
+    assert len(list(cache_dir.glob("*.audio.pt"))) == 1
+    assert len(list(cache_dir.glob("*.spec.pt"))) == 1
+
+    prepare()
+    assert calls == {"load": 1, "spectrogram": 1}
+
+    audio_path.write_bytes(b"changed recording")
+    prepare()
+    assert calls == {"load": 2, "spectrogram": 2}
+    assert len(list(cache_dir.glob("*.phonemes.pt"))) == 1
+    assert len(list(cache_dir.glob("*.audio.pt"))) == 2
+    assert len(list(cache_dir.glob("*.spec.pt"))) == 2
+
+    csv_path.write_text("recording|Changed text|1 2 3\n", encoding="utf-8")
+    prepare()
+    assert calls == {"load": 2, "spectrogram": 2}
+    assert len(list(cache_dir.glob("*.phonemes.pt"))) == 2
+
+    prepare(sample_rate=16000)
+    assert calls == {"load": 3, "spectrogram": 3}
+    assert len(list(cache_dir.glob("*.audio.pt"))) == 3
+
+    prepare(sample_rate=16000, filter_length=512)
+    assert calls == {"load": 3, "spectrogram": 4}
+    assert len(list(cache_dir.glob("*.audio.pt"))) == 3
+    assert len(list(cache_dir.glob("*.spec.pt"))) == 4

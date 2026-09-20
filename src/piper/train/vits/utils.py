@@ -1,8 +1,10 @@
 """Utility methods."""
 
+import hashlib
+import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Union
 
 import numpy as np
 import torch
@@ -57,11 +59,42 @@ def load_state_dict(model, saved_state_dict):
 
 
 def get_cache_id(
-    row_number: int, text: str, max_length: int = 50, speaker_id: Optional[int] = None
+    row_number: int,
+    text: str,
+    max_length: int = 50,
+    speaker_id: Optional[int] = None,
+    cache_data: Optional[Mapping[str, Any]] = None,
 ) -> str:
+    """Create a readable cache identifier with an optional stable digest."""
     speaker_id_str = ""
     if speaker_id is not None:
         speaker_id_str = f"_{speaker_id}"
 
     cache_id = str(row_number) + speaker_id_str + "_" + sanitize_filename(text)
-    return cache_id[:max_length]
+    if cache_data is None:
+        return cache_id[:max_length]
+
+    digest = stable_cache_hash(cache_data)
+    readable_length = max(0, max_length - len(digest) - 1)
+    return f"{cache_id[:readable_length]}_{digest}"
+
+
+def stable_cache_hash(data: Mapping[str, Any], digest_length: int = 16) -> str:
+    """Return a stable digest for JSON-compatible cache dependencies."""
+    serialized = json.dumps(
+        data,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(serialized).hexdigest()[:digest_length]
+
+
+def file_checksum(path: Union[str, Path]) -> str:
+    """Return the SHA-256 checksum of a file."""
+    checksum = hashlib.sha256()
+    with open(path, "rb") as input_file:
+        for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+            checksum.update(chunk)
+
+    return checksum.hexdigest()
