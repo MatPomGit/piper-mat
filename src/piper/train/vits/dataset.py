@@ -513,6 +513,7 @@ class VitsDataModule(L.LightningDataModule):
         _LOGGER.info("Processed %s utterance(s)", num_utterances)
 
     def setup(self, stage: str) -> None:
+        """Create training, validation, and test datasets."""
         assert self.piper_config is not None
 
         all_utts: list[CachedUtterance] = []
@@ -592,14 +593,18 @@ class VitsDataModule(L.LightningDataModule):
                     )
                 )
 
-        if not all_utts:
-            raise ValueError(
-                "No complete utterances found. Ensure the dataset audio and all "
-                "cached artifacts are present."
-            )
-
         if self.splits_path is not None:
+            if not all_utts:
+                raise DatasetValidationError(
+                    "No complete utterances found. Ensure the dataset audio and all "
+                    "cached artifacts are present."
+                )
             split_utts = self._load_split_utterances(all_utts)
+            if not split_utts["validation"]:
+                raise DatasetValidationError(
+                    "splits.validation must contain at least one recording because "
+                    "the active checkpoints monitor val_mel"
+                )
             self.train_dataset = VitsDataset(split_utts["train"])
             self.val_dataset = VitsDataset(split_utts["validation"])
             self.test_dataset = VitsDataset(split_utts["test"])
@@ -612,12 +617,46 @@ class VitsDataModule(L.LightningDataModule):
         )
         full_dataset = VitsDataset(all_utts)
         n = len(full_dataset)
-        valid_set_size = int(n * self.validation_split)
+        self._validate_random_split_settings(n)
+        valid_set_size = 0
+        if self.validation_split > 0:
+            valid_set_size = max(1, int(n * self.validation_split))
+            valid_set_size = min(valid_set_size, n - 1)
         num_test = min(self.num_test_examples, max(0, n - valid_set_size - 1))
         train_set_size = n - valid_set_size - num_test
         self.train_dataset, self.test_dataset, self.val_dataset = random_split(
             full_dataset, [train_set_size, num_test, valid_set_size]
         )
+
+    def _validate_random_split_settings(self, num_utterances: int) -> None:
+        """Validate legacy random split settings and available utterances."""
+        if (
+            isinstance(self.validation_split, bool)
+            or not isinstance(self.validation_split, (int, float))
+            or not math.isfinite(self.validation_split)
+            or not 0 <= self.validation_split < 1
+        ):
+            raise DatasetValidationError(
+                "validation_split must be a finite number greater than or equal "
+                "to 0 and less than 1"
+            )
+
+        if (
+            isinstance(self.num_test_examples, bool)
+            or not isinstance(self.num_test_examples, int)
+            or self.num_test_examples < 0
+        ):
+            raise DatasetValidationError(
+                "num_test_examples must be a non-negative integer"
+            )
+
+        minimum_size = 2 if self.validation_split > 0 else 1
+        if num_utterances < minimum_size:
+            raise DatasetValidationError(
+                f"Dataset has {num_utterances} complete utterance(s), but at least "
+                f"{minimum_size} are required when validation_split is "
+                f"{self.validation_split}"
+            )
 
     def _load_split_utterances(
         self, all_utts: list[CachedUtterance]
