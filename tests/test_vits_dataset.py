@@ -65,6 +65,107 @@ def _create_cached_artifacts(
 
 
 @pytest.mark.parametrize(
+    ("row", "dataset_type", "num_speakers", "field"),
+    [
+        ([], dataset.DatasetType.TEXT, 1, "columns"),
+        (["recording"], dataset.DatasetType.TEXT, 1, "columns"),
+        (["", "Text"], dataset.DatasetType.TEXT, 1, "utterance_id"),
+        (["recording", ""], dataset.DatasetType.TEXT, 1, "text"),
+        (["recording", "", "Text"], dataset.DatasetType.TEXT, 2, "speaker_name"),
+        (
+            ["recording", "Text", ""],
+            dataset.DatasetType.PHONEME_IDS,
+            1,
+            "phoneme_ids",
+        ),
+        (
+            ["recording", "Text", "-1"],
+            dataset.DatasetType.PHONEME_IDS,
+            1,
+            "phoneme_ids",
+        ),
+        (
+            ["recording", "Text", "4"],
+            dataset.DatasetType.PHONEME_IDS,
+            1,
+            "phoneme_ids",
+        ),
+        (
+            ["recording", "Text", "1.5"],
+            dataset.DatasetType.PHONEME_IDS,
+            1,
+            "phoneme_ids",
+        ),
+    ],
+)
+def test_parse_metadata_row_rejects_invalid_fields(
+    tmp_path: Path,
+    row: list[str],
+    dataset_type: dataset.DatasetType,
+    num_speakers: int,
+    field: str,
+) -> None:
+    """Metadata validation identifies the invalid row and field."""
+    data_module = dataset.VitsDataModule(
+        csv_path=tmp_path / "metadata.csv",
+        cache_dir=tmp_path / "cache",
+        espeak_voice="en-us",
+        config_path=tmp_path / "config.json",
+        voice_name="test",
+        dataset_type=dataset_type,
+        num_speakers=num_speakers,
+        num_symbols=4,
+    )
+
+    with pytest.raises(
+        dataset.DatasetValidationError,
+        match=rf"row 7, field '{field}'",
+    ):
+        data_module._parse_metadata_row(row, 7)
+
+
+@pytest.mark.parametrize(
+    ("row", "dataset_type", "num_speakers"),
+    [
+        (["recording", "Text"], dataset.DatasetType.TEXT, 1),
+        (["recording", "speaker", "Text"], dataset.DatasetType.TEXT, 2),
+        (
+            ["recording", "Text", "0 3"],
+            dataset.DatasetType.PHONEME_IDS,
+            1,
+        ),
+        (
+            ["recording", "speaker", "Text", "0 3"],
+            dataset.DatasetType.PHONEME_IDS,
+            2,
+        ),
+    ],
+)
+def test_parse_metadata_row_accepts_required_columns(
+    tmp_path: Path,
+    row: list[str],
+    dataset_type: dataset.DatasetType,
+    num_speakers: int,
+) -> None:
+    """Metadata parser accepts each supported column layout."""
+    data_module = dataset.VitsDataModule(
+        csv_path=tmp_path / "metadata.csv",
+        cache_dir=tmp_path / "cache",
+        espeak_voice="en-us",
+        config_path=tmp_path / "config.json",
+        voice_name="test",
+        dataset_type=dataset_type,
+        num_speakers=num_speakers,
+        num_symbols=4,
+    )
+
+    metadata = data_module._parse_metadata_row(row, 1)
+
+    assert metadata.utterance_id == "recording"
+    assert metadata.text == "Text"
+
+
+@pytest.mark.parametrize(
     ("missing_suffix", "warning"),
     [
         ("phonemes.pt", "Missing phoneme ids"),
@@ -119,8 +220,9 @@ def test_setup_rejects_dataset_without_complete_utterances(
             missing_suffix=("phonemes.pt", "audio.pt", "spec.pt")[row_number - 1],
         )
 
-    with caplog.at_level(logging.WARNING), pytest.raises(
-        ValueError, match="No complete utterances found"
+    with (
+        caplog.at_level(logging.WARNING),
+        pytest.raises(ValueError, match="No complete utterances found"),
     ):
         data_module.setup("fit")
 

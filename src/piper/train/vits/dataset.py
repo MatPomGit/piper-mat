@@ -56,6 +56,21 @@ class DatasetType(str, Enum):
     PHONEME_IDS = "phoneme_ids"
 
 
+class DatasetValidationError(ValueError):
+    """Report an invalid field in a metadata row."""
+
+
+@dataclass(frozen=True)
+class MetadataRow:
+    """Validated values parsed from one metadata row."""
+
+    utterance_id: str
+    text: str
+    speaker_name: Optional[str]
+    phoneme_ids: Optional[List[int]]
+    phoneme_ids_text: Optional[str]
+
+
 class VitsDataModule(L.LightningDataModule):
     def __init__(
         self,
@@ -148,6 +163,81 @@ class VitsDataModule(L.LightningDataModule):
         if vowel_clusters:
             self.vowel_clusters = {tuple(vc) for vc in json.loads(vowel_clusters)}
 
+    def _parse_metadata_row(self, row: Sequence[str], row_number: int) -> MetadataRow:
+        """Parse and validate one metadata row."""
+        expected_columns = (
+            2
+            + int(self.is_multispeaker)
+            + int(self.dataset_type == DatasetType.PHONEME_IDS)
+        )
+        if len(row) != expected_columns:
+            raise DatasetValidationError(
+                f"Metadata row {row_number}, field 'columns': expected "
+                f"{expected_columns}, got {len(row)}"
+            )
+
+        utterance_id = row[0].strip()
+        if not utterance_id:
+            raise DatasetValidationError(
+                f"Metadata row {row_number}, field 'utterance_id': must not be empty"
+            )
+
+        speaker_name: Optional[str] = None
+        text_index = 1
+        if self.is_multispeaker:
+            speaker_name = row[1].strip()
+            if not speaker_name:
+                raise DatasetValidationError(
+                    f"Metadata row {row_number}, field 'speaker_name': "
+                    "must not be empty"
+                )
+            text_index = 2
+
+        text = row[text_index].strip()
+        if not text:
+            raise DatasetValidationError(
+                f"Metadata row {row_number}, field 'text': must not be empty"
+            )
+
+        phoneme_ids: Optional[List[int]] = None
+        phoneme_ids_text: Optional[str] = None
+        if self.dataset_type == DatasetType.PHONEME_IDS:
+            phoneme_ids_text = row[text_index + 1].strip()
+            if not phoneme_ids_text:
+                raise DatasetValidationError(
+                    f"Metadata row {row_number}, field 'phoneme_ids': must not be empty"
+                )
+
+            try:
+                phoneme_ids = [int(value) for value in phoneme_ids_text.split()]
+            except ValueError as error:
+                raise DatasetValidationError(
+                    f"Metadata row {row_number}, field 'phoneme_ids': "
+                    "all identifiers must be integers"
+                ) from error
+
+            invalid_id = next(
+                (
+                    phoneme_id
+                    for phoneme_id in phoneme_ids
+                    if not 0 <= phoneme_id < self.num_symbols
+                ),
+                None,
+            )
+            if invalid_id is not None:
+                raise DatasetValidationError(
+                    f"Metadata row {row_number}, field 'phoneme_ids': identifier "
+                    f"{invalid_id} is outside the range 0 to {self.num_symbols - 1}"
+                )
+
+        return MetadataRow(
+            utterance_id=utterance_id,
+            text=text,
+            speaker_name=speaker_name,
+            phoneme_ids=phoneme_ids,
+            phoneme_ids_text=phoneme_ids_text,
+        )
+
     def prepare_data(self):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -197,19 +287,20 @@ class VitsDataModule(L.LightningDataModule):
             # Generate speaker id map
             with open(self.csv_path, "r", encoding="utf-8") as csv_file:
                 reader = csv.reader(csv_file, delimiter="|")
-                for row in reader:
-                    assert (
-                        len(row) >= 3
-                    ), "Expected CSV columns for multi-speaker metadata: wav|speaker|text"
-                    speaker_name = row[1]
+                for row_number, row in enumerate(reader, start=1):
+                    metadata = self._parse_metadata_row(row, row_number)
+                    speaker_name = metadata.speaker_name
+                    if speaker_name is None:
+                        raise RuntimeError("Validated speaker name is missing")
                     if speaker_name in speaker_id_map:
                         continue
 
                     speaker_id_map[speaker_name] = len(speaker_id_map)
-
-            assert (
-                len(speaker_id_map) <= self.num_speakers
-            ), "More speakers in metadata than num_speakers"
+                    if len(speaker_id_map) > self.num_speakers:
+                        raise DatasetValidationError(
+                            f"Metadata row {row_number}, field 'speaker_name': "
+                            "more speakers than num_speakers"
+                        )
 
             if len(speaker_id_map) != self.num_speakers:
                 _LOGGER.warning(
@@ -279,13 +370,13 @@ class VitsDataModule(L.LightningDataModule):
         with open(self.csv_path, "r", encoding="utf-8") as csv_file:
             reader = csv.reader(csv_file, delimiter="|")
             for row_number, row in enumerate(reader, start=1):
-                utt_id = row[0]
+                metadata = self._parse_metadata_row(row, row_number)
+                utt_id = metadata.utterance_id
                 speaker_id: Optional[int] = None
                 if self.is_multispeaker:
-                    assert (
-                        len(row) >= 3
-                    ), "Expected CSV columns for multi-speaker metadata: wav|speaker|text"
-                    speaker_name = row[1]
+                    speaker_name = metadata.speaker_name
+                    if speaker_name is None:
+                        raise RuntimeError("Validated speaker name is missing")
                     speaker_id = speaker_id_map[speaker_name]
 
                 audio_path = self.audio_dir / utt_id
@@ -296,20 +387,8 @@ class VitsDataModule(L.LightningDataModule):
                     _LOGGER.warning("Missing audio file: %s", audio_path)
                     continue
 
-                if self.dataset_type == DatasetType.PHONEME_IDS:
-                    # utt_id|text|phoneme_ids
-                    # or
-                    # utt_id|speaker_id|text|phoneme_ids
-                    text = row[-2]
-                else:
-                    # utt_id|text
-                    # or
-                    # utt_id|speaker_id|text
-                    text = row[-1]
-
-                phoneme_ids_str = (
-                    row[-1] if self.dataset_type == DatasetType.PHONEME_IDS else None
-                )
+                text = metadata.text
+                phoneme_ids_str = metadata.phoneme_ids_text
                 cache_paths = self._get_cache_paths(
                     row_number,
                     text,
@@ -325,14 +404,9 @@ class VitsDataModule(L.LightningDataModule):
                     text_path.write_text(text, encoding="utf-8")
 
                 if self.dataset_type == DatasetType.PHONEME_IDS:
-                    assert phoneme_ids_str is not None
-
-                    # ids separated by whitespace
-                    phoneme_ids = [int(p_id) for p_id in phoneme_ids_str.split()]
-                    max_phoneme_id = max(phoneme_ids)
-                    assert (
-                        self.num_symbols > max_phoneme_id
-                    ), f"Number of symbols ({self.num_symbols}) must be greater than max phoneme id ({max_phoneme_id})"
+                    phoneme_ids = metadata.phoneme_ids
+                    if phoneme_ids is None:
+                        raise RuntimeError("Validated phoneme identifiers are missing")
 
                     # phoneme ids
                     phoneme_ids_path = cache_paths.phoneme_ids
@@ -442,13 +516,13 @@ class VitsDataModule(L.LightningDataModule):
         with open(self.csv_path, "r", encoding="utf-8") as csv_file:
             reader = csv.reader(csv_file, delimiter="|")
             for row_number, row in enumerate(reader, start=1):
-                utt_id = row[0]
+                metadata = self._parse_metadata_row(row, row_number)
+                utt_id = metadata.utterance_id
                 speaker_id: Optional[int] = None
                 if self.is_multispeaker:
-                    assert (
-                        len(row) >= 3
-                    ), "Expected CSV columns for multi-speaker metadata: wav|speaker|text"
-                    speaker_name = row[1]
+                    speaker_name = metadata.speaker_name
+                    if speaker_name is None:
+                        raise RuntimeError("Validated speaker name is missing")
                     speaker_id = speaker_id_map[speaker_name]
 
                 audio_path = self.audio_dir / utt_id
@@ -459,16 +533,8 @@ class VitsDataModule(L.LightningDataModule):
                     _LOGGER.warning("Missing audio file: %s", audio_path)
                     continue
 
-                if self.dataset_type == DatasetType.PHONEME_IDS:
-                    # utt_id|text|phoneme_ids or utt_id|speaker_id|text|phoneme_ids
-                    text = row[-2]
-                else:
-                    # utt_id|text or utt_id|speaker_id|text
-                    text = row[-1]
-
-                phoneme_ids_str = (
-                    row[-1] if self.dataset_type == DatasetType.PHONEME_IDS else None
-                )
+                text = metadata.text
+                phoneme_ids_str = metadata.phoneme_ids_text
                 cache_paths = self._get_cache_paths(
                     row_number,
                     text,
