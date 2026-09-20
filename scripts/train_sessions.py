@@ -105,12 +105,50 @@ def checkpoint_epoch(path: Path) -> int:
     return int(checkpoint["epoch"])
 
 
-def newest_last_checkpoint(root: Path) -> Path:
-    """Znajdź najnowszy plik last.ckpt w katalogu sesji."""
-    matches = list(root.rglob("last.ckpt"))
+def checkpoint_modification_times(root: Path) -> dict[Path, int]:
+    """Zapisz czasy modyfikacji istniejących punktów kontrolnych."""
+    return {path: path.stat().st_mtime_ns for path in root.rglob("*.ckpt")}
+
+
+def newest_updated_last_checkpoint(
+    root: Path,
+    previous_modification_times: dict[Path, int],
+) -> Path:
+    """Znajdź last.ckpt utworzony lub zmieniony podczas treningu."""
+    matches = [
+        path
+        for path in root.rglob("last.ckpt")
+        if previous_modification_times.get(path) != path.stat().st_mtime_ns
+    ]
     if not matches:
-        raise RuntimeError(f"Nie znaleziono last.ckpt po treningu w {root}")
+        raise RuntimeError(
+            f"Trening nie utworzył ani nie zmienił pliku last.ckpt w {root}"
+        )
     return max(matches, key=lambda path: path.stat().st_mtime_ns)
+
+
+def minimum_expected_epoch(target_max_epochs: int) -> int:
+    """Wyznacz ostatnią epokę dla limitu max_epochs biblioteki Lightning."""
+    # Lightning numeruje epoki od zera, więc limit N kończy się epoką N - 1.
+    return target_max_epochs - 1
+
+
+def validate_training_checkpoint(
+    root: Path,
+    previous_modification_times: dict[Path, int],
+    target_max_epochs: int,
+) -> tuple[Path, int]:
+    """Sprawdź pochodzenie i osiągniętą epokę końcowego checkpointu."""
+    last = newest_updated_last_checkpoint(root, previous_modification_times)
+    completed_epoch = checkpoint_epoch(last)
+    expected_epoch = minimum_expected_epoch(target_max_epochs)
+    if completed_epoch < expected_epoch:
+        raise RuntimeError(
+            f"Punkt kontrolny {last} kończy się na epoce {completed_epoch}, "
+            f"ale minimalna oczekiwana epoka to {expected_epoch} "
+            f"dla max_epochs={target_max_epochs}"
+        )
+    return last, completed_epoch
 
 
 def checkpoint_candidates(root: Path) -> list[Path]:
@@ -264,9 +302,9 @@ def archive_session_checkpoints(
     run_dir: Path,
     archive_dir: Path,
     sessions: dict[str, Any],
+    last: Path,
 ) -> dict[str, str]:
     """Zarchiwizuj ostatni i opcjonalnie najlepsze checkpointy sesji."""
-    last = newest_last_checkpoint(run_dir)
     candidates = checkpoint_candidates(run_dir)
     best_mel = (
         choose_best_by_filename(candidates, "val_mel", "min")
@@ -360,6 +398,7 @@ def run_next(config_path: Path, dry_run: bool) -> int:
     if dry_run:
         return 0
 
+    previous_modification_times = checkpoint_modification_times(run_dir)
     result = subprocess.run(command, check=False)
     metadata["finished_at"] = utc_now()
     metadata["return_code"] = result.returncode
@@ -371,10 +410,15 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         )
         return result.returncode
 
-    archived = archive_session_checkpoints(run_dir, archive_dir, sessions)
+    last, completed_epoch = validate_training_checkpoint(
+        run_dir,
+        previous_modification_times,
+        target_max_epochs,
+    )
+    archived = archive_session_checkpoints(run_dir, archive_dir, sessions, last)
     archived_last = Path(archived["last"])
     metadata["archived_checkpoints"] = archived
-    metadata["completed_epoch"] = checkpoint_epoch(archived_last)
+    metadata["completed_epoch"] = completed_epoch
     write_session_metadata(metadata_path, metadata)
 
     report_return_code = generate_report(run_dir, report_dir, metadata_path)
