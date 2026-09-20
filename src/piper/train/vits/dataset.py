@@ -25,7 +25,7 @@ from piper.phoneme_ids import phonemes_to_ids as default_phonemes_to_ids
 from piper.phonemize_espeak import EspeakPhonemizer
 
 from .mel_processing import spectrogram_torch
-from .utils import get_cache_id
+from .utils import file_checksum, get_cache_id
 
 _LOGGER = logging.getLogger(__name__)
 VAD_SAMPLE_RATE = 16000
@@ -38,6 +38,17 @@ class CachedUtterance:
     audio_spec_path: Path
     text: Optional[str] = None
     speaker_id: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class CachePaths:
+    """Paths of independently versioned utterance cache artifacts."""
+
+    text: Path
+    phoneme_ids: Path
+    phonemes: Path
+    audio: Path
+    spectrogram: Path
 
 
 class DatasetType(str, Enum):
@@ -296,15 +307,25 @@ class VitsDataModule(L.LightningDataModule):
                     # utt_id|speaker_id|text
                     text = row[-1]
 
-                cache_id = get_cache_id(row_number, text, speaker_id=speaker_id)
+                phoneme_ids_str = (
+                    row[-1] if self.dataset_type == DatasetType.PHONEME_IDS else None
+                )
+                cache_paths = self._get_cache_paths(
+                    row_number,
+                    text,
+                    speaker_id,
+                    audio_path,
+                    phoneme_id_map,
+                    phoneme_ids_str,
+                )
 
                 # text
-                text_path = self.cache_dir / f"{cache_id}.txt"
+                text_path = cache_paths.text
                 if not text_path.exists():
                     text_path.write_text(text, encoding="utf-8")
 
                 if self.dataset_type == DatasetType.PHONEME_IDS:
-                    phoneme_ids_str = row[-1]
+                    assert phoneme_ids_str is not None
 
                     # ids separated by whitespace
                     phoneme_ids = [int(p_id) for p_id in phoneme_ids_str.split()]
@@ -314,7 +335,7 @@ class VitsDataModule(L.LightningDataModule):
                     ), f"Number of symbols ({self.num_symbols}) must be greater than max phoneme id ({max_phoneme_id})"
 
                     # phoneme ids
-                    phoneme_ids_path = self.cache_dir / f"{cache_id}.phonemes.pt"
+                    phoneme_ids_path = cache_paths.phoneme_ids
                     if not phoneme_ids_path.exists():
                         torch.save(torch.LongTensor(phoneme_ids), phoneme_ids_path)
                         if report_prepare is None:
@@ -322,7 +343,7 @@ class VitsDataModule(L.LightningDataModule):
                 else:
                     # phonemes
                     phonemes: Optional[List[List[str]]] = None
-                    phonemes_path = self.cache_dir / f"{cache_id}.phonemes.txt"
+                    phonemes_path = cache_paths.phonemes
                     if not phonemes_path.exists():
                         phonemes = phonemize(text)
                         with open(
@@ -335,7 +356,7 @@ class VitsDataModule(L.LightningDataModule):
                             report_prepare = True
 
                     # phoneme ids
-                    phoneme_ids_path = self.cache_dir / f"{cache_id}.phonemes.pt"
+                    phoneme_ids_path = cache_paths.phoneme_ids
                     if not phoneme_ids_path.exists():
                         if phonemes is None:
                             phonemes = phonemize(text)
@@ -355,7 +376,7 @@ class VitsDataModule(L.LightningDataModule):
                             report_prepare = True
 
                 # normalized audio
-                norm_audio_path = self.cache_dir / f"{cache_id}.audio.pt"
+                norm_audio_path = cache_paths.audio
                 audio_norm_tensor: Optional[torch.Tensor] = None
                 if not norm_audio_path.exists():
                     audio_norm_array, audio_sample_rate = librosa.load(
@@ -383,7 +404,7 @@ class VitsDataModule(L.LightningDataModule):
                         report_prepare = True
 
                 # mel spectrogram
-                audio_spec_path = self.cache_dir / f"{cache_id}.spec.pt"
+                audio_spec_path = cache_paths.spectrogram
                 if not audio_spec_path.exists():
                     if audio_norm_tensor is None:
                         # Load audio from cache
@@ -445,9 +466,19 @@ class VitsDataModule(L.LightningDataModule):
                     # utt_id|text or utt_id|speaker_id|text
                     text = row[-1]
 
-                cache_id = get_cache_id(row_number, text, speaker_id=speaker_id)
+                phoneme_ids_str = (
+                    row[-1] if self.dataset_type == DatasetType.PHONEME_IDS else None
+                )
+                cache_paths = self._get_cache_paths(
+                    row_number,
+                    text,
+                    speaker_id,
+                    audio_path,
+                    self.piper_config.phoneme_id_map,
+                    phoneme_ids_str,
+                )
 
-                phoneme_ids_path = self.cache_dir / f"{cache_id}.phonemes.pt"
+                phoneme_ids_path = cache_paths.phoneme_ids
                 if not phoneme_ids_path.is_file():
                     _LOGGER.warning(
                         "Missing phoneme ids for %s: %s",
@@ -456,7 +487,7 @@ class VitsDataModule(L.LightningDataModule):
                     )
                     continue
 
-                audio_norm_path = self.cache_dir / f"{cache_id}.audio.pt"
+                audio_norm_path = cache_paths.audio
                 if not audio_norm_path.is_file():
                     _LOGGER.warning(
                         "Missing normalized audio for %s: %s",
@@ -465,7 +496,7 @@ class VitsDataModule(L.LightningDataModule):
                     )
                     continue
 
-                audio_spec_path = self.cache_dir / f"{cache_id}.spec.pt"
+                audio_spec_path = cache_paths.spectrogram
                 if not audio_spec_path.is_file():
                     _LOGGER.warning(
                         "Missing mel spec for %s: %s",
@@ -475,7 +506,7 @@ class VitsDataModule(L.LightningDataModule):
                     continue
 
                 text: Optional[str] = None
-                text_path = self.cache_dir / f"{cache_id}.txt"
+                text_path = cache_paths.text
                 if text_path.exists():
                     text = text_path.read_text(encoding="utf-8")
 
@@ -503,6 +534,62 @@ class VitsDataModule(L.LightningDataModule):
         train_set_size = n - valid_set_size - num_test
         self.train_dataset, self.test_dataset, self.val_dataset = random_split(
             full_dataset, [train_set_size, num_test, valid_set_size]
+        )
+
+    def _get_cache_paths(
+        self,
+        row_number: int,
+        text: str,
+        speaker_id: Optional[int],
+        audio_path: Path,
+        phoneme_id_map: Dict[str, List[int]],
+        phoneme_ids: Optional[str] = None,
+    ) -> CachePaths:
+        """Build paths from the dependencies of each cached artifact."""
+        phoneme_cache_id = get_cache_id(
+            row_number,
+            text,
+            speaker_id=speaker_id,
+            cache_data={
+                "dataset_type": self.dataset_type.value,
+                "espeak_voice": self.espeak_voice,
+                "phoneme_id_map": phoneme_id_map,
+                "phoneme_ids": phoneme_ids,
+                "phoneme_type": self.phoneme_type.value,
+                "speaker_id": speaker_id,
+                "text": text,
+                "vowel_clusters": sorted(self.vowel_clusters or []),
+            },
+        )
+        audio_dependencies = {
+            "audio_checksum": file_checksum(audio_path),
+            "keep_seconds_after_silence": self.keep_seconds_after_silence,
+            "keep_seconds_before_silence": self.keep_seconds_before_silence,
+            "sample_rate": self.sample_rate,
+            "trim_silence": self.trim_silence,
+        }
+        audio_cache_id = get_cache_id(
+            row_number,
+            "audio",
+            cache_data=audio_dependencies,
+        )
+        spectrogram_cache_id = get_cache_id(
+            row_number,
+            "spec",
+            cache_data={
+                "audio": audio_dependencies,
+                "filter_length": self.filter_length,
+                "hop_length": self.hop_length,
+                "sample_rate": self.sample_rate,
+                "win_length": self.win_length,
+            },
+        )
+        return CachePaths(
+            text=self.cache_dir / f"{phoneme_cache_id}.txt",
+            phoneme_ids=self.cache_dir / f"{phoneme_cache_id}.phonemes.pt",
+            phonemes=self.cache_dir / f"{phoneme_cache_id}.phonemes.txt",
+            audio=self.cache_dir / f"{audio_cache_id}.audio.pt",
+            spectrogram=self.cache_dir / f"{spectrogram_cache_id}.spec.pt",
         )
 
     def _make_dataloader(
