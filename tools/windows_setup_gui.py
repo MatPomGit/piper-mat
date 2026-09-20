@@ -168,6 +168,7 @@ class WindowsSetupWizard(Tk):
         self.repo_dir = StringVar(value=str(DEFAULT_PARENT / REPO_NAME))
         self.current_step = 0
         self.running = False
+        self.training_step_succeeded = False
         self.auto_continue = BooleanVar(value=False)
         self.log_queue: queue.Queue[str] = queue.Queue()
 
@@ -370,13 +371,10 @@ class WindowsSetupWizard(Tk):
         self.previous_button.config(
             state="normal" if self.current_step else "disabled"
         )
-        self.next_button.config(
-            state=(
-                "normal"
-                if self.current_step < len(STEPS) - 1
-                else "disabled"
-            )
-        )
+        can_go_next = self.current_step < len(STEPS) - 1
+        if step.action_name == "start_training" and not self.training_step_succeeded:
+            can_go_next = False
+        self.next_button.config(state="normal" if can_go_next else "disabled")
         self.status_label.config(text="Gotowe do wykonania kroku.")
 
     def _append_log(self, text: str) -> None:
@@ -525,6 +523,8 @@ class WindowsSetupWizard(Tk):
         if not success:
             step = STEPS[self.current_step]
             if step.action_name == "start_training":
+                self.training_step_succeeded = False
+                self.next_button.config(state="disabled")
                 hint = (
                     "\n\nNie uruchamiaj automatycznej naprawy środowiska dla błędu "
                     "samego treningu. Sprawdź szczegóły techniczne; sesja pozostaje "
@@ -536,6 +536,10 @@ class WindowsSetupWizard(Tk):
                 )
             messagebox.showerror("Problem", message + hint)
             return
+
+        if STEPS[self.current_step].action_name == "start_training":
+            self.training_step_succeeded = True
+            self.next_button.config(state="normal")
 
         if (
             advance_on_success
