@@ -4,6 +4,7 @@ import argparse
 import io
 import json
 import logging
+import math
 import time
 import wave
 from pathlib import Path
@@ -16,6 +17,15 @@ from . import PiperVoice, SynthesisConfig
 from .download_voices import VOICES_JSON, download_voice
 
 _LOGGER = logging.getLogger()
+
+
+def _nonnegative_finite_float(value: str) -> float:
+    """Parse a finite, nonnegative floating-point command-line value."""
+    parsed_value = float(value)
+    if not math.isfinite(parsed_value) or parsed_value < 0:
+        raise argparse.ArgumentTypeError("must be a finite, nonnegative number")
+
+    return parsed_value
 
 
 def _model_id_from_path(path: Path, suffix: str) -> str:
@@ -99,7 +109,7 @@ def main() -> None:
     parser.add_argument(
         "--sentence-silence",
         "--sentence_silence",
-        type=float,
+        type=_nonnegative_finite_float,
         default=0.0,
         help="Seconds of silence after each sentence",
     )
@@ -303,6 +313,8 @@ def main() -> None:
             voice = default_voice
 
         speaker_id = _select_speaker_id(data, voice, args)
+        silence_samples = int(voice.config.sample_rate * args.sentence_silence)
+        silence_bytes = bytes(silence_samples * 2)
 
         syn_config = SynthesisConfig(
             speaker_id=speaker_id,
@@ -356,13 +368,7 @@ def main() -> None:
                         wav_params_set = True
 
                     if i > 0:
-                        wav_file.writeframes(
-                            bytes(
-                                int(
-                                    voice.config.sample_rate * args.sentence_silence * 2
-                                )
-                            )
-                        )
+                        wav_file.writeframes(silence_bytes)
 
                     wav_file.writeframes(audio_chunk.audio_int16_bytes)
 
