@@ -17,6 +17,7 @@ from pathlib import Path
 DEFAULT_TEXT = (
     "To jest powtarzalny test wydajności polskiego modelu głosu Piper."
 )
+WAV_HEADER_SIZE = 44
 
 
 def wav_duration(path: Path) -> float:
@@ -93,11 +94,24 @@ def collect_measurements(
     measurements: list[dict[str, float]] = []
 
     with tempfile.TemporaryDirectory(prefix="piper-benchmark-") as temp_dir:
-        wav_path = Path(temp_dir) / "benchmark.wav"
-
         for iteration in range(warmup + runs):
+            wav_path = Path(temp_dir) / f"benchmark-{iteration}.wav"
             elapsed = run_synthesis(model, text, wav_path)
-            audio_duration = wav_duration(wav_path)
+            if not wav_path.is_file():
+                raise RuntimeError(
+                    "Piper nie utworzył pliku WAV w bieżącym przebiegu."
+                )
+            if wav_path.stat().st_size <= WAV_HEADER_SIZE:
+                raise RuntimeError(
+                    "Piper wygenerował plik WAV bez danych dźwiękowych."
+                )
+
+            try:
+                audio_duration = wav_duration(wav_path)
+            except wave.Error as exc:
+                raise RuntimeError(
+                    f"Piper wygenerował uszkodzony plik WAV: {exc}"
+                ) from exc
             if audio_duration <= 0:
                 raise RuntimeError("Piper wygenerował pusty plik WAV.")
 
