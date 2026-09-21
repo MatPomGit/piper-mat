@@ -144,9 +144,14 @@ def main() -> None:
             f"Unable to find voice: {model_path} (use piper.download_voices)"
         )
 
+    if args.config:
+        config_path = Path(args.config)
+        if not config_path.is_file():
+            parser.error(f"Voice config does not exist or is not a file: {config_path}")
+
     # Load voice
     _LOGGER.debug("Loading voice: '%s'", model_path)
-    voice = PiperVoice.load(model_path, use_cuda=args.cuda)
+    voice = PiperVoice.load(model_path, config_path=args.config, use_cuda=args.cuda)
     syn_config = SynthesisConfig(
         speaker_id=args.speaker,
         length_scale=args.length_scale,
