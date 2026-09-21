@@ -82,12 +82,23 @@ def load_pairs(path: Path) -> list[tuple[str, str]]:
                     f"wiersz {line_number}: brak pola reference lub hypothesis"
                 )
 
-            pairs.append(
-                (
-                    normalize(str(row["reference"])),
-                    normalize(str(row["hypothesis"])),
+            for field_name in ("reference", "hypothesis"):
+                if not isinstance(row[field_name], str):
+                    raise ValueError(
+                        f"wiersz {line_number}: pole {field_name}: "
+                        "oczekiwano typu str"
+                    )
+
+            reference = normalize(row["reference"])
+            hypothesis = normalize(row["hypothesis"])
+            if not reference:
+                raise ValueError(
+                    f"wiersz {line_number}: pole reference: "
+                    "tekst jest pusty po normalizacji"
                 )
-            )
+
+            # Pusta hipoteza oznacza całkowicie błędne rozpoznanie.
+            pairs.append((reference, hypothesis))
 
     if not pairs:
         raise ValueError("plik wejściowy nie zawiera żadnych par transkrypcji")
