@@ -321,7 +321,7 @@ def main() -> None:
 
         _LOGGER.debug(data)
 
-        model_id = data.get("voice", default_model_id)
+        model_id = data["voice"] if "voice" in data else default_model_id
         voice = loaded_voices.get(model_id)
         if voice is None:
             for data_dir in args.data_dir:
@@ -333,8 +333,8 @@ def main() -> None:
                     break
 
         if voice is None:
-            _LOGGER.warning("Voice not found: %s. Using default voice.", model_id)
-            voice = default_voice
+            _LOGGER.warning("Voice not found: %s", model_id)
+            abort(404, description=f"Voice not found: {model_id}")
 
         speaker_id = _select_speaker_id(data, voice, args)
         silence_samples = int(voice.config.sample_rate * args.sentence_silence)

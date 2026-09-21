@@ -176,6 +176,157 @@ def test_dynamic_voice_uses_shared_load_options_and_alignments(
     assert "onnx package is required" in responses["info"].json["alignments"]["error"]
 
 
+def test_synthesize_without_voice_uses_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Use the default voice only when the voice field is absent."""
+    from flask import Flask
+
+    from piper.http_server import PiperVoice, main
+
+    default_path = tmp_path / "default.onnx"
+    default_path.touch()
+    load_calls = []
+    responses = {}
+
+    class FakeVoice:
+        config = SimpleNamespace(
+            default_speaker_id=0,
+            espeak_voice="en-us",
+            length_scale=1.0,
+            noise_scale=0.667,
+            noise_w_scale=0.8,
+            num_speakers=1,
+            sample_rate=22_050,
+            speaker_id_map={},
+        )
+
+        def synthesize(self, text, syn_config, include_alignments=False):
+            del text, syn_config
+            assert include_alignments is True
+            yield SimpleNamespace(
+                audio_int16_bytes=b"\x00\x00",
+                phoneme_alignments=[],
+                phonemes=[],
+                sample_channels=1,
+                sample_rate=22_050,
+                sample_width=2,
+            )
+
+    def fake_load(model_path, **kwargs):
+        del kwargs
+        load_calls.append(Path(model_path))
+        return FakeVoice()
+
+    def test_run(app: Flask, **kwargs) -> None:
+        del kwargs
+        with app.test_client() as client:
+            responses["synthesis"] = client.post(
+                "/synthesize", json={"text": "Default voice"}
+            )
+            responses["info"] = client.get("/info")
+
+    monkeypatch.setattr(PiperVoice, "load", fake_load)
+    monkeypatch.setattr(Flask, "run", test_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper-http-server", "--model", str(default_path)],
+    )
+
+    main()
+
+    assert responses["synthesis"].status_code == 200
+    assert responses["info"].json["last"]["text"] == "Default voice"
+    assert load_calls == [default_path]
+
+
+def test_unknown_voice_returns_not_found_without_updating_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Reject an unknown explicit voice without caching the failed choice."""
+    from flask import Flask
+
+    from piper.http_server import PiperVoice, main
+
+    default_path = tmp_path / "default.onnx"
+    unknown_path = tmp_path / "unknown.onnx"
+    default_path.touch()
+    load_calls = []
+    responses = {}
+
+    class FakeVoice:
+        config = SimpleNamespace(
+            default_speaker_id=0,
+            espeak_voice="en-us",
+            length_scale=1.0,
+            noise_scale=0.667,
+            noise_w_scale=0.8,
+            num_speakers=1,
+            sample_rate=22_050,
+            speaker_id_map={},
+        )
+
+        def synthesize(self, text, syn_config, include_alignments=False):
+            del text, syn_config
+            assert include_alignments is True
+            yield SimpleNamespace(
+                audio_int16_bytes=b"\x00\x00",
+                phoneme_alignments=[],
+                phonemes=[],
+                sample_channels=1,
+                sample_rate=22_050,
+                sample_width=2,
+            )
+
+    def fake_load(model_path, **kwargs):
+        del kwargs
+        load_calls.append(Path(model_path))
+        return FakeVoice()
+
+    def test_run(app: Flask, **kwargs) -> None:
+        del kwargs
+        with app.test_client() as client:
+            successful_response = client.post(
+                "/synthesize", json={"text": "Successful synthesis"}
+            )
+            assert successful_response.status_code == 200
+
+            responses["unknown"] = client.post(
+                "/synthesize", json={"text": "Must fail", "voice": "unknown"}
+            )
+            responses["info_after_failure"] = client.get("/info")
+
+            unknown_path.touch()
+            responses["available_later"] = client.post(
+                "/synthesize", json={"text": "Now available", "voice": "unknown"}
+            )
+
+    monkeypatch.setattr(PiperVoice, "load", fake_load)
+    monkeypatch.setattr(Flask, "run", test_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "piper-http-server",
+            "--model",
+            str(default_path),
+            "--data-dir",
+            str(tmp_path),
+        ],
+    )
+
+    main()
+
+    assert responses["unknown"].status_code == 404
+    assert "unknown" in responses["unknown"].get_data(as_text=True)
+    assert responses["info_after_failure"].json["last"]["text"] == (
+        "Successful synthesis"
+    )
+    assert responses["available_later"].status_code == 200
+    assert load_calls == [default_path, unknown_path]
+
+
 @pytest.mark.parametrize("value", ["-0.1", "nan", "inf", "-inf"])
 def test_server_rejects_invalid_sentence_silence(
     monkeypatch: pytest.MonkeyPatch, value: str
