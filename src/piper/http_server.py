@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.request import urlopen
 
-from flask import Flask, render_template, request
+from flask import Flask, abort, render_template, request
 
 from . import PiperVoice, SynthesisConfig
 from .download_voices import VOICES_JSON, download_voice
@@ -24,6 +24,24 @@ def _model_id_from_path(path: Path, suffix: str) -> str:
         raise ValueError(f"Model path must end with {suffix!r}: {path}")
 
     return path.name[: -len(suffix)]
+
+
+def _validate_speaker_id(speaker_id: Any, num_speakers: int) -> int:
+    """Return a valid speaker identifier or abort with HTTP 400."""
+    if (
+        isinstance(speaker_id, bool)
+        or not isinstance(speaker_id, int)
+        or not 0 <= speaker_id < num_speakers
+    ):
+        abort(
+            400,
+            description=(
+                "speaker_id must be an integer in the range "
+                f"0 <= speaker_id < {num_speakers}"
+            ),
+        )
+
+    return speaker_id
 
 
 def main() -> None:
@@ -270,10 +288,14 @@ def main() -> None:
                     speaker,
                     voice.config.speaker_id_map.keys(),
                 )
-                speaker_id = args.speaker or voice.config.default_speaker_id
+                speaker_id = (
+                    args.speaker
+                    if args.speaker is not None
+                    else voice.config.default_speaker_id
+                )
 
-        if (speaker_id is not None) and (speaker_id > voice.config.num_speakers):
-            speaker_id = 0
+        if speaker_id is not None:
+            speaker_id = _validate_speaker_id(speaker_id, voice.config.num_speakers)
 
         syn_config = SynthesisConfig(
             speaker_id=speaker_id,
