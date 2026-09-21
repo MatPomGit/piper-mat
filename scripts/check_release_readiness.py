@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,12 @@ DEFAULT_EVALUATION = Path("evaluations/pl_PL-mateusz-medium.json")
 DATASET_CARD = Path("dataset/DATASET_CARD.md")
 MODEL_CARD = Path("models/pl_PL-mateusz-medium/MODEL_CARD.md")
 REQUIRED_METRICS = ("wer", "cer")
+POSITIVE_COUNTERS = (
+    "utterances",
+    "reference_words",
+    "reference_characters",
+)
+NONNEGATIVE_COUNTERS = ("word_errors", "character_errors")
 
 
 def sha256_file(path: Path) -> str:
@@ -78,9 +85,7 @@ def check_split_integrity(
 
     expected = split_data.get("metadata_sha256")
     if not isinstance(expected, str) or not expected:
-        errors.append(
-            f"Brak metadata_sha256 w pliku podziału danych: {splits_path}"
-        )
+        errors.append(f"Brak metadata_sha256 w pliku podziału danych: {splits_path}")
         return
 
     try:
@@ -90,9 +95,7 @@ def check_split_integrity(
         return
 
     if expected != actual:
-        errors.append(
-            "dataset/splits.json nie odpowiada aktualnemu metadata.csv"
-        )
+        errors.append("dataset/splits.json nie odpowiada aktualnemu metadata.csv")
 
 
 def check_evaluation(path: Path, errors: list[str]) -> None:
@@ -112,9 +115,35 @@ def check_evaluation(path: Path, errors: list[str]) -> None:
 
     for metric in REQUIRED_METRICS:
         if metric not in metrics:
+            errors.append(f"Brak metryki {metric.upper()} w rekordzie oceny")
+            continue
+
+        value = metrics[metric]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
             errors.append(
-                f"Brak metryki {metric.upper()} w rekordzie oceny"
+                f"Metryka {metric.upper()} musi być skończoną " "nieujemną liczbą"
             )
+
+    for counter in POSITIVE_COUNTERS:
+        if counter in metrics and (
+            isinstance(metrics[counter], bool)
+            or not isinstance(metrics[counter], int)
+            or metrics[counter] <= 0
+        ):
+            errors.append(f"Pole {counter} musi być dodatnią liczbą całkowitą")
+
+    for counter in NONNEGATIVE_COUNTERS:
+        if counter in metrics and (
+            isinstance(metrics[counter], bool)
+            or not isinstance(metrics[counter], int)
+            or metrics[counter] < 0
+        ):
+            errors.append(f"Pole {counter} musi być nieujemną liczbą całkowitą")
 
 
 def parse_args() -> argparse.Namespace:
