@@ -219,6 +219,72 @@ def test_sentence_silence_even_byte_count(
     assert data_size == expected_bytes
 
 
+def test_cli_passes_explicit_config_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CLI passes an explicit config path instead of guessing one."""
+    from piper.__main__ import main
+
+    model_path = tmp_path / "voice.onnx"
+    model_path.touch()
+    config_path = tmp_path / "custom.json"
+    config_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "piper",
+            "--model",
+            str(model_path),
+            "--config",
+            str(config_path),
+            "--output-raw",
+        ],
+    )
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+
+    with patch("piper.__main__.PiperVoice.load") as load_voice:
+        load_voice.return_value.config.sample_rate = 22_050
+        main()
+
+    assert not Path(f"{model_path}.json").exists()
+    load_voice.assert_called_once_with(
+        model_path, config_path=str(config_path), use_cuda=False
+    )
+
+
+@pytest.mark.parametrize("config_kind", ["missing", "directory"])
+def test_cli_rejects_invalid_explicit_config_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    config_kind: str,
+) -> None:
+    """CLI reports an explicit config path that is not a file."""
+    from piper.__main__ import main
+
+    model_path = tmp_path / "voice.onnx"
+    model_path.touch()
+    config_path = tmp_path / config_kind
+    if config_kind == "directory":
+        config_path.mkdir()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper", "--model", str(model_path), "--config", str(config_path)],
+    )
+
+    with (
+        patch("piper.__main__.PiperVoice.load") as load_voice,
+        pytest.raises(SystemExit, match="2"),
+    ):
+        main()
+
+    assert str(config_path) in capsys.readouterr().err
+    load_voice.assert_not_called()
+
+
 def test_ar_tashkeel() -> None:
     """Test Arabic diacritization."""
     voice = PiperVoice.load(_TEST_VOICE)
