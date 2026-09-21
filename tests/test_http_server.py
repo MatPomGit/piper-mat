@@ -1,7 +1,11 @@
 """Tests for the Piper HTTP server."""
 
+import io
 from pathlib import Path
+import struct
+import sys
 from types import SimpleNamespace
+import wave
 
 import pytest
 from werkzeug.exceptions import BadRequest
@@ -13,6 +17,7 @@ from piper.http_server import (
 )
 
 NUM_SPEAKERS = 3
+_TEST_VOICE = Path(__file__).parent / "test_voice.onnx"
 
 
 @pytest.mark.parametrize(
@@ -67,3 +72,75 @@ def test_select_speaker_id_preserves_zero_from_command_line():
     )
 
     assert _select_speaker_id({}, voice, args) == 0
+
+
+@pytest.mark.parametrize("value", ["-0.1", "nan", "inf", "-inf"])
+def test_server_rejects_invalid_sentence_silence(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    """Reject non-finite and negative silence while parsing server options."""
+    from piper.http_server import main
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper-http-server", "--model", "unused.onnx", "--sentence-silence", value],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        main()
+
+    assert error.value.code == 2
+
+
+@pytest.mark.parametrize("sentence_silence", [0.15, 0.25, 0.45, 0.75])
+def test_sentence_silence_even_byte_count(
+    monkeypatch: pytest.MonkeyPatch, sentence_silence: float
+) -> None:
+    """Write whole silence samples between chunks from the HTTP endpoint."""
+    from flask import Flask
+
+    from piper.http_server import main
+
+    responses = []
+
+    def test_run(app: Flask, **kwargs) -> None:
+        del kwargs
+        with app.test_client() as client:
+            responses.append(
+                client.post(
+                    "/synthesize",
+                    json={"text": "This is a test. This is another."},
+                )
+            )
+
+    monkeypatch.setattr(Flask, "run", test_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "piper-http-server",
+            "--model",
+            str(_TEST_VOICE),
+            "--sentence-silence",
+            str(sentence_silence),
+        ],
+    )
+
+    main()
+
+    assert len(responses) == 1
+    response = responses[0]
+    assert response.status_code == 200
+    with wave.open(io.BytesIO(response.data), "rb") as wav_input:
+        assert wav_input.getsampwidth() == 2
+        assert wav_input.getnchannels() == 1
+
+    data_idx = response.data.find(b"data")
+    data_size = struct.unpack("<I", response.data[data_idx + 4 : data_idx + 8])[0]
+    sample_rate = 22_050
+    silence_samples = int(sample_rate * sentence_silence)
+    expected_bytes = (sample_rate * 2 * 2) + (silence_samples * 2)
+
+    assert data_size % 2 == 0
+    assert data_size == expected_bytes
