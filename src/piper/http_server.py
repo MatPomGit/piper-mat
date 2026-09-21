@@ -1,6 +1,7 @@
 """Flask web server with HTTP API for Piper."""
 
 import argparse
+import importlib.util
 import io
 import json
 import logging
@@ -78,6 +79,30 @@ def _select_speaker_id(
         )
 
     return _validate_speaker_id(speaker_id, voice.config.num_speakers)
+
+
+def _load_voice(model_path: Path, args: argparse.Namespace) -> PiperVoice:
+    """Load a voice using the HTTP server's shared environment settings."""
+    return PiperVoice.load(
+        model_path,
+        use_cuda=args.cuda,
+        download_dir=Path(args.download_dir),
+        include_alignments=True,
+    )
+
+
+def _alignment_info() -> Dict[str, Any]:
+    """Describe whether in-memory alignment output patching is available."""
+    if importlib.util.find_spec("onnx") is None:
+        return {
+            "available": False,
+            "error": (
+                "The onnx package is required to add alignment output. "
+                "Install piper-tts[alignment]."
+            ),
+        }
+
+    return {"available": True, "error": None}
 
 
 def main() -> None:
@@ -160,9 +185,7 @@ def main() -> None:
     default_model_id = _model_id_from_path(model_path, ".onnx")
 
     # Load voice
-    default_voice = PiperVoice.load(
-        model_path, use_cuda=args.cuda, include_alignments=True
-    )
+    default_voice = _load_voice(model_path, args)
     loaded_voices: Dict[str, PiperVoice] = {default_model_id: default_voice}
 
     # Create web server.
@@ -205,6 +228,7 @@ def main() -> None:
                 "language": default_voice.config.espeak_voice,
                 "num_speakers": default_voice.config.num_speakers,
             },
+            "alignments": _alignment_info(),
             "last": last_synthesis or None,
         }
 
@@ -304,7 +328,7 @@ def main() -> None:
                 maybe_model_path = Path(data_dir) / f"{model_id}.onnx"
                 if maybe_model_path.exists():
                     _LOGGER.debug("Loading voice %s", model_id)
-                    voice = PiperVoice.load(maybe_model_path, use_cuda=args.cuda)
+                    voice = _load_voice(maybe_model_path, args)
                     loaded_voices[model_id] = voice
                     break
 
