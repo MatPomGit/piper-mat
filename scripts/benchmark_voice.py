@@ -190,8 +190,15 @@ def main() -> int:
     rendered = json.dumps(result, ensure_ascii=False, indent=2)
 
     if args.output is not None:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered + "\n", encoding="utf-8")
+        try:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered + "\n", encoding="utf-8")
+        except OSError as exc:
+            print(
+                f"BŁĄD: nie można zapisać wyniku do {args.output}: {exc}",
+                file=sys.stderr,
+            )
+            return 2
         print(f"Zapisano wynik benchmarku: {args.output}")
     else:
         print(rendered)
