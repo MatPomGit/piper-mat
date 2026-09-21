@@ -61,3 +61,41 @@ def test_collect_measurements_reports_damaged_wav(monkeypatch):
             runs=1,
             warmup=0,
         )
+
+
+def test_main_reports_output_write_error_without_traceback(monkeypatch, capsys):
+    """Zwrócić kod 2 i czytelny komunikat, gdy zapis wyniku zawiedzie."""
+    output_path = benchmark_voice.Path("niedozwolony/wynik.json")
+    args = SimpleNamespace(
+        model=benchmark_voice.Path("voice.onnx"),
+        text="Test",
+        runs=1,
+        warmup=0,
+        output=output_path,
+    )
+    measurements = [{"elapsed_s": 0.1, "audio_s": 1.0, "rtf": 0.1}]
+
+    monkeypatch.setattr(benchmark_voice, "parse_args", lambda: args)
+    monkeypatch.setattr(
+        benchmark_voice,
+        "validate_args",
+        lambda parsed_args: benchmark_voice.Path("voice.onnx.json"),
+    )
+    monkeypatch.setattr(
+        benchmark_voice,
+        "collect_measurements",
+        lambda *unused_args: measurements,
+    )
+
+    def deny_write(path, *args, **kwargs):
+        """Zasymulować odmowę zapisu pliku wynikowego."""
+        raise OSError("brak uprawnień")
+
+    monkeypatch.setattr(benchmark_voice.Path, "write_text", deny_write)
+
+    assert benchmark_voice.main() == 2
+
+    captured = capsys.readouterr()
+    assert str(output_path) in captured.err
+    assert "brak uprawnień" in captured.err
+    assert "Traceback" not in captured.err
