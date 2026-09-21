@@ -18,6 +18,14 @@ from .download_voices import VOICES_JSON, download_voice
 _LOGGER = logging.getLogger()
 
 
+def _model_id_from_path(path: Path, suffix: str) -> str:
+    """Return a model identifier after removing an exact filename suffix."""
+    if not path.name.endswith(suffix):
+        raise ValueError(f"Model path must end with {suffix!r}: {path}")
+
+    return path.name[: -len(suffix)]
+
+
 def main() -> None:
     """Run HTTP server."""
     parser = argparse.ArgumentParser()
@@ -95,7 +103,7 @@ def main() -> None:
             f"Unable to find voice: {model_path} (use piper.download_voices)"
         )
 
-    default_model_id = model_path.name.rstrip(".onnx")
+    default_model_id = _model_id_from_path(model_path, ".onnx")
 
     # Load voice
     default_voice = PiperVoice.load(
@@ -168,7 +176,7 @@ def main() -> None:
                     config_paths.append(config_path)
 
         for config_path in config_paths:
-            model_id = config_path.name.rstrip(".onnx.json")
+            model_id = _model_id_from_path(config_path, ".onnx.json")
             if model_id in voices_dict:
                 continue
 
