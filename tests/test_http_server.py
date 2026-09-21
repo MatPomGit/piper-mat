@@ -11,6 +11,7 @@ import pytest
 from werkzeug.exceptions import BadRequest
 
 from piper.http_server import (
+    _alignment_info,
     _model_id_from_path,
     _select_speaker_id,
     _validate_speaker_id,
@@ -72,6 +73,107 @@ def test_select_speaker_id_preserves_zero_from_command_line():
     )
 
     assert _select_speaker_id({}, voice, args) == 0
+
+
+def test_alignment_info_reports_missing_onnx(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Report that alignment output cannot be added without onnx."""
+    monkeypatch.setattr("importlib.util.find_spec", lambda name: None)
+
+    alignment_info = _alignment_info()
+
+    assert alignment_info["available"] is False
+    assert "onnx package is required" in alignment_info["error"]
+
+
+def test_dynamic_voice_uses_shared_load_options_and_alignments(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Load default and dynamic voices alike and retain dynamic alignments."""
+    from flask import Flask
+
+    from piper.http_server import PiperVoice, main
+
+    default_path = tmp_path / "default.onnx"
+    dynamic_path = tmp_path / "dynamic.onnx"
+    default_path.touch()
+    dynamic_path.touch()
+    load_calls = []
+    responses = {}
+
+    class FakeVoice:
+        config = SimpleNamespace(
+            default_speaker_id=0,
+            espeak_voice="en-us",
+            length_scale=1.0,
+            noise_scale=0.667,
+            noise_w_scale=0.8,
+            num_speakers=1,
+            sample_rate=22_050,
+            speaker_id_map={},
+        )
+
+        def synthesize(self, text, syn_config, include_alignments=False):
+            del text, syn_config
+            assert include_alignments is True
+            yield SimpleNamespace(
+                audio_int16_bytes=b"\x00\x00",
+                phoneme_alignments=[SimpleNamespace(phoneme="a", num_samples=2205)],
+                phonemes=["a"],
+                sample_channels=1,
+                sample_rate=22_050,
+                sample_width=2,
+            )
+
+    def fake_load(model_path, **kwargs):
+        load_calls.append((Path(model_path), kwargs))
+        return FakeVoice()
+
+    def test_run(app: Flask, **kwargs) -> None:
+        del kwargs
+        with app.test_client() as client:
+            responses["synthesis"] = client.post(
+                "/synthesize", json={"text": "Test", "voice": "dynamic"}
+            )
+            responses["info"] = client.get("/info")
+
+    monkeypatch.setattr(PiperVoice, "load", fake_load)
+    monkeypatch.setattr(Flask, "run", test_run)
+    monkeypatch.setattr("importlib.util.find_spec", lambda name: None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "piper-http-server",
+            "--model",
+            str(default_path),
+            "--data-dir",
+            str(tmp_path),
+            "--download-dir",
+            str(tmp_path),
+            "--cuda",
+        ],
+    )
+
+    main()
+
+    assert responses["synthesis"].status_code == 200
+    assert [call[0] for call in load_calls] == [default_path, dynamic_path]
+    assert (
+        load_calls[0][1]
+        == load_calls[1][1]
+        == {
+            "download_dir": tmp_path,
+            "include_alignments": True,
+            "use_cuda": True,
+        }
+    )
+    assert responses["info"].json["last"]["alignments"] == [
+        {"phoneme": "a", "seconds": 0.1}
+    ]
+    assert responses["info"].json["alignments"]["available"] is False
+    assert "onnx package is required" in responses["info"].json["alignments"]["error"]
 
 
 @pytest.mark.parametrize("value", ["-0.1", "nan", "inf", "-inf"])
