@@ -44,6 +44,32 @@ def _validate_speaker_id(speaker_id: Any, num_speakers: int) -> int:
     return speaker_id
 
 
+def _select_speaker_id(
+    data: Dict[str, Any], voice: PiperVoice, args: argparse.Namespace
+) -> int:
+    """Select and validate a speaker identifier for a synthesis request."""
+    speaker_id = data.get("speaker_id")
+    if speaker_id is None:
+        speaker = data.get("speaker")
+        if speaker is not None:
+            speaker_id = voice.config.speaker_id_map.get(speaker)
+            if speaker_id is None:
+                _LOGGER.warning(
+                    "Speaker not found: '%s' in %s",
+                    speaker,
+                    voice.config.speaker_id_map.keys(),
+                )
+
+    if speaker_id is None:
+        speaker_id = (
+            args.speaker
+            if args.speaker is not None
+            else voice.config.default_speaker_id
+        )
+
+    return _validate_speaker_id(speaker_id, voice.config.num_speakers)
+
+
 def main() -> None:
     """Run HTTP server."""
     parser = argparse.ArgumentParser()
@@ -276,26 +302,7 @@ def main() -> None:
             _LOGGER.warning("Voice not found: %s. Using default voice.", model_id)
             voice = default_voice
 
-        speaker_id: Optional[int] = data.get("speaker_id")
-        if (voice.config.num_speakers > 1) and (speaker_id is None):
-            speaker = data.get("speaker")
-            if speaker:
-                speaker_id = voice.config.speaker_id_map.get(speaker)
-
-            if speaker_id is None:
-                _LOGGER.warning(
-                    "Speaker not found: '%s' in %s",
-                    speaker,
-                    voice.config.speaker_id_map.keys(),
-                )
-                speaker_id = (
-                    args.speaker
-                    if args.speaker is not None
-                    else voice.config.default_speaker_id
-                )
-
-        if speaker_id is not None:
-            speaker_id = _validate_speaker_id(speaker_id, voice.config.num_speakers)
+        speaker_id = _select_speaker_id(data, voice, args)
 
         syn_config = SynthesisConfig(
             speaker_id=speaker_id,

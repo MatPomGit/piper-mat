@@ -1,11 +1,16 @@
 """Tests for the Piper HTTP server."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from werkzeug.exceptions import BadRequest
 
-from piper.http_server import _model_id_from_path, _validate_speaker_id
+from piper.http_server import (
+    _model_id_from_path,
+    _select_speaker_id,
+    _validate_speaker_id,
+)
 
 NUM_SPEAKERS = 3
 
@@ -48,3 +53,17 @@ def test_validate_speaker_id_rejects_invalid_value(speaker_id):
 
     assert error.value.code == 400
     assert f"0 <= speaker_id < {NUM_SPEAKERS}" in error.value.description
+
+
+def test_select_speaker_id_preserves_zero_from_command_line():
+    """Prefer speaker zero from the command line over a nonzero default."""
+    args = SimpleNamespace(speaker=0)
+    voice = SimpleNamespace(
+        config=SimpleNamespace(
+            default_speaker_id=2,
+            num_speakers=NUM_SPEAKERS,
+            speaker_id_map={},
+        )
+    )
+
+    assert _select_speaker_id({}, voice, args) == 0
