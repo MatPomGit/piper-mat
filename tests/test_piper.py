@@ -513,15 +513,13 @@ def test_add_alignment_output_autodetect() -> None:
     onnx = pytest.importorskip("onnx")
     from piper.patch_voice_with_alignment import add_alignment_output
 
-    model = onnx.parser.parse_model(
-        """
+    model = onnx.parser.parse_model("""
         <ir_version: 8, opset_import: ["": 15]>
         agraph (float[N] input) => (float[N] output) {
             w_ceil = Ceil(input)
             output = Identity(w_ceil)
         }
-        """
-    )
+        """)
     assert [o.name for o in model.graph.output] == ["output"]
 
     tensor_name = add_alignment_output(model)
@@ -529,26 +527,87 @@ def test_add_alignment_output_autodetect() -> None:
     assert [o.name for o in model.graph.output] == ["output", "w_ceil"]
 
 
-def test_add_alignment_output_errors() -> None:
-    """Test errors when no Ceil tensor exists or it is already an output."""
+def test_add_alignment_output_existing_explicit_tensor() -> None:
+    """Test marking an existing tensor named explicitly as an output."""
     onnx = pytest.importorskip("onnx")
     from piper.patch_voice_with_alignment import add_alignment_output
 
-    # No Ceil node
-    no_ceil = onnx.parser.parse_model(
-        """
+    model = onnx.parser.parse_model("""
+        <ir_version: 8, opset_import: ["": 15]>
+        agraph (float[N] input) => (float[N] output) {
+            intermediate = Identity(input)
+            output = Identity(intermediate)
+        }
+        """)
+    assert add_alignment_output(model, tensor_name="intermediate") == "intermediate"
+    assert [output.name for output in model.graph.output] == [
+        "output",
+        "intermediate",
+    ]
+
+
+def test_add_alignment_output_nonexistent_explicit_tensor() -> None:
+    """Test rejecting an explicit tensor name that does not exist."""
+    onnx = pytest.importorskip("onnx")
+    from piper.patch_voice_with_alignment import add_alignment_output
+
+    model = onnx.parser.parse_model("""
         <ir_version: 8, opset_import: ["": 15]>
         agraph (float[N] input) => (float[N] output) {
             output = Identity(input)
         }
-        """
-    )
-    with pytest.raises(ValueError):
-        add_alignment_output(no_ceil)
+        """)
+    with pytest.raises(ValueError, match="missing_tensor"):
+        add_alignment_output(model, tensor_name="missing_tensor")
 
-    # Tensor already marked as an output
+
+def test_add_alignment_output_existing_output() -> None:
+    """Test rejecting a tensor that is already a graph output."""
+    onnx = pytest.importorskip("onnx")
+    from piper.patch_voice_with_alignment import add_alignment_output
+
+    model = onnx.parser.parse_model("""
+        <ir_version: 8, opset_import: ["": 15]>
+        agraph (float[N] input) => (float[N] output) {
+            output = Identity(input)
+        }
+        """)
+    with pytest.raises(ValueError, match="already a graph output: output"):
+        add_alignment_output(model, tensor_name="output")
+
+
+def test_add_alignment_output_invalid_modified_model() -> None:
+    """Test rejecting and rolling back a model invalidated by the new output."""
+    onnx = pytest.importorskip("onnx")
+    from piper.patch_voice_with_alignment import add_alignment_output
+
+    model = onnx.parser.parse_model("""
+        <ir_version: 8, opset_import: ["": 15]>
+        agraph (float[N] input) => (float[N] output) {
+            intermediate = Identity(input)
+            output = Identity(intermediate)
+        }
+        """)
+    validation_error = onnx.checker.ValidationError("invalid modified model")
+    with patch("onnx.checker.check_model", side_effect=validation_error):
+        with pytest.raises(ValueError, match="invalid modified model"):
+            add_alignment_output(model, tensor_name="intermediate")
+
+    assert [output.name for output in model.graph.output] == ["output"]
+
+
+def test_add_alignment_output_without_ceil() -> None:
+    """Test rejecting automatic detection when no Ceil tensor exists."""
+    onnx = pytest.importorskip("onnx")
+    from piper.patch_voice_with_alignment import add_alignment_output
+
     with pytest.raises(ValueError):
-        add_alignment_output(no_ceil, tensor_name="output")
+        add_alignment_output(onnx.parser.parse_model("""
+                <ir_version: 8, opset_import: ["": 15]>
+                agraph (float[N] input) => (float[N] output) {
+                    output = Identity(input)
+                }
+                """))
 
 
 def test_load_include_alignments_in_memory(tmp_path: Path) -> None:
