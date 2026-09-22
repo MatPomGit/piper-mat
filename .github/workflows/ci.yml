@@ -120,6 +120,8 @@ jobs:
               for value in epochs
           )
           PY
+      - name: Generate canonical deterministic dataset split
+        run: python scripts/create_splits.py --output dataset/splits.json
       - name: Record experiment environment
         run: python scripts/record_environment.py --output /tmp/environment.json
       - name: Validate dataset metadata
@@ -133,6 +135,7 @@ jobs:
           python scripts/create_splits.py --output /tmp/splits-a.json
           python scripts/create_splits.py --output /tmp/splits-b.json
           cmp /tmp/splits-a.json /tmp/splits-b.json
+          cmp dataset/splits.json /tmp/splits-a.json
       - name: Verify checkpoint manifest and LFS pointer
         run: python scripts/verify_checkpoint.py checkpoints/base.ckpt
       - name: Verify Polish regression corpus
