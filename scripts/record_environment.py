@@ -10,6 +10,7 @@ import json
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -18,6 +19,11 @@ from pathlib import Path
 CHUNK_SIZE = 1024 * 1024
 COMMAND_TIMEOUT_SECONDS = 10
 FULL_GIT_SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+
+
+class InputFileError(ValueError):
+    """Sygnalizuj, że wymaganego pliku wejściowego nie można zidentyfikować."""
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,19 +53,38 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def sha256_file(path: Path) -> str | None:
-    """Zwróć SHA-256 pliku lub None, jeżeli plik nie istnieje."""
-    if not path.is_file():
-        return None
+def sha256_file(path: Path) -> str:
+    """Zwróć SHA-256 wymaganego, zwykłego pliku.
+
+    Brak pliku, niewłaściwy typ ścieżki i błąd odczytu są zgłaszane osobno,
+    aby wywołujący nie pomylił ich z poprawnie obliczoną sumą.
+    """
+    try:
+        path_stat = path.stat()
+    except FileNotFoundError as exc:
+        raise InputFileError(f"wymagany plik nie istnieje: {path}") from exc
+    except OSError as exc:
+        raise InputFileError(
+            f"nie można sprawdzić wymaganego pliku {path}: {exc}"
+        ) from exc
+
+    if not stat.S_ISREG(path_stat.st_mode):
+        raise InputFileError(f"wymagana ścieżka nie jest plikiem: {path}")
 
     digest = hashlib.sha256()
     try:
         with path.open("rb") as handle:
             for chunk in iter(lambda: handle.read(CHUNK_SIZE), b""):
                 digest.update(chunk)
-    except OSError:
-        return None
-    return digest.hexdigest()
+    except OSError as exc:
+        raise InputFileError(
+            f"nie można odczytać wymaganego pliku {path}: {exc}"
+        ) from exc
+
+    checksum = digest.hexdigest()
+    if SHA256_PATTERN.fullmatch(checksum) is None:
+        raise InputFileError(f"niepoprawna suma SHA-256 pliku: {path}")
+    return checksum
 
 
 def command_output(
@@ -154,7 +179,7 @@ def package_version(name: str) -> str | None:
         return None
 
 
-def input_record(path: Path) -> dict[str, str | None]:
+def input_record(path: Path) -> dict[str, str]:
     """Zbuduj rekord identyfikujący plik wejściowy eksperymentu."""
     return {
         "path": str(path),
@@ -164,6 +189,11 @@ def input_record(path: Path) -> dict[str, str | None]:
 
 def build_record(args: argparse.Namespace) -> dict[str, object]:
     """Zbuduj rekord środowiska i wejść eksperymentu."""
+    inputs = {
+        "config": input_record(args.config),
+        "metadata": input_record(args.metadata),
+        "splits": input_record(args.splits),
+    }
     warnings: list[str] = []
     return {
         "schema_version": 2,
@@ -194,11 +224,7 @@ def build_record(args: argparse.Namespace) -> dict[str, object]:
             "commit": git_commit_record(warnings),
             "status": command_output(["git", "status", "--porcelain"], warnings),
         },
-        "inputs": {
-            "config": input_record(args.config),
-            "metadata": input_record(args.metadata),
-            "splits": input_record(args.splits),
-        },
+        "inputs": inputs,
         "warnings": warnings,
     }
 
@@ -206,7 +232,11 @@ def build_record(args: argparse.Namespace) -> dict[str, object]:
 def main() -> int:
     """Zapisz rekord środowiska eksperymentu."""
     args = parse_args()
-    record = build_record(args)
+    try:
+        record = build_record(args)
+    except InputFileError as exc:
+        print(f"BŁĄD: {exc}", file=sys.stderr)
+        return 2
 
     try:
         args.output.parent.mkdir(parents=True, exist_ok=True)

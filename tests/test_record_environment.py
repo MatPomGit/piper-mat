@@ -1,7 +1,13 @@
 """Testy zapisywania informacji o środowisku wykonawczym."""
 
+import hashlib
+import json
 import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from scripts import record_environment
 
@@ -120,3 +126,87 @@ def test_git_commit_requires_full_sha() -> None:
     assert result["available"] is False
     assert result["error"] == warnings[0]
 
+
+def test_sha256_file_reports_missing_file(tmp_path: Path) -> None:
+    """Brak wymaganego pliku jest zgłaszany jednoznacznie."""
+    missing_path = tmp_path / "brak.json"
+
+    with pytest.raises(record_environment.InputFileError, match="nie istnieje"):
+        record_environment.sha256_file(missing_path)
+
+
+def test_sha256_file_rejects_directory(tmp_path: Path) -> None:
+    """Katalog nie jest akceptowany jako plik wejściowy."""
+    with pytest.raises(record_environment.InputFileError, match="nie jest plikiem"):
+        record_environment.sha256_file(tmp_path)
+
+
+def test_main_reports_input_permission_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Błąd uprawnień kończy program kodem 2 bez tworzenia rekordu."""
+    config = tmp_path / "config.json"
+    metadata = tmp_path / "metadata.csv"
+    splits = tmp_path / "splits.json"
+    output = tmp_path / "record.json"
+    for path in (config, metadata, splits):
+        path.write_text("dane", encoding="utf-8")
+
+    original_open = Path.open
+
+    def deny_metadata(path: Path, *args: object, **kwargs: object) -> object:
+        if path == metadata:
+            raise PermissionError("brak uprawnień")
+        return original_open(path, *args, **kwargs)
+
+    arguments = [
+        "record_environment.py",
+        "--output",
+        str(output),
+        "--config",
+        str(config),
+        "--metadata",
+        str(metadata),
+        "--splits",
+        str(splits),
+    ]
+    with (
+        patch.object(sys, "argv", arguments),
+        patch.object(Path, "open", deny_metadata),
+    ):
+        exit_code = record_environment.main()
+
+    assert exit_code == 2
+    assert "nie można odczytać" in capsys.readouterr().err
+    assert not output.exists()
+
+
+def test_main_writes_record_for_complete_inputs(tmp_path: Path) -> None:
+    """Kompletny zestaw wejść tworzy rekord z poprawnymi sumami."""
+    input_paths = {
+        "config": tmp_path / "config.json",
+        "metadata": tmp_path / "metadata.csv",
+        "splits": tmp_path / "splits.json",
+    }
+    contents = {
+        "config": b'{"sample_rate": 22050}',
+        "metadata": b"audio.wav|Tekst\n",
+        "splits": b'{"train": ["audio.wav"]}',
+    }
+    for name, path in input_paths.items():
+        path.write_bytes(contents[name])
+    output = tmp_path / "record.json"
+    arguments = ["record_environment.py", "--output", str(output)]
+    for name, path in input_paths.items():
+        arguments.extend((f"--{name}", str(path)))
+
+    with patch.object(sys, "argv", arguments):
+        exit_code = record_environment.main()
+
+    record = json.loads(output.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    for name, path in input_paths.items():
+        assert record["inputs"][name] == {
+            "path": str(path),
+            "sha256": hashlib.sha256(contents[name]).hexdigest(),
+        }
