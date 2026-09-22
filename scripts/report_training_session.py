@@ -39,33 +39,49 @@ def find_event_dirs(root: Path) -> list[Path]:
 
 
 def load_scalars(root: Path) -> dict[str, list[tuple[int, float]]]:
-    """Wczytaj i scal metryki skalarne ze wszystkich logów TensorBoard."""
-    merged: dict[str, list[tuple[int, float]]] = {}
-    for event_dir in find_event_dirs(root):
+    """Wczytaj i scal metryki skalarne ze wszystkich logów TensorBoard.
+
+    Dla duplikatów wygrywa największy ``wall_time``. Remisy rozstrzyga
+    leksykograficznie pełna ścieżka pliku, a potem pozycja zdarzenia w pliku.
+    Wynik nie zawiera tych danych pomocniczych, aby zachować publiczny format.
+    """
+    merged: dict[str, dict[int, tuple[float, str, int, float]]] = {}
+    event_files = sorted(root.rglob("events.out.tfevents.*"))
+    for event_file in event_files:
         try:
             accumulator = EventAccumulator(
-                str(event_dir),
+                str(event_file),
                 size_guidance={"scalars": 0},
             )
             accumulator.Reload()
         except (OSError, ValueError, RuntimeError) as exc:
             print(
                 f"OSTRZEŻENIE: nie można odczytać logu TensorBoard "
-                f"{event_dir}: {exc}",
+                f"{event_file}: {exc}",
                 file=sys.stderr,
             )
             continue
 
         for tag in accumulator.Tags().get("scalars", []):
-            points = merged.setdefault(tag, [])
-            points.extend(
-                (int(item.step), float(item.value))
-                for item in accumulator.Scalars(tag)
-            )
+            points = merged.setdefault(tag, {})
+            for position, item in enumerate(accumulator.Scalars(tag)):
+                step = int(item.step)
+                candidate = (
+                    float(item.wall_time),
+                    str(event_file.resolve()),
+                    position,
+                    float(item.value),
+                )
+                current = points.get(step)
+                # Przy równym wall_time wygrywa pełna ścieżka, a następnie
+                # późniejsza pozycja zdarzenia w pliku.
+                if current is None or candidate[:3] > current[:3]:
+                    points[step] = candidate
 
-    for tag, points in merged.items():
-        merged[tag] = sorted(dict(points).items())
-    return merged
+    return {
+        tag: [(step, point[3]) for step, point in sorted(points.items())]
+        for tag, points in merged.items()
+    }
 
 
 def select_metrics(
