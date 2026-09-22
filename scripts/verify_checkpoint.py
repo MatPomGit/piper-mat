@@ -5,10 +5,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import re
 import sys
 from pathlib import Path
+
+if __package__:
+    from .checkpoint_manifest import load_entry
+else:
+    from checkpoint_manifest import load_entry
 
 CHUNK_SIZE = 1024 * 1024
 LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/v1"
@@ -37,33 +41,6 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(CHUNK_SIZE), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def load_entry(manifest_path: Path, checkpoint_name: str) -> dict[str, object]:
-    """Wczytaj i zwaliduj wpis punktu kontrolnego z manifestu."""
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"nie można odczytać manifestu: {exc}") from exc
-
-    checkpoints = manifest.get("checkpoints")
-    if not isinstance(checkpoints, dict):
-        raise ValueError("manifest nie zawiera obiektu checkpoints")
-
-    entry = checkpoints.get(checkpoint_name)
-    if not isinstance(entry, dict):
-        raise ValueError(
-            f"{checkpoint_name} nie jest wymieniony w {manifest_path}"
-        )
-
-    expected_hash = entry.get("sha256")
-    expected_size = entry.get("size_bytes")
-    if not isinstance(expected_hash, str) or len(expected_hash) != 64:
-        raise ValueError(f"niepoprawne sha256 dla {checkpoint_name}")
-    if not isinstance(expected_size, int) or expected_size < 0:
-        raise ValueError(f"niepoprawne size_bytes dla {checkpoint_name}")
-
-    return entry
 
 
 def read_lfs_pointer(path: Path) -> tuple[str, int] | None:
