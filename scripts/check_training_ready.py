@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -54,6 +55,40 @@ def validate_required_keys(config: dict[str, Any], errors: list[str]) -> None:
             errors.append(f"brak pola konfiguracji: {key}")
 
 
+def read_path_field(
+    config: Any,
+    field_name: str,
+    errors: list[str],
+) -> Path | None:
+    """Odczytaj i zweryfikuj pole ścieżki z sekcji konfiguracji."""
+    key = field_name.rsplit(".", maxsplit=1)[-1]
+    if not isinstance(config, dict) or key not in config:
+        errors.append(f"brak pola konfiguracji: {field_name}")
+        return None
+
+    value = config[key]
+    if not isinstance(value, (str, os.PathLike)):
+        errors.append(
+            f"pole {field_name} musi być niepustym napisem lub obiektem os.PathLike"
+        )
+        return None
+    try:
+        raw_path = os.fspath(value)
+    except (TypeError, ValueError, OSError):
+        errors.append(
+            f"pole {field_name} musi być niepustym napisem lub obiektem os.PathLike"
+        )
+        return None
+    if isinstance(raw_path, str) and not raw_path.strip():
+        errors.append(f"pole {field_name} nie może być pustym napisem")
+        return None
+    try:
+        return Path(value)
+    except (TypeError, ValueError, OSError):
+        errors.append(f"pole {field_name} zawiera niepoprawną ścieżkę")
+        return None
+
+
 def validate_session_plan(training: Any, errors: list[str], warnings: list[str]) -> None:
     """Sprawdź plan dodatkowych epok dla kolejnych sesji."""
     if not isinstance(training, dict):
@@ -88,24 +123,26 @@ def validate_project_paths(
     dataset: Any,
     training: Any,
     errors: list[str],
-) -> tuple[Path, Path, Path, bool]:
+) -> tuple[Path | None, Path | None, Path | None, bool]:
     """Sprawdź ścieżki zbioru danych i bazowego punktu kontrolnego."""
     dataset_dict = dataset if isinstance(dataset, dict) else {}
     training_dict = training if isinstance(training, dict) else {}
 
-    metadata = Path(dataset_dict.get("metadata", ""))
-    audio_dir = Path(dataset_dict.get("audio_dir", ""))
-    base_checkpoint = Path(training_dict.get("base_checkpoint", ""))
+    metadata = read_path_field(dataset_dict, "dataset.metadata", errors)
+    audio_dir = read_path_field(dataset_dict, "dataset.audio_dir", errors)
+    base_checkpoint = read_path_field(
+        training_dict, "training.base_checkpoint", errors
+    )
 
-    if not metadata.is_file():
+    if metadata is not None and not metadata.is_file():
         errors.append(f"brak metadanych: {metadata}")
-    if not audio_dir.is_dir():
+    if audio_dir is not None and not audio_dir.is_dir():
         errors.append(f"brak katalogu nagrań: {audio_dir}")
 
     checkpoint_is_pointer = False
-    if not base_checkpoint.is_file():
+    if base_checkpoint is not None and not base_checkpoint.is_file():
         errors.append(f"brak bazowego punktu kontrolnego: {base_checkpoint}")
-    else:
+    elif base_checkpoint is not None:
         checkpoint_is_pointer = is_lfs_pointer(base_checkpoint)
         if checkpoint_is_pointer:
             errors.append(
@@ -206,10 +243,16 @@ def validate_monotonic_align(errors: list[str]) -> None:
         )
 
 
-def validate_free_space(training: Any, warnings: list[str]) -> None:
+def validate_free_space(
+    training: Any,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
     """Oceń ilość wolnego miejsca dla katalogu wynikowego."""
     training_dict = training if isinstance(training, dict) else {}
-    output_dir = Path(training_dict.get("output_dir", "output"))
+    output_dir = read_path_field(training_dict, "training.output_dir", errors)
+    if output_dir is None:
+        return
     probe_dir = output_dir if output_dir.exists() else output_dir.parent
     if not probe_dir.exists():
         probe_dir = Path(".")
@@ -273,11 +316,11 @@ def main() -> int:
         errors,
     )
 
-    if not args.skip_audio:
+    if not args.skip_audio and audio_dir is not None:
         validate_audio_files(audio_dir, errors)
 
     missing_modules = validate_python_modules(errors)
-    if not args.skip_checkpoint_load:
+    if not args.skip_checkpoint_load and base_checkpoint is not None:
         validate_checkpoint_load(
             base_checkpoint,
             checkpoint_is_pointer,
@@ -288,7 +331,7 @@ def main() -> int:
     validate_espeak(warnings)
     if "piper" not in missing_modules:
         validate_monotonic_align(errors)
-    validate_free_space(training, warnings)
+    validate_free_space(training, errors, warnings)
 
     print("Kontrola gotowości treningu")
     for warning in warnings:
