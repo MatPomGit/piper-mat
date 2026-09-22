@@ -1,6 +1,7 @@
 """Command-line utility for downloading Piper voices."""
 
 import argparse
+import hashlib
 import json
 import logging
 import re
@@ -97,36 +98,103 @@ def download_voice(
         "voice_quality": voice_quality,
     }
 
+    _LOGGER.debug("Downloading voices.json file: '%s'", VOICES_JSON)
+    with urlopen(VOICES_JSON) as response:
+        voices_dict = json.load(response)
+
+    voice_info = voices_dict.get(voice, {})
+    voice_files = voice_info.get("files", {})
+
     model_path = download_dir / f"{voice_code}.onnx"
-    if force_redownload or _needs_download(model_path):
+    model_info = _get_file_info(voice_files, model_path.name)
+    if force_redownload or _needs_download(model_path, model_info):
         model_url = URL_FORMAT.format(extension=".onnx", **format_args)
         _LOGGER.debug("Downloading model from '%s' to '%s'", model_url, model_path)
-        with urlopen(model_url) as response:
-            with open(model_path, "wb") as model_file:
-                shutil.copyfileobj(response, model_file)
+        _download_file(model_url, model_path, model_info)
 
         _LOGGER.debug("Downloaded: '%s'", model_path)
 
     config_path = download_dir / f"{voice_code}.onnx.json"
-    if force_redownload or _needs_download(config_path):
+    config_info = _get_file_info(voice_files, config_path.name)
+    if force_redownload or _needs_download(config_path, config_info, is_json=True):
         config_url = URL_FORMAT.format(extension=".onnx.json", **format_args)
         _LOGGER.debug("Downloading config from '%s' to '%s'", config_url, config_path)
-        with urlopen(config_url) as response:
-            with open(config_path, "wb") as config_file:
-                shutil.copyfileobj(response, config_file)
+        _download_file(config_url, config_path, config_info, is_json=True)
 
         _LOGGER.debug("Downloaded: '%s'", config_path)
 
     _LOGGER.info("Downloaded: %s", voice)
 
 
-def _needs_download(path: Path) -> bool:
+def _get_file_info(voice_files: object, file_name: str) -> dict:
+    """Return catalog metadata for a voice artifact, when available."""
+    if not isinstance(voice_files, dict):
+        return {}
+
+    for catalog_path, file_info in voice_files.items():
+        if Path(catalog_path).name == file_name and isinstance(file_info, dict):
+            return file_info
+
+    return {}
+
+
+def _download_file(
+    url: str, path: Path, file_info: dict, is_json: bool = False
+) -> None:
+    """Download and validate a file before atomically replacing its destination."""
+    temporary_path = path.with_name(f"{path.name}.part")
+    try:
+        with urlopen(url) as response:
+            with open(temporary_path, "wb") as output_file:
+                shutil.copyfileobj(response, output_file)
+                output_file.flush()
+
+        _validate_file(temporary_path, file_info, is_json=is_json)
+        temporary_path.replace(path)
+    except BaseException:
+        temporary_path.unlink(missing_ok=True)
+        raise
+
+
+def _validate_file(path: Path, file_info: dict, is_json: bool = False) -> None:
+    """Validate an artifact against catalog metadata and its expected format."""
+    expected_size = file_info.get("size_bytes")
+    if expected_size is not None and path.stat().st_size != expected_size:
+        raise ValueError(f"Unexpected size for downloaded file: {path}")
+
+    for algorithm, metadata_key in (
+        ("sha256", "sha256_digest"),
+        ("md5", "md5_digest"),
+    ):
+        expected_digest = file_info.get(metadata_key)
+        if expected_digest:
+            digest = hashlib.new(algorithm)
+            with open(path, "rb") as input_file:
+                for chunk in iter(lambda: input_file.read(64 * 1024), b""):
+                    digest.update(chunk)
+
+            if digest.hexdigest().lower() != str(expected_digest).lower():
+                raise ValueError(f"Unexpected checksum for downloaded file: {path}")
+
+    if is_json:
+        with open(path, "r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+
+        if not isinstance(config, dict):
+            raise ValueError(f"Voice config must be a JSON object: {path}")
+
+
+def _needs_download(path: Path, file_info: dict, is_json: bool = False) -> bool:
     """Return True if file needs to be downloaded."""
     if not path.exists():
         return True
 
-    if path.stat().st_size == 0:
-        # Empty
+    if not file_info and not is_json:
+        return True
+
+    try:
+        _validate_file(path, file_info, is_json=is_json)
+    except (OSError, ValueError, json.JSONDecodeError):
         return True
 
     return False
