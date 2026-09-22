@@ -27,9 +27,20 @@ def add_alignment_output(
     :param model: ONNX model to modify in place.
     :param tensor_name: Explicit tensor name, or ``None`` for autodetection.
     :return: Name of the tensor marked as an output.
-    :raises ValueError: If autodetection is ambiguous or the output already exists.
+    :raises ValueError: If the tensor is unavailable, autodetection is ambiguous,
+        the output already exists, or the modified model is invalid.
     """
-    if tensor_name:
+    available_tensor_names = {value.name for value in model.graph.input if value.name}
+    available_tensor_names.update(
+        initializer.name for initializer in model.graph.initializer if initializer.name
+    )
+    for node in model.graph.node:
+        available_tensor_names.update(name for name in node.input if name)
+        available_tensor_names.update(name for name in node.output if name)
+
+    if tensor_name is not None:
+        if tensor_name not in available_tensor_names:
+            raise ValueError(f"Tensor does not exist in the graph: {tensor_name}")
         ceil_tensor_name = tensor_name
     else:
         ceil_tensor_names: Set[str] = set()
@@ -54,9 +65,45 @@ def add_alignment_output(
     if any(output.name == ceil_tensor_name for output in model.graph.output):
         raise ValueError(f"Tensor is already a graph output: {ceil_tensor_name}")
 
-    ceil_value_info = onnx.helper.ValueInfoProto()
-    ceil_value_info.name = ceil_tensor_name
+    inferred_model = onnx.shape_inference.infer_shapes(model)
+    inferred_value_infos = (
+        list(inferred_model.graph.input)
+        + list(inferred_model.graph.output)
+        + list(inferred_model.graph.value_info)
+    )
+    ceil_value_info = next(
+        (
+            value_info
+            for value_info in inferred_value_infos
+            if value_info.name == ceil_tensor_name
+        ),
+        None,
+    )
+    if ceil_value_info is None:
+        initializer = next(
+            (
+                value
+                for value in model.graph.initializer
+                if value.name == ceil_tensor_name
+            ),
+            None,
+        )
+        if initializer is not None:
+            ceil_value_info = onnx.helper.make_tensor_value_info(
+                initializer.name, initializer.data_type, initializer.dims
+            )
+        else:
+            ceil_value_info = onnx.helper.make_empty_tensor_value_info(ceil_tensor_name)
     model.graph.output.append(ceil_value_info)
+
+    try:
+        onnx.checker.check_model(model)
+    except onnx.checker.ValidationError as exc:
+        model.graph.output.pop()
+        raise ValueError(
+            f"Adding graph output {ceil_tensor_name} made the model invalid: {exc}"
+        ) from exc
+
     return ceil_tensor_name
 
 
