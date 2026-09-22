@@ -23,12 +23,15 @@ REQUIRED_CONFIG_KEYS = (
     "export",
 )
 REQUIRED_MODULES = ("torch", "lightning", "tensorboard", "librosa", "piper")
+LFS_HEADER_BYTES = 200
+LFS_PATH_EXAMPLE_LIMIT = 5
 
 
 def is_lfs_pointer(path: Path) -> bool:
     """Sprawdź, czy plik jest wskaźnikiem Git LFS zamiast właściwego artefaktu."""
     try:
-        head = path.read_bytes()[:200]
+        with path.open("rb") as file:
+            head = file.read(LFS_HEADER_BYTES)
     except OSError:
         return False
     return head.startswith(b"version https://git-lfs.github.com/spec/v1")
@@ -154,7 +157,7 @@ def validate_project_paths(
 
 
 def validate_audio_files(audio_dir: Path, errors: list[str]) -> None:
-    """Sprawdź obecność plików WAV i przykładowe wskaźniki Git LFS."""
+    """Sprawdź obecność plików WAV i wskaźniki Git LFS."""
     if not audio_dir.is_dir():
         return
 
@@ -163,11 +166,20 @@ def validate_audio_files(audio_dir: Path, errors: list[str]) -> None:
         errors.append(f"brak plików WAV w {audio_dir}")
         return
 
-    lfs_samples = [path for path in wavs[:20] if is_lfs_pointer(path)]
-    if lfs_samples:
+    lfs_count = 0
+    lfs_examples: list[Path] = []
+    for path in wavs:
+        if not is_lfs_pointer(path):
+            continue
+        lfs_count += 1
+        if len(lfs_examples) < LFS_PATH_EXAMPLE_LIMIT:
+            lfs_examples.append(path)
+
+    if lfs_count:
+        examples = ", ".join(str(path) for path in lfs_examples)
         errors.append(
-            "nagrania WAV są nadal wskaźnikami Git LFS; wykonaj `git lfs pull` "
-            "przed treningiem"
+            f"wykryto {lfs_count} nagrań WAV będących wskaźnikami Git LFS; "
+            f"przykładowe pliki: {examples}; wykonaj `git lfs pull` przed treningiem"
         )
 
 
