@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import Mapping, Sequence
+from numbers import Integral
 from typing import Optional
 
 from .const import BOS, EOS, PAD
@@ -184,8 +185,33 @@ def phonemes_to_ids(
     id_map: Optional[Mapping[str, Sequence[int]]] = None,
 ) -> list[int]:
     """Phonemes to ids."""
-    if not id_map:
+    if id_map is None:
         id_map = DEFAULT_PHONEME_ID_MAP
+    elif not id_map:
+        raise ValueError("Phoneme id map must not be empty")
+
+    for special_symbol in (BOS, EOS, PAD):
+        if special_symbol not in id_map:
+            raise ValueError(
+                f"Phoneme id map is missing special symbol {special_symbol!r}"
+            )
+
+    for phoneme, phoneme_ids in id_map.items():
+        if not isinstance(phoneme_ids, Sequence) or not phoneme_ids:
+            raise ValueError(
+                f"Phoneme id map value for {phoneme!r} must be a non-empty sequence"
+            )
+
+        if any(
+            isinstance(phoneme_id, bool)
+            or not isinstance(phoneme_id, Integral)
+            or phoneme_id < 0
+            for phoneme_id in phoneme_ids
+        ):
+            raise ValueError(
+                f"Phoneme id map value for {phoneme!r} must contain only "
+                "non-negative integers"
+            )
 
     ids: list[int] = []
     ids.extend(id_map[BOS])
