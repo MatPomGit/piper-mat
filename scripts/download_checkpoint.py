@@ -5,12 +5,16 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import shutil
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+if __package__:
+    from .checkpoint_manifest import load_entry
+else:
+    from checkpoint_manifest import load_entry
 
 CHUNK_SIZE = 1024 * 1024
 
@@ -39,33 +43,6 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(CHUNK_SIZE), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def load_entry(manifest_path: Path, name: str) -> dict[str, object]:
-    """Wczytaj i zwaliduj wpis punktu kontrolnego z manifestu."""
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"nie można odczytać manifestu: {exc}") from exc
-
-    checkpoints = manifest.get("checkpoints")
-    if not isinstance(checkpoints, dict):
-        raise ValueError("manifest nie zawiera obiektu checkpoints")
-
-    entry = checkpoints.get(name)
-    if not isinstance(entry, dict):
-        raise ValueError(f"nieznany punkt kontrolny: {name}")
-
-    if not isinstance(entry.get("sha256"), str):
-        raise ValueError(f"brak poprawnego sha256 dla: {name}")
-    if not isinstance(entry.get("size_bytes"), int):
-        raise ValueError(f"brak poprawnego size_bytes dla: {name}")
-
-    source = entry.get("source")
-    if not isinstance(source, dict) or not isinstance(source.get("url"), str):
-        raise ValueError(f"brak zweryfikowanego źródła dla: {name}")
-
-    return entry
 
 
 def download_file(url: str, destination: Path) -> None:
