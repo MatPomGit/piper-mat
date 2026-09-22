@@ -1,5 +1,6 @@
 """Tests for Piper."""
 
+import hashlib
 import io
 import shutil
 import struct
@@ -608,6 +609,48 @@ def test_add_alignment_output_without_ceil() -> None:
                     output = Identity(input)
                 }
                 """))
+
+
+def test_patch_alignment_save_failure_preserves_input(tmp_path: Path) -> None:
+    """Test preserving the input model when ONNX serialization fails."""
+    onnx = pytest.importorskip("onnx")
+    from piper.patch_voice_with_alignment import main
+
+    model_path = tmp_path / "voice.onnx"
+    _make_ceil_model(onnx, model_path)
+    original_checksum = hashlib.sha256(model_path.read_bytes()).digest()
+
+    with (
+        patch.object(sys, "argv", ["patch_voice_with_alignment", str(model_path)]),
+        patch("onnx.save", side_effect=OSError("serialization failed")),
+    ):
+        assert main() == 2
+
+    assert hashlib.sha256(model_path.read_bytes()).digest() == original_checksum
+    assert list(tmp_path.iterdir()) == [model_path]
+
+
+def test_patch_alignment_invalid_saved_model_preserves_input(tmp_path: Path) -> None:
+    """Test preserving the input model when the saved copy is invalid."""
+    onnx = pytest.importorskip("onnx")
+    from piper.patch_voice_with_alignment import main
+
+    model_path = tmp_path / "voice.onnx"
+    _make_ceil_model(onnx, model_path)
+    original_checksum = hashlib.sha256(model_path.read_bytes()).digest()
+
+    def write_invalid_model(model, path: str) -> None:
+        model.graph.node[0].input[0] = "missing_input"
+        Path(path).write_bytes(model.SerializeToString())
+
+    with (
+        patch.object(sys, "argv", ["patch_voice_with_alignment", str(model_path)]),
+        patch("onnx.save", side_effect=write_invalid_model),
+    ):
+        assert main() == 2
+
+    assert hashlib.sha256(model_path.read_bytes()).digest() == original_checksum
+    assert list(tmp_path.iterdir()) == [model_path]
 
 
 def test_load_include_alignments_in_memory(tmp_path: Path) -> None:

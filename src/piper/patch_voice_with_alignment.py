@@ -8,10 +8,12 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional, Set
 
 import onnx
+from google.protobuf.message import DecodeError, EncodeError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,10 +150,31 @@ def main() -> int:
         _LOGGER.error("Could not expose alignment output: %s", exc)
         return 1
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Optional[Path] = None
     try:
-        onnx.save(model, str(output_path))
-    except OSError as exc:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=output_path.parent,
+            prefix=f".{output_path.name}.",
+            suffix=".onnx",
+            delete=False,
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+
+        onnx.save(model, str(temporary_path))
+        saved_model = onnx.load(str(temporary_path))
+        onnx.checker.check_model(saved_model)
+        temporary_path.replace(output_path)
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        DecodeError,
+        EncodeError,
+        onnx.checker.ValidationError,
+    ) as exc:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
         _LOGGER.error("Could not write ONNX model %s: %s", output_path, exc)
         return 2
 
