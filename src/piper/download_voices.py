@@ -107,20 +107,43 @@ def download_voice(
 
     model_path = download_dir / f"{voice_code}.onnx"
     model_info = _get_file_info(voice_files, model_path.name)
-    if force_redownload or _needs_download(model_path, model_info):
-        model_url = URL_FORMAT.format(extension=".onnx", **format_args)
-        _LOGGER.debug("Downloading model from '%s' to '%s'", model_url, model_path)
-        _download_file(model_url, model_path, model_info)
-
-        _LOGGER.debug("Downloaded: '%s'", model_path)
-
     config_path = download_dir / f"{voice_code}.onnx.json"
     config_info = _get_file_info(voice_files, config_path.name)
-    if force_redownload or _needs_download(config_path, config_info, is_json=True):
+    needs_download = (
+        force_redownload
+        or _needs_download(model_path, model_info)
+        or _needs_download(config_path, config_info, is_json=True)
+    )
+    if needs_download:
+        model_url = URL_FORMAT.format(extension=".onnx", **format_args)
         config_url = URL_FORMAT.format(extension=".onnx.json", **format_args)
-        _LOGGER.debug("Downloading config from '%s' to '%s'", config_url, config_path)
-        _download_file(config_url, config_path, config_info, is_json=True)
+        model_temporary_path = model_path.with_name(f"{model_path.name}.part")
+        config_temporary_path = config_path.with_name(f"{config_path.name}.part")
+        temporary_paths = (model_temporary_path, config_temporary_path)
 
+        try:
+            _LOGGER.debug(
+                "Downloading model from '%s' to '%s'", model_url, model_temporary_path
+            )
+            _download_file(model_url, model_temporary_path, model_info)
+            _LOGGER.debug(
+                "Downloading config from '%s' to '%s'",
+                config_url,
+                config_temporary_path,
+            )
+            _download_file(config_url, config_temporary_path, config_info, is_json=True)
+            _publish_files(
+                (
+                    (model_temporary_path, model_path),
+                    (config_temporary_path, config_path),
+                )
+            )
+        except BaseException:
+            for temporary_path in temporary_paths:
+                temporary_path.unlink(missing_ok=True)
+            raise
+
+        _LOGGER.debug("Downloaded: '%s'", model_path)
         _LOGGER.debug("Downloaded: '%s'", config_path)
 
     _LOGGER.info("Downloaded: %s", voice)
@@ -141,19 +164,40 @@ def _get_file_info(voice_files: object, file_name: str) -> dict:
 def _download_file(
     url: str, path: Path, file_info: dict, is_json: bool = False
 ) -> None:
-    """Download and validate a file before atomically replacing its destination."""
-    temporary_path = path.with_name(f"{path.name}.part")
-    try:
-        with urlopen(url) as response:
-            with open(temporary_path, "wb") as output_file:
-                shutil.copyfileobj(response, output_file)
-                output_file.flush()
+    """Download and validate a file at the supplied staging path."""
+    with urlopen(url) as response:
+        with open(path, "wb") as output_file:
+            shutil.copyfileobj(response, output_file)
+            output_file.flush()
 
-        _validate_file(temporary_path, file_info, is_json=is_json)
-        temporary_path.replace(path)
+    _validate_file(path, file_info, is_json=is_json)
+
+
+def _publish_files(files: tuple[tuple[Path, Path], ...]) -> None:
+    """Publish staged files as one recoverable set."""
+    backups: list[tuple[Path, Path]] = []
+    published_paths: list[Path] = []
+
+    try:
+        for _, destination_path in files:
+            if destination_path.exists():
+                backup_path = destination_path.with_name(f"{destination_path.name}.bak")
+                backup_path.unlink(missing_ok=True)
+                destination_path.replace(backup_path)
+                backups.append((backup_path, destination_path))
+
+        for temporary_path, destination_path in files:
+            temporary_path.replace(destination_path)
+            published_paths.append(destination_path)
     except BaseException:
-        temporary_path.unlink(missing_ok=True)
+        for published_path in published_paths:
+            published_path.unlink(missing_ok=True)
+        for backup_path, destination_path in backups:
+            backup_path.replace(destination_path)
         raise
+
+    for backup_path, _ in backups:
+        backup_path.unlink(missing_ok=True)
 
 
 def _validate_file(path: Path, file_info: dict, is_json: bool = False) -> None:
