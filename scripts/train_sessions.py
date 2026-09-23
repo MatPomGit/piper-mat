@@ -349,6 +349,56 @@ def generate_report(run_dir: Path, report_dir: Path, metadata_path: Path) -> int
     return subprocess.run(command, check=False).returncode
 
 
+def format_process_return_code(return_code: int) -> str:
+    """Sformatuj kod procesu także jako wartość NTSTATUS/hex, gdy ma to sens."""
+    unsigned = return_code & 0xFFFFFFFF
+    if return_code < 0 or unsigned >= 0x80000000:
+        return f"{return_code} (0x{unsigned:08X})"
+    if return_code >= 256:
+        return f"{return_code} (0x{return_code:08X})"
+    return str(return_code)
+
+
+def run_training_command(command: list[str], log_path: Path) -> int:
+    """Uruchom trening, pokazuj wyjście na żywo i zachowaj pełny log."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONUTF8": "1",
+            "PYTHONUNBUFFERED": "1",
+            "PYTHONFAULTHANDLER": "1",
+        }
+    )
+
+    with log_path.open("w", encoding="utf-8", errors="replace") as log_file:
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                env=environment,
+            )
+        except OSError as exc:
+            raise RuntimeError(f"Nie można uruchomić procesu treningowego: {exc}") from exc
+
+        if process.stdout is None:
+            process.kill()
+            process.wait()
+            raise RuntimeError("Nie można odczytać wyjścia procesu treningowego")
+
+        for line in process.stdout:
+            log_file.write(line)
+            log_file.flush()
+            print(line, end="", flush=True)
+
+        return process.wait()
+
 def run_next(config_path: Path, dry_run: bool) -> int:
     """Uruchom następną niezakończoną sesję treningową."""
     config = load_config(config_path)
@@ -412,19 +462,25 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         return 0
 
     run_dir.mkdir(parents=True, exist_ok=True)
+    training_log_path = run_dir / "training.log"
+    metadata["training_log"] = str(training_log_path)
     write_session_metadata(metadata_path, metadata)
 
     previous_modification_times = checkpoint_modification_times(run_dir)
-    result = subprocess.run(command, check=False)
+    return_code = run_training_command(command, training_log_path)
     metadata["finished_at"] = utc_now()
-    metadata["return_code"] = result.returncode
+    metadata["return_code"] = return_code
     write_session_metadata(metadata_path, metadata)
-    if result.returncode != 0:
+    if return_code != 0:
+        formatted_code = format_process_return_code(return_code)
         print(
-            "Trening zakończył się błędem. Stan nie został przesunięty do następnej sesji.",
+            "Trening zakończył się błędem. "
+            f"Kod procesu: {formatted_code}. "
+            "Stan nie został przesunięty do następnej sesji.\n"
+            f"Pełny log: {training_log_path}",
             file=sys.stderr,
         )
-        return result.returncode
+        return return_code
 
     last, completed_epoch = validate_training_checkpoint(
         run_dir,
