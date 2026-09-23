@@ -85,7 +85,7 @@ setup(
             # Required for the in-place native espeakbridge build used when
             # training directly from the repository.
             "scikit-build>=0.18,<1",
-            "cmake>=3.26,<4",
+            "cmake>=4.2,<5",
             "ninja>=1,<2",
         ],
         "dev": [
@@ -97,7 +97,7 @@ setup(
             "pytest==8.3.4",
             "build==1.2.2",
             "scikit-build<1",
-            "cmake>=3.18,<4",
+            "cmake>=4.2,<5",
             "ninja>=1,<2",
             "onnx>=1,<2",
             "mkdocs>=1.6,<2",
