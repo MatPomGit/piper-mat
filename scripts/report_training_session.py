@@ -113,7 +113,11 @@ def render_svg(tag: str, points: list[tuple[int, float]], output: Path) -> bool:
     top = 30
     bottom = 55
 
-    finite_points = [(x, y) for x, y in points if math.isfinite(y)]
+    finite_points = [
+        (step, value)
+        for step, value in points
+        if math.isfinite(step) and math.isfinite(value)
+    ]
     if not finite_points:
         return False
 
@@ -135,13 +139,10 @@ def render_svg(tag: str, points: list[tuple[int, float]], output: Path) -> bool:
     def scale_y(value: float) -> float:
         return top + (y_max - value) / (y_max - y_min) * (height - top - bottom)
 
-    polyline = " ".join(
-        f"{scale_x(x):.2f},{scale_y(y):.2f}"
-        for x, y in finite_points
-    )
+    polyline = " ".join(f"{scale_x(x):.2f},{scale_y(y):.2f}" for x, y in finite_points)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+        f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
 <rect width="100%" height="100%" fill="white"/>
 <text x="{left}" y="20" font-family="sans-serif" font-size="16">{html.escape(tag)}</text>
 <line x1="{left}" y1="{height-bottom}" x2="{width-right}" y2="{height-bottom}" stroke="black"/>
@@ -151,7 +152,7 @@ def render_svg(tag: str, points: list[tuple[int, float]], output: Path) -> bool:
 <text x="5" y="{top+10}" font-family="sans-serif" font-size="12">{y_max:.5g}</text>
 <text x="5" y="{height-bottom}" font-family="sans-serif" font-size="12">{y_min:.5g}</text>
 <polyline points="{polyline}" fill="none" stroke="black" stroke-width="2"/>
-</svg>\n''',
+</svg>\n""",
         encoding="utf-8",
     )
     return True
@@ -180,17 +181,35 @@ def metric_lines(
     chart_path: Path,
 ) -> list[str]:
     """Zbuduj fragment Markdown opisujący jedną metrykę."""
-    finite_values = [value for _, value in points if math.isfinite(value)]
-    if not finite_values:
+    finite_points = [
+        (step, value)
+        for step, value in points
+        if math.isfinite(step) and math.isfinite(value)
+    ]
+    if not finite_points:
         return []
 
+    first_step, first_value = finite_points[0]
+    if len(finite_points) == 1:
+        return [
+            f"### `{tag}`",
+            "",
+            f"- krok: {first_step}",
+            f"- wartość: {first_value:.6g}",
+            "",
+            f"![{tag}]({chart_path.as_posix()})",
+            "",
+        ]
+
+    last_step, last_value = finite_points[-1]
+    finite_values = [value for _, value in finite_points]
     return [
         f"### `{tag}`",
         "",
-        f"- pierwszy krok: {points[0][0]}",
-        f"- ostatni krok: {points[-1][0]}",
-        f"- wartość początkowa: {points[0][1]:.6g}",
-        f"- wartość końcowa: {points[-1][1]:.6g}",
+        f"- pierwszy krok: {first_step}",
+        f"- ostatni krok: {last_step}",
+        f"- wartość początkowa: {first_value:.6g}",
+        f"- wartość końcowa: {last_value:.6g}",
         f"- minimum: {min(finite_values):.6g}",
         f"- maksimum: {max(finite_values):.6g}",
         "",
@@ -241,11 +260,17 @@ def build_report_lines(
         raise RuntimeError("planowane ścieżki wykresów nie są unikalne")
 
     for tag, chart in planned_charts:
-        points = scalars[tag]
-        if not render_svg(tag, points, chart):
+        reportable_points = [
+            (step, value)
+            for step, value in scalars[tag]
+            if math.isfinite(step) and math.isfinite(value)
+        ]
+        if not reportable_points:
+            continue
+        if not render_svg(tag, reportable_points, chart):
             continue
         relative_chart = chart.relative_to(output_dir)
-        lines.extend(metric_lines(tag, points, relative_chart))
+        lines.extend(metric_lines(tag, reportable_points, relative_chart))
 
     return lines
 
