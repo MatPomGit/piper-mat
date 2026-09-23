@@ -372,7 +372,7 @@ def nvidia_gpu_details() -> str | None:
     return output.strip()
 
 def check_training_dependencies() -> list[Check]:
-    """Check training libraries, CUDA support, and monotonic_align."""
+    """Check training libraries, CUDA, espeakbridge, and monotonic_align."""
     if not VENV_PYTHON.is_file():
         return []
 
@@ -453,6 +453,37 @@ def check_training_dependencies() -> list[Check]:
                 True,
             )
         )
+
+    return_code, _ = run(
+        [
+            str(VENV_PYTHON),
+            "-c",
+            (
+                "from piper.phonemize_espeak import EspeakPhonemizer; "
+                "p = EspeakPhonemizer(); "
+                "assert p.phonemize('pl', 'Test.'); "
+                "print('OK')"
+            ),
+        ],
+        timeout=60,
+    )
+    checks.append(
+        Check(
+            "espeakbridge",
+            "espeakbridge",
+            "ok" if return_code == 0 else "error",
+            (
+                "Natywny moduł espeakbridge i dane eSpeak NG działają."
+                if return_code == 0
+                else (
+                    "Natywny moduł espeakbridge nie działa. Instalacja "
+                    "edytowalna nie kompiluje go automatycznie; wymagany jest "
+                    "build_ext --inplace."
+                )
+            ),
+            return_code != 0,
+        )
+    )
 
     return_code, _ = run(
         [
@@ -810,6 +841,40 @@ def _repair_cuda_pytorch(log: list[str]) -> None:
             f"nie jest dostępna: {verify_output}"
         )
 
+def _build_espeakbridge(log: list[str]) -> None:
+    """Build and verify Piper's native eSpeak NG bridge in the source tree."""
+    if not VENV_PYTHON.is_file():
+        return
+
+    return_code, output = run(
+        [
+            str(VENV_PYTHON),
+            "setup.py",
+            "build_ext",
+            "--inplace",
+        ],
+        cwd=ROOT,
+        timeout=3600,
+    )
+    _log_result(log, "budowanie espeakbridge", return_code, output)
+    if return_code != 0:
+        return
+
+    verify_code, verify_output = run(
+        [
+            str(VENV_PYTHON),
+            "-c",
+            (
+                "from piper.phonemize_espeak import EspeakPhonemizer; "
+                "p = EspeakPhonemizer(); "
+                "print(p.phonemize('pl', 'Test.'))"
+            ),
+        ],
+        timeout=60,
+    )
+    _log_result(log, "weryfikacja espeakbridge", verify_code, verify_output)
+
+
 def _build_monotonic_align(log: list[str]) -> None:
     """Build monotonic_align and move the generated module into its package."""
     source = ROOT / "src" / "piper" / "train" / "vits" / "monotonic_align"
@@ -849,6 +914,7 @@ def repair() -> list[str]:
     _ensure_venv(log)
     if _install_dependencies(log):
         _repair_cuda_pytorch(log)
+        _build_espeakbridge(log)
         _build_monotonic_align(log)
 
     return log
