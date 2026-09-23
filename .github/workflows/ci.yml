@@ -35,16 +35,33 @@ jobs:
           sys.path.insert(0, 'scripts')
           import piper_train_compat
 
-          legacy = piper_train_compat._LEGACY_MODEL_PARAMETERS
-          assert 'dataset_dir' in legacy
-          assert 'checkpoint_epochs' in legacy
-          assert 'quality' in legacy
+          from pathlib import Path
+
           assert piper_train_compat._checkpoint_path_from_argv(
               ['fit', '--ckpt_path', 'checkpoints/base.ckpt']
           ).as_posix() == 'checkpoints/base.ckpt'
           assert piper_train_compat._checkpoint_path_from_argv(
               ['fit', '--ckpt_path=checkpoints/base.ckpt']
           ).as_posix() == 'checkpoints/base.ckpt'
+
+          sanitized, removed = piper_train_compat._sanitize_hyperparameters(
+              {
+                  'batch_size': 8,
+                  'sample_bytes': 2,
+                  'checkpoint_epochs': 1,
+              },
+              {'batch_size'},
+          )
+          assert sanitized == {'batch_size': 8}
+          assert removed == ['checkpoint_epochs', 'sample_bytes']
+
+          argv = ['piper_train_compat.py', 'fit', '--ckpt_path', 'old.ckpt']
+          piper_train_compat._replace_checkpoint_path(Path("compat.ckpt"), argv)
+          assert argv[-1] == 'compat.ckpt'
+          piper_train_compat._ensure_full_checkpoint_restore(argv)
+          assert argv[-2:] == ['--weights_only', 'false']
+          piper_train_compat._ensure_full_checkpoint_restore(argv)
+          assert argv.count('--weights_only') == 1
           PY
       - name: Validate phoneme timing converter
         run: |
