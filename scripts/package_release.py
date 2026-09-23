@@ -8,6 +8,7 @@ import hashlib
 import json
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 VOICE_NAME = "pl_PL-mateusz-medium"
@@ -45,7 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="Usuń istniejący katalog wyjściowy przed utworzeniem paczki.",
+        help="Zastąp istniejący katalog wyjściowy gotową paczką.",
     )
     return parser.parse_args()
 
@@ -64,8 +65,8 @@ def validate_inputs(args: argparse.Namespace) -> list[Path] | None:
     return required
 
 
-def prepare_output(output: Path, overwrite: bool) -> bool:
-    """Create an empty output directory without leaving stale artifacts."""
+def validate_output(output: Path, overwrite: bool) -> bool:
+    """Check whether the release can be published at the output path."""
     if output.exists():
         if not overwrite:
             print(
@@ -74,17 +75,20 @@ def prepare_output(output: Path, overwrite: bool) -> bool:
                 file=sys.stderr,
             )
             return False
-        if output.is_dir():
-            shutil.rmtree(output)
-        else:
+        if not output.is_dir():
             print(
                 f"BŁĄD: ścieżka wyjściowa nie jest katalogiem: {output}",
                 file=sys.stderr,
             )
             return False
 
-    output.mkdir(parents=True)
     return True
+
+
+def create_working_directory(output: Path) -> Path:
+    """Create a temporary working directory next to the output directory."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix=f".{output.name}.working-", dir=output.parent))
 
 
 def copy_release_files(
@@ -137,12 +141,55 @@ def write_metadata(output: Path, records: list[dict[str, object]]) -> None:
         encoding="utf-8",
     )
     (output / CHECKSUMS_NAME).write_text(
-        "".join(
-            f"{record['sha256']}  {record['file']}\n"
-            for record in records
-        ),
+        "".join(f"{record['sha256']}  {record['file']}\n" for record in records),
         encoding="utf-8",
     )
+
+
+def verify_release(output: Path, records: list[dict[str, object]]) -> None:
+    """Verify that the working directory contains a complete release."""
+    expected = {
+        *(str(record["file"]) for record in records),
+        MANIFEST_NAME,
+        CHECKSUMS_NAME,
+    }
+    actual = {
+        path.relative_to(output).as_posix()
+        for path in output.rglob("*")
+        if path.is_file()
+    }
+    if actual != expected:
+        raise OSError("katalog roboczy nie zawiera kompletnego wydania")
+
+    for record in records:
+        path = output / str(record["file"])
+        if path.stat().st_size != record["size_bytes"]:
+            raise OSError(f"niezgodny rozmiar pliku: {path}")
+        if sha256_file(path) != record["sha256"]:
+            raise OSError(f"niezgodna suma SHA-256 pliku: {path}")
+
+
+def publish_release(working: Path, output: Path, overwrite: bool) -> None:
+    """Publish a complete release and restore the previous one on failure."""
+    backup: Path | None = None
+    if output.exists():
+        if not overwrite:
+            raise OSError(f"katalog wyjściowy już istnieje: {output}")
+        backup = Path(
+            tempfile.mkdtemp(prefix=f".{output.name}.backup-", dir=output.parent)
+        )
+        backup.rmdir()
+        output.rename(backup)
+
+    try:
+        working.rename(output)
+    except OSError:
+        if backup is not None:
+            backup.rename(output)
+        raise
+
+    if backup is not None:
+        shutil.rmtree(backup)
 
 
 def main() -> int:
@@ -152,16 +199,24 @@ def main() -> int:
     if required is None:
         return 2
 
-    if not prepare_output(args.output, args.overwrite):
+    if not validate_output(args.output, args.overwrite):
         return 2
 
+    working: Path | None = None
     try:
-        copied = copy_release_files(required, args.samples, args.output)
-        records = build_records(copied, args.output)
-        write_metadata(args.output, records)
+        working = create_working_directory(args.output)
+        copied = copy_release_files(required, args.samples, working)
+        records = build_records(copied, working)
+        write_metadata(working, records)
+        verify_release(working, records)
+        publish_release(working, args.output, args.overwrite)
+        working = None
     except OSError as exc:
         print(f"BŁĄD: nie udało się przygotować wydania: {exc}", file=sys.stderr)
         return 1
+    finally:
+        if working is not None:
+            shutil.rmtree(working, ignore_errors=True)
 
     print(f"release_dir: {args.output}")
     print(f"files: {len(records)}")
