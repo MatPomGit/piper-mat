@@ -47,7 +47,10 @@ def checkpoint_path_compatibility() -> Iterator[None]:
             # The checkpoint names pathlib.PosixPath, but on Windows it must
             # actually construct pathlib.WindowsPath.
             safe_globals_context = safe_globals_factory(
-                [(windows_path, "pathlib.PosixPath")]
+                [
+                    windows_path,
+                    (windows_path, "pathlib.PosixPath"),
+                ]
             )
             safe_globals_context.__enter__()
 
