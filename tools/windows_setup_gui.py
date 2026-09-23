@@ -100,11 +100,12 @@ STEPS = (
     ),
     Step(
         6,
-        "Zbuduj moduł treningowy",
-        "Powstanie monotonic_align.",
-        "Ten element wymaga kompilatora C++. Jeśli go brakuje, program wskaże "
-        "potrzebny składnik Visual Studio Build Tools.",
-        "Zbuduj moduł",
+        "Zbuduj moduły natywne",
+        "Powstaną espeakbridge i monotonic_align.",
+        "Te elementy wymagają kompilatora C++. espeakbridge zapewnia "
+        "fonemizację eSpeak NG, a monotonic_align jest używany podczas "
+        "trenowania.",
+        "Zbuduj moduły",
         "build_extension",
     ),
     Step(
@@ -120,8 +121,8 @@ STEPS = (
         8,
         "Sprawdź cały komputer",
         "Uruchomiona zostanie pełna diagnostyka.",
-        "Sprawdzane są Git LFS, Python, biblioteki, CUDA, punkt kontrolny, WAV, "
-        "miejsce na dysku i monotonic_align.",
+        "Sprawdzane są Git LFS, Python, biblioteki, CUDA, espeakbridge, punkt "
+        "kontrolny, WAV, miejsce na dysku i monotonic_align.",
         "Sprawdź gotowość",
         "check_ready",
     ),
@@ -814,7 +815,7 @@ class WindowsSetupWizard(Tk):
         return True, "Biblioteki są zainstalowane."
 
     def _action_build_extension(self) -> ActionResult:
-        """Build and verify the monotonic_align Cython extension."""
+        """Build and verify espeakbridge and monotonic_align."""
         ready, message = self._require_repo()
         if not ready:
             return ready, message
@@ -827,6 +828,37 @@ class WindowsSetupWizard(Tk):
 
         if not python.is_file():
             return False, "Brak .venv."
+
+        return_code = self._run_command(
+            [str(python), "setup.py", "build_ext", "--inplace"],
+            cwd=repo,
+            timeout=3600,
+        )
+        if return_code != 0:
+            return (
+                False,
+                "Nie udało się zbudować espeakbridge. Program sprawdzi "
+                "kompilator CMake/Visual Studio po użyciu „Napraw bezpiecznie”.",
+            )
+
+        return_code = self._run_command(
+            [
+                str(python),
+                "-c",
+                (
+                    "from piper.phonemize_espeak import EspeakPhonemizer; "
+                    "p=EspeakPhonemizer(); "
+                    "assert p.phonemize('pl', 'Test.'); print('OK')"
+                ),
+            ],
+            cwd=repo,
+            timeout=60,
+        )
+        if return_code != 0:
+            return (
+                False,
+                "espeakbridge został zbudowany, ale nie działa poprawnie.",
+            )
 
         return_code = self._run_command(
             [str(python), "-m", "Cython.Build.Cythonize", "-i", "core.pyx"],
@@ -856,8 +888,8 @@ class WindowsSetupWizard(Tk):
             cwd=repo,
         )
         if return_code == 0:
-            return True, "monotonic_align działa."
-        return False, "Moduł powstał, ale Python nie może go zaimportować."
+            return True, "espeakbridge i monotonic_align działają."
+        return False, "monotonic_align powstał, ale Python nie może go zaimportować."
 
     def _action_validate_dataset(self) -> ActionResult:
         """Run the project's full dataset validator."""
