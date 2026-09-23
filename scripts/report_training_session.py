@@ -8,7 +8,9 @@ import html
 import json
 import math
 import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -255,14 +257,43 @@ def write_outputs(
         "scalar_tags": sorted(scalars),
         "reported_tags": selected,
     }
-    (output_dir / "summary.json").write_text(
+    write_text_atomically(
+        output_dir / "summary.json",
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
     )
-    (output_dir / "REPORT.md").write_text(
+    write_text_atomically(
+        output_dir / "REPORT.md",
         "\n".join(report_lines) + "\n",
-        encoding="utf-8",
     )
+
+
+def write_text_atomically(path: Path, content: str) -> None:
+    """Zapisz tekst do pliku tymczasowego, a następnie opublikuj go atomowo."""
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with open(descriptor, "w", encoding="utf-8") as temporary_file:
+            temporary_file.write(content)
+        temporary_path.replace(path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def publish_outputs(staging_dir: Path, output_dir: Path) -> None:
+    """Opublikuj kompletny zestaw plików przygotowany w katalogu roboczym."""
+    charts = staging_dir / "charts"
+    if charts.is_dir():
+        target_charts = output_dir / "charts"
+        shutil.rmtree(target_charts, ignore_errors=True)
+        charts.replace(target_charts)
+
+    for name in ("summary.json", "REPORT.md"):
+        (staging_dir / name).replace(output_dir / name)
 
 
 def parse_args() -> argparse.Namespace:
@@ -296,23 +327,36 @@ def main() -> int:
         print(f"BŁĄD: {exc}", file=sys.stderr)
         return 2
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     scalars = load_scalars(args.session_dir)
     selected = select_metrics(scalars)
-    lines = build_report_lines(
-        args.session_dir,
-        args.output_dir,
-        metadata,
-        scalars,
-        selected,
-    )
-    write_outputs(
-        args.session_dir,
-        args.output_dir,
-        scalars,
-        selected,
-        lines,
-    )
+    try:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(
+            dir=args.output_dir,
+            prefix=".report-",
+        ) as staging_name:
+            staging_dir = Path(staging_name)
+            lines = build_report_lines(
+                args.session_dir,
+                staging_dir,
+                metadata,
+                scalars,
+                selected,
+            )
+            write_outputs(
+                args.session_dir,
+                staging_dir,
+                scalars,
+                selected,
+                lines,
+            )
+            publish_outputs(staging_dir, args.output_dir)
+    except OSError as exc:
+        print(
+            f"BŁĄD: nie można zapisać raportu w {args.output_dir}: {exc}",
+            file=sys.stderr,
+        )
+        return 2
     print(f"Raport: {args.output_dir / 'REPORT.md'}")
     return 0
 
