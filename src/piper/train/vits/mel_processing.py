@@ -37,6 +37,39 @@ mel_basis = {}
 hann_window = {}
 
 
+def _mel_basis_key(spec, n_fft, num_mels, sampling_rate, fmin, fmax):
+    return (
+        sampling_rate,
+        n_fft,
+        num_mels,
+        fmin,
+        fmax,
+        spec.dtype,
+        spec.device,
+    )
+
+
+def _get_mel_basis(spec, n_fft, num_mels, sampling_rate, fmin, fmax):
+    key = _mel_basis_key(spec, n_fft, num_mels, sampling_rate, fmin, fmax)
+    if key not in mel_basis:
+        mel = librosa_mel_fn(
+            sr=sampling_rate,
+            n_fft=n_fft,
+            n_mels=num_mels,
+            fmin=fmin,
+            fmax=fmax,
+        )
+        mel_basis[key] = torch.from_numpy(mel).type_as(spec)
+
+    return mel_basis[key]
+
+
+def clear_mel_processing_caches():
+    """Clear cached mel filters and Hann windows."""
+    mel_basis.clear()
+    hann_window.clear()
+
+
 def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False):
     if torch.min(y) < -1.0:
         print("min value is ", torch.min(y))
@@ -77,15 +110,8 @@ def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False)
 
 
 def spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax):
-    global mel_basis
-    dtype_device = str(spec.dtype) + "_" + str(spec.device)
-    fmax_dtype_device = str(fmax) + "_" + dtype_device
-    if fmax_dtype_device not in mel_basis:
-        mel = librosa_mel_fn(
-            sr=sampling_rate, n_fft=n_fft, n_mels=num_mels, fmin=fmin, fmax=fmax
-        )
-        mel_basis[fmax_dtype_device] = torch.from_numpy(mel).type_as(spec)
-    spec = torch.matmul(mel_basis[fmax_dtype_device], spec)
+    mel = _get_mel_basis(spec, n_fft, num_mels, sampling_rate, fmin, fmax)
+    spec = torch.matmul(mel, spec)
     spec = spectral_normalize_torch(spec)
     return spec
 
@@ -98,15 +124,8 @@ def mel_spectrogram_torch(
     if torch.max(y) > 1.0:
         print("max value is ", torch.max(y))
 
-    global mel_basis, hann_window
     dtype_device = str(y.dtype) + "_" + str(y.device)
-    fmax_dtype_device = str(fmax) + "_" + dtype_device
     wnsize_dtype_device = str(win_size) + "_" + dtype_device
-    if fmax_dtype_device not in mel_basis:
-        mel = librosa_mel_fn(
-            sr=sampling_rate, n_fft=n_fft, n_mels=num_mels, fmin=fmin, fmax=fmax
-        )
-        mel_basis[fmax_dtype_device] = torch.from_numpy(mel).type_as(y)
     if wnsize_dtype_device not in hann_window:
         hann_window[wnsize_dtype_device] = torch.hann_window(win_size).type_as(y)
 
@@ -133,7 +152,8 @@ def mel_spectrogram_torch(
 
     spec = torch.sqrt(spec.pow(2).sum(-1) + 1e-6)
 
-    spec = torch.matmul(mel_basis[fmax_dtype_device], spec)
+    mel = _get_mel_basis(spec, n_fft, num_mels, sampling_rate, fmin, fmax)
+    spec = torch.matmul(mel, spec)
     spec = spectral_normalize_torch(spec)
 
     return spec
