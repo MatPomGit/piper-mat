@@ -138,3 +138,43 @@ def test_publish_failure_restores_existing_release(
     assert run_main(monkeypatch, model, config, model_card, output) == 1
     assert snapshot(output) == before
     assert_no_temporary_directories(output)
+
+
+def test_duplicate_required_target_is_rejected_before_copying(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Odrzuć model i konfigurację o tej samej nazwie docelowej."""
+    model_dir = tmp_path / "model"
+    config_dir = tmp_path / "config"
+    model_dir.mkdir()
+    config_dir.mkdir()
+    model = model_dir / "voice.data"
+    config = config_dir / "voice.data"
+    model.write_bytes(b"model")
+    config.write_bytes(b"config")
+    model_card = tmp_path / "MODEL_CARD.md"
+    model_card.write_text("# Model\n", encoding="utf-8")
+    output = tmp_path / "release"
+
+    def fail_copy(source: Path, target: Path) -> None:
+        raise AssertionError(f"nieoczekiwane kopiowanie {source} do {target}")
+
+    monkeypatch.setattr(package_release.shutil, "copy2", fail_copy)
+
+    assert run_main(monkeypatch, model, config, model_card, output) == 1
+    assert not output.exists()
+    assert "tę samą ścieżkę docelową voice.data" in capsys.readouterr().err
+    assert_no_temporary_directories(output)
+
+
+def test_build_records_rejects_duplicate_relative_paths(tmp_path: Path) -> None:
+    """Odrzuć powtórzoną ścieżkę podczas budowania manifestu."""
+    output = tmp_path / "release"
+    output.mkdir()
+    release_file = output / "voice.onnx"
+    release_file.write_bytes(b"model")
+
+    with pytest.raises(ValueError, match="powtórzone ścieżki"):
+        package_release.build_records([release_file, release_file], output)
