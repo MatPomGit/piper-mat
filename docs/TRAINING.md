@@ -30,22 +30,26 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[train]"
 ```
 
-Dla Windows preferowany jest [kreator Windows 11](WINDOWS_GUI.md), ponieważ dodatkowo sprawdza narzędzia systemowe, CUDA, Git LFS, dane i punkt kontrolny.
+Dla Windows preferowany jest [kreator Windows 11](WINDOWS_GUI.md), ponieważ dodatkowo sprawdza narzędzia systemowe, CUDA, Git LFS, dane, punkt kontrolny i natywne rozszerzenia Pipera.
 
-## `monotonic_align`
+## Moduły natywne: `espeakbridge` i `monotonic_align`
 
-`monotonic_align` realizuje monotoniczne dopasowanie (monotonic alignment) pomiędzy reprezentacją tekstu i przebiegiem czasowym mowy. Jest wymagane podczas trenowania modelu.
+`espeakbridge` łączy kod Pythona z wbudowanym eSpeak NG i jest wymagany do fonemizacji tekstu. Przy pracy bezpośrednio z repozytorium instalacja edytowalna nie wystarcza — po `pip install -e '.[train]'` należy zbudować moduł w drzewie źródłowym:
 
-W systemie zgodnym z powłoką POSIX:
+```bash
+python setup.py build_ext --inplace
+```
+
+`monotonic_align` realizuje monotoniczne dopasowanie (monotonic alignment) pomiędzy reprezentacją tekstu i przebiegiem czasowym mowy. Jest również wymagane podczas trenowania modelu. W systemie zgodnym z powłoką POSIX:
 
 ```bash
 ./build_monotonic_align.sh
 ```
 
-W razie potrzeby rozszerzenia projektu można zbudować również w bieżącym drzewie:
+Przed właściwym treningiem warto zweryfikować oba moduły:
 
 ```bash
-python setup.py build_ext --inplace
+python scripts/check_training_ready.py
 ```
 
 ## Zbiór danych
