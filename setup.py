@@ -82,6 +82,11 @@ setup(
             "pysilero-vad>=2.1,<3",
             "cython>=3,<4",
             "librosa<1",
+            # Required for the in-place native espeakbridge build used when
+            # training directly from the repository.
+            "scikit-build>=0.18,<1",
+            "cmake>=3.26,<4",
+            "ninja>=1,<2",
         ],
         "dev": [
             "black==24.8.0",
