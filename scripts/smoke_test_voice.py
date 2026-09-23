@@ -42,9 +42,25 @@ def main() -> int:
         print(f"ERROR: invalid config: {exc}", file=sys.stderr)
         return 2
 
-    sample_rate = int(parsed.get("audio", {}).get("sample_rate", 0))
-    if sample_rate <= 0:
-        print("ERROR: voice config has no valid audio.sample_rate", file=sys.stderr)
+    if not isinstance(parsed, dict):
+        print("ERROR: config must be a JSON object", file=sys.stderr)
+        return 2
+
+    audio = parsed.get("audio")
+    if not isinstance(audio, dict):
+        print("ERROR: config field audio must be a JSON object", file=sys.stderr)
+        return 2
+
+    sample_rate = audio.get("sample_rate")
+    if (
+        not isinstance(sample_rate, int)
+        or isinstance(sample_rate, bool)
+        or sample_rate <= 0
+    ):
+        print(
+            "ERROR: config field audio.sample_rate must be a positive integer",
+            file=sys.stderr,
+        )
         return 2
 
     with tempfile.TemporaryDirectory(prefix="piper-smoke-") as tmp:
@@ -93,8 +109,7 @@ def main() -> int:
                 return 1
 
         print(
-            f"OK: {duration:.3f} s, {sample_rate} Hz, "
-            f"{output.stat().st_size} bytes"
+            f"OK: {duration:.3f} s, {sample_rate} Hz, " f"{output.stat().st_size} bytes"
         )
 
     return 0
