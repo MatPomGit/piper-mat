@@ -755,7 +755,7 @@ def _repair_cuda_pytorch(log: list[str]) -> None:
         timeout=60,
     )
     if return_code != 0:
-        log.append("BŁĄD: nie można sprawdzić wersji PyTorch przed naprawą CUDA.")
+        log.append(\n            "BŁĄD: nie można sprawdzić wersji PyTorch przed naprawą CUDA."\n        )
         return
     lines = [line.strip() for line in output.splitlines() if line.strip()]
     if len(lines) >= 2 and lines[-1] == "True":
