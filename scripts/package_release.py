@@ -97,26 +97,45 @@ def copy_release_files(
     output: Path,
 ) -> list[Path]:
     """Copy release inputs into a clean output directory."""
-    copied: list[Path] = []
+    sources_and_targets = [
+        (source, output / source.name) for source in required
+    ]
+    if samples_dir.is_dir():
+        sources_and_targets.extend(
+            (source, output / "samples" / source.name)
+            for source in sorted(samples_dir.glob("*.wav"))
+        )
 
-    for source in required:
-        target = output / source.name
+    sources_by_target: dict[Path, Path] = {}
+    for source, target in sources_and_targets:
+        previous_source = sources_by_target.get(target)
+        if previous_source is not None:
+            relative_target = target.relative_to(output).as_posix()
+            raise OSError(
+                f"pliki wejściowe mają tę samą ścieżkę docelową "
+                f"{relative_target}: {previous_source} oraz {source}"
+            )
+        sources_by_target[target] = source
+
+    copied: list[Path] = []
+    for source, target in sources_and_targets:
+        target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
         copied.append(target)
 
-    if samples_dir.is_dir():
-        target_samples = output / "samples"
-        target_samples.mkdir()
-        for source in sorted(samples_dir.glob("*.wav")):
-            target = target_samples / source.name
-            shutil.copy2(source, target)
-            copied.append(target)
+    relative_paths = [path.relative_to(output) for path in copied]
+    if len(relative_paths) != len(set(relative_paths)):
+        raise OSError("lista skopiowanych plików zawiera powtórzone ścieżki")
 
     return copied
 
 
 def build_records(files: list[Path], output: Path) -> list[dict[str, object]]:
     """Build deterministic manifest records for copied release files."""
+    relative_paths = [path.relative_to(output).as_posix() for path in files]
+    if len(relative_paths) != len(set(relative_paths)):
+        raise ValueError("lista plików wydania zawiera powtórzone ścieżki")
+
     records: list[dict[str, object]] = []
     for path in sorted(files, key=lambda item: item.relative_to(output).as_posix()):
         records.append(
