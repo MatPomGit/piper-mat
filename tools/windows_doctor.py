@@ -347,6 +347,30 @@ def check_venv() -> Check:
     )
 
 
+def nvidia_gpu_details() -> str | None:
+    """Return NVIDIA GPU/driver details when nvidia-smi is usable."""
+    executable = shutil.which("nvidia-smi")
+    if executable is None:
+        standard = Path(
+            os.environ.get("ProgramW6432", r"C:\\Program Files")
+        ) / "NVIDIA Corporation" / "NVSMI" / "nvidia-smi.exe"
+        if standard.is_file():
+            executable = str(standard)
+    if executable is None:
+        return None
+
+    return_code, output = run(
+        [
+            executable,
+            "--query-gpu=name,driver_version",
+            "--format=csv,noheader",
+        ],
+        timeout=30,
+    )
+    if return_code != 0 or not output.strip():
+        return None
+    return output.strip()
+
 def check_training_dependencies() -> list[Check]:
     """Check training libraries, CUDA support, and monotonic_align."""
     if not VENV_PYTHON.is_file():
@@ -388,19 +412,37 @@ def check_training_dependencies() -> list[Check]:
     )
     if return_code == 0:
         cuda_ok = "CUDA True" in output
-        checks.append(
-            Check(
-                "cuda",
-                "PyTorch i CUDA",
-                "ok" if cuda_ok else "warning",
-                (
-                    output
-                    if cuda_ok
-                    else "PyTorch działa, ale nie widzi CUDA. Sprawdź sterownik "
-                    "NVIDIA i zgodność wersji PyTorch/CUDA."
-                ),
+        nvidia = nvidia_gpu_details()
+        if cuda_ok:
+            checks.append(Check("cuda", "PyTorch i CUDA", "ok", output))
+        elif nvidia:
+            checks.append(
+                Check(
+                    "cuda",
+                    "PyTorch i CUDA",
+                    "error",
+                    (
+                        "Wykryto kartę NVIDIA, ale zainstalowany PyTorch nie "
+                        "udostępnia CUDA. GPU: "
+                        f"{nvidia}. PyTorch: {output.replace(chr(10), '; ')}. "
+                        "Naprawa zachowa bieżącą wersję PyTorch i zainstaluje "
+                        "oficjalny wariant CUDA."
+                    ),
+                    True,
+                )
             )
-        )
+        else:
+            checks.append(
+                Check(
+                    "cuda",
+                    "PyTorch i CUDA",
+                    "warning",
+                    (
+                        "PyTorch działa bez CUDA i nie wykryto działającego "
+                        "nvidia-smi. Trening będzie wykonywany na CPU."
+                    ),
+                )
+            )
     else:
         checks.append(
             Check(
@@ -696,6 +738,78 @@ def _install_dependencies(log: list[str]) -> bool:
     return True
 
 
+def _repair_cuda_pytorch(log: list[str]) -> None:
+    """Install the CUDA build matching the current PyTorch version."""
+    if not VENV_PYTHON.is_file() or nvidia_gpu_details() is None:
+        return
+
+    return_code, output = run(
+        [
+            str(VENV_PYTHON),
+            "-c",
+            (
+                "import torch; print(torch.__version__); "
+                "print(torch.cuda.is_available())"
+            ),
+        ],
+        timeout=60,
+    )
+    if return_code != 0:
+        log.append(
+            "BŁĄD: nie można sprawdzić wersji PyTorch przed naprawą CUDA."
+        )
+        return
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if len(lines) >= 2 and lines[-1] == "True":
+        return
+    if not lines:
+        log.append("BŁĄD: nie udało się odczytać wersji PyTorch.")
+        return
+
+    torch_version = lines[0].split("+", 1)[0]
+    command = [
+        str(VENV_PYTHON),
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "--force-reinstall",
+        f"torch=={torch_version}",
+        "--index-url",
+        "https://download.pytorch.org/whl/cu126",
+    ]
+    return_code, install_output = run(command, timeout=3600)
+    _log_result(
+        log,
+        f"PyTorch {torch_version} z CUDA 12.6",
+        return_code,
+        install_output,
+    )
+    if return_code != 0:
+        return
+
+    verify_code, verify_output = run(
+        [
+            str(VENV_PYTHON),
+            "-c",
+            (
+                "import torch; "
+                "print(torch.__version__); "
+                "print(torch.version.cuda); "
+                "print(torch.cuda.is_available()); "
+                "print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')"
+            ),
+        ],
+        timeout=60,
+    )
+    if verify_code == 0 and "True" in verify_output:
+        log.append(f"OK: CUDA PyTorch działa: {verify_output}")
+    else:
+        log.append(
+            "BŁĄD: wariant CUDA PyTorch został zainstalowany, ale CUDA nadal "
+            f"nie jest dostępna: {verify_output}"
+        )
+
 def _build_monotonic_align(log: list[str]) -> None:
     """Build monotonic_align and move the generated module into its package."""
     source = ROOT / "src" / "piper" / "train" / "vits" / "monotonic_align"
@@ -734,6 +848,7 @@ def repair() -> list[str]:
     _backup_broken_venv(log)
     _ensure_venv(log)
     if _install_dependencies(log):
+        _repair_cuda_pytorch(log)
         _build_monotonic_align(log)
 
     return log
