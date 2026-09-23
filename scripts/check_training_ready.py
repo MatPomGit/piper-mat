@@ -244,6 +244,21 @@ def validate_espeak(warnings: list[str]) -> None:
         )
 
 
+def validate_espeakbridge(errors: list[str]) -> None:
+    """Sprawdź natywny most eSpeak NG oraz podstawową polską fonemizację."""
+    try:
+        from piper.phonemize_espeak import EspeakPhonemizer
+
+        phonemizer = EspeakPhonemizer()
+        phonemes = phonemizer.phonemize("pl", "Test.")
+        if not phonemes:
+            raise RuntimeError("fonemizer zwrócił pusty wynik")
+    except (ImportError, ModuleNotFoundError, OSError, RuntimeError) as exc:
+        errors.append(
+            "natywny moduł espeakbridge nie jest gotowy: "
+            f"{exc}; uruchom `python setup.py build_ext --inplace`"
+        )
+
 def validate_monotonic_align(errors: list[str]) -> None:
     """Sprawdź dostępność skompilowanego rozszerzenia monotonic_align."""
     try:
@@ -342,6 +357,7 @@ def main() -> int:
 
     validate_espeak(warnings)
     if "piper" not in missing_modules:
+        validate_espeakbridge(errors)
         validate_monotonic_align(errors)
     validate_free_space(training, errors, warnings)
 
