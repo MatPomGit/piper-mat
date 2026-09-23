@@ -110,13 +110,22 @@ Instalowane są zależności wymagane przez projekt i proces trenowania.
 
 Wersje zależności mają znaczenie dla powtarzalności. Po przygotowaniu działającego środowiska jego stan powinien być możliwy do zapisania w raporcie eksperymentu.
 
-### 6. Budowanie `monotonic_align`
+### 6. Budowanie modułów natywnych
 
-`monotonic_align` jest rozszerzeniem używanym podczas trenowania do wyznaczania monotonicznego dopasowania pomiędzy reprezentacją tekstową i przebiegiem czasowym mowy.
+Praca bezpośrednio z repozytorium wymaga zbudowania dwóch modułów natywnych:
 
-Krok wymaga narzędzi kompilacyjnych C/C++. W Windows może być potrzebny Visual Studio Build Tools z komponentem obsługującym rozwój aplikacji C++ dla komputerów stacjonarnych.
+- `espeakbridge` — mostu C do eSpeak NG używanego podczas fonemizacji tekstu;
+- `monotonic_align` — rozszerzenia używanego podczas trenowania do wyznaczania monotonicznego dopasowania pomiędzy reprezentacją tekstową i przebiegiem czasowym mowy.
 
-Brak tego komponentu jest problemem środowiska budowania, a nie błędem zbioru danych ani modelu.
+Samo `pip install -e ".[train]"` nie gwarantuje zbudowania `espeakbridge`. Kreator wykonuje dlatego również odpowiednik:
+
+```powershell
+python setup.py build_ext --inplace
+```
+
+Krok wymaga narzędzi kompilacyjnych C/C++. W Windows może być potrzebny Visual Studio Build Tools z komponentem obsługującym rozwój aplikacji C++ dla komputerów stacjonarnych. Diagnostyka sprawdza nie tylko obecność pliku `.pyd`, ale także inicjalizację eSpeak NG i próbną polską fonemizację.
+
+Brak któregoś z tych modułów jest problemem środowiska budowania, a nie błędem zbioru danych ani modelu.
 
 ### 7. Walidacja nagrań
 
