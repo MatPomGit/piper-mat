@@ -92,11 +92,26 @@ def main() -> int:
             print("ERROR: synthesis produced no usable WAV", file=sys.stderr)
             return 1
 
-        with wave.open(str(output), "rb") as wav_file:
-            duration = wav_file.getnframes() / wav_file.getframerate()
-            if wav_file.getframerate() != sample_rate:
+        try:
+            with wave.open(str(output), "rb") as wav_file:
+                output_sample_rate = wav_file.getframerate()
+                channels = wav_file.getnchannels()
+                sample_width = wav_file.getsampwidth()
+                frames = wav_file.getnframes()
+
+                if output_sample_rate <= 0:
+                    raise wave.Error("sample rate must be positive")
+                if channels <= 0:
+                    raise wave.Error("channel count must be positive")
+                if sample_width <= 0:
+                    raise wave.Error("sample width must be positive")
+                if frames <= 0:
+                    raise wave.Error("WAV contains no audio frames")
+
+                duration = frames / output_sample_rate
+            if output_sample_rate != sample_rate:
                 print(
-                    f"ERROR: output rate {wav_file.getframerate()} "
+                    f"ERROR: output rate {output_sample_rate} "
                     f"!= config rate {sample_rate}",
                     file=sys.stderr,
                 )
@@ -107,6 +122,9 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 return 1
+        except (wave.Error, EOFError, OSError) as exc:
+            print(f"ERROR: invalid output WAV: {exc}", file=sys.stderr)
+            return 1
 
         print(
             f"OK: {duration:.3f} s, {sample_rate} Hz, " f"{output.stat().st_size} bytes"
