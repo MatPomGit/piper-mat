@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import math
@@ -31,8 +32,10 @@ REPORT_SCHEMA_VERSION = 1
 
 
 def safe_name(value: str) -> str:
-    """Zamień nazwę metryki na bezpieczną nazwę pliku."""
-    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_") or "metric"
+    """Zamień nazwę metryki na bezpieczną i stabilną nazwę pliku."""
+    prefix = re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_") or "metric"
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:10]
+    return f"{prefix}-{digest}"
 
 
 def find_event_dirs(root: Path) -> list[Path]:
@@ -232,9 +235,13 @@ def build_report_lines(
         return lines
 
     charts_dir = output_dir / "charts"
-    for tag in selected:
+    planned_charts = [(tag, charts_dir / f"{safe_name(tag)}.svg") for tag in selected]
+    chart_paths = [chart for _, chart in planned_charts]
+    if len(chart_paths) != len(set(chart_paths)):
+        raise RuntimeError("planowane ścieżki wykresów nie są unikalne")
+
+    for tag, chart in planned_charts:
         points = scalars[tag]
-        chart = charts_dir / f"{safe_name(tag)}.svg"
         if not render_svg(tag, points, chart):
             continue
         relative_chart = chart.relative_to(output_dir)
