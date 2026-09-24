@@ -75,6 +75,21 @@ def test_select_speaker_id_preserves_zero_from_command_line():
     assert _select_speaker_id({}, voice, args) == 0
 
 
+@pytest.mark.parametrize("speaker_id", [-1, "speaker", True])
+def test_select_speaker_id_ignores_value_for_single_speaker_voice(speaker_id):
+    """Ignore HTTP speaker selection for a single-speaker voice."""
+    args = SimpleNamespace(speaker=2)
+    voice = SimpleNamespace(
+        config=SimpleNamespace(
+            default_speaker_id=3,
+            num_speakers=1,
+            speaker_id_map={},
+        )
+    )
+
+    assert _select_speaker_id({"speaker_id": speaker_id}, voice, args) is None
+
+
 def test_alignment_info_reports_missing_onnx(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

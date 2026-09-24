@@ -63,6 +63,19 @@ syn_config = SynthesisConfig(
 )
 ```
 
+### `speaker_id`
+
+W modelu wielomówcowym `speaker_id` wskazuje mówcę. Wartość musi być liczbą
+całkowitą, ale nie wartością logiczną, z zakresu
+`0 <= speaker_id < num_speakers`. Jeżeli parametr nie został przekazany, Piper
+stosuje `default_speaker_id` z konfiguracji modelu i sprawdza go według tych
+samych reguł. Niepoprawna wartość powoduje zgłoszenie `ValueError` przed
+uruchomieniem ONNX Runtime.
+
+Model jednomówcowy nie ma wejścia identyfikatora mówcy. Dla zgodności wstecznej
+przekazany `speaker_id` jest w takim modelu ignorowany we wszystkich
+interfejsach Pipera.
+
 Przed użyciem wartości w produkcji należy sprawdzić wartości domyślne i zakresy obsługiwane przez aktualną wersję kodu.
 
 ### `volume`
