@@ -187,11 +187,23 @@ def get_char_phoneme_labels(polyphonic_chars: Sequence[Sequence[str]]):
 # -----------------------------------------------------------------------------
 
 
+class FeatureBuildError(ValueError):
+    """Report a tokenizer failure for one feature-builder input."""
+
+    def __init__(self, index: int, text: str, cause: Exception) -> None:
+        """Initialize the error with the failed input and original cause."""
+        self.index = index
+        self.text = text
+        self.cause = cause
+        super().__init__(
+            f"Failed to build feature at index {index} for text {text!r}: {cause}"
+        )
+
+
 class _FeatureBuilder:
     """Builds one set of model inputs per (text, query char).
 
-    Kept as a class with ``__len__``/``__getitem__`` so upstream's recursive
-    skip-on-unusable-text behaviour ports across directly.
+    Kept as a class with ``__len__``/``__getitem__`` for lightweight batching.
     """
 
     def __init__(
@@ -274,11 +286,8 @@ class _FeatureBuilder:
 
         try:
             tokens, text2token, token2text = tokenize_and_map(self.tokenizer, text)
-        except Exception:  # pylint: disable=broad-except
-            # Upstream falls through to the next sample rather than failing the
-            # whole batch.
-            _LOGGER.warning("Skipping unusable text: %s", text)
-            return self[(idx + 1) % len(self)]
+        except (TypeError, ValueError) as error:
+            raise FeatureBuildError(idx, text, error) from error
 
         text, query_id, tokens, text2token, token2text = self._truncate(
             self.max_len, text, query_id, tokens, text2token, token2text
