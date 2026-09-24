@@ -2,6 +2,7 @@
 
 import hashlib
 import io
+import json
 import sys
 import tarfile
 import types
@@ -14,6 +15,17 @@ unicode_rbnf.RbnfEngine = object
 sys.modules.setdefault("unicode_rbnf", unicode_rbnf)
 
 from piper import phonemize_chinese
+
+
+@pytest.fixture(autouse=True)
+def mock_onnx_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Treat the small test fixture named ``valid-onnx`` as a valid model."""
+
+    def validate(model_path: Path) -> None:
+        if model_path.read_bytes() != b"valid-onnx":
+            raise ValueError("invalid ONNX model")
+
+    monkeypatch.setattr(phonemize_chinese, "_validate_onnx_model", validate)
 
 
 def _archive(members: list[tuple[tarfile.TarInfo, bytes]]) -> bytes:
@@ -86,7 +98,10 @@ def test_download_publishes_complete_archive(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     data = _archive(
-        [_file(name, name.encode()) for name in phonemize_chinese.G2PW_REQUIRED_FILES]
+        [
+            _file(name, b"valid-onnx" if name == "g2pw.onnx" else name.encode())
+            for name in phonemize_chinese.G2PW_REQUIRED_FILES
+        ]
     )
     model_dir = tmp_path / "model"
 
@@ -96,3 +111,80 @@ def test_download_publishes_complete_archive(
         phonemize_chinese.G2PW_REQUIRED_FILES
     )
     assert {path.name for path in tmp_path.iterdir()} == {"model"}
+
+
+def _complete_members() -> list[tuple[tarfile.TarInfo, bytes]]:
+    """Build the complete minimal model used by validation tests."""
+    return [
+        _file(name, b"valid-onnx" if name == "g2pw.onnx" else name.encode())
+        for name in phonemize_chinese.G2PW_REQUIRED_FILES
+    ]
+
+
+@pytest.mark.parametrize("missing_name", phonemize_chinese.G2PW_REQUIRED_FILES[1:])
+def test_download_replaces_directory_missing_each_helper_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, missing_name: str
+) -> None:
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+    for member, contents in _complete_members():
+        if member.name != missing_name:
+            (model_dir / member.name).write_bytes(contents)
+
+    _download(monkeypatch, model_dir, _archive(_complete_members()))
+
+    assert {path.name for path in model_dir.iterdir()} == set(
+        phonemize_chinese.G2PW_REQUIRED_FILES
+    )
+
+
+@pytest.mark.parametrize("model_contents", [b"", b"broken-onnx"])
+def test_download_replaces_empty_or_corrupt_onnx_model(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, model_contents: bytes
+) -> None:
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+    for member, contents in _complete_members():
+        (model_dir / member.name).write_bytes(
+            model_contents if member.name == "g2pw.onnx" else contents
+        )
+
+    _download(monkeypatch, model_dir, _archive(_complete_members()))
+
+    assert (model_dir / "g2pw.onnx").read_bytes() == b"valid-onnx"
+
+
+def test_complete_directory_skips_download(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+    for member, contents in _complete_members():
+        (model_dir / member.name).write_bytes(contents)
+
+    def unexpected_download(_url: str) -> io.BytesIO:
+        raise AssertionError("complete model must not be downloaded again")
+
+    monkeypatch.setattr(phonemize_chinese, "urlopen", unexpected_download)
+
+    phonemize_chinese.download_model(model_dir)
+
+
+def test_manifest_checksum_mismatch_triggers_replacement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+    checksums = {}
+    for member, contents in _complete_members():
+        (model_dir / member.name).write_bytes(contents)
+        checksums[member.name] = {"sha256": hashlib.sha256(contents).hexdigest()}
+    (model_dir / "config.py").write_bytes(b"tampered")
+    (model_dir / phonemize_chinese.G2PW_MANIFEST_FILE).write_text(
+        json.dumps({"files": checksums}), encoding="utf-8"
+    )
+
+    _download(monkeypatch, model_dir, _archive(_complete_members()))
+
+    assert (model_dir / "config.py").read_bytes() == b"config.py"
+    assert not (model_dir / phonemize_chinese.G2PW_MANIFEST_FILE).exists()

@@ -6,6 +6,7 @@ This code is Apache 2.0 licensed.
 """
 
 import hashlib
+import json
 import logging
 import os
 import posixpath
@@ -21,7 +22,7 @@ from urllib.request import urlopen
 from unicode_rbnf import RbnfEngine
 
 from .const import BOS, EOS, PAD
-from .g2pw_onnx import G2PWOnnxConverter
+from .g2pw_onnx import DATA_FILES, G2PWOnnxConverter
 from .phoneme_ids import DEFAULT_PHONEME_ID_MAP
 
 _LOGGER = logging.getLogger(__name__)
@@ -199,7 +200,9 @@ G2PW_REQUIRED_FILES = (
     "config.py",
     "POLYPHONIC_CHARS.txt",
     "MONOPHONIC_CHARS.txt",
+    *DATA_FILES,
 )
+G2PW_MANIFEST_FILE = "manifest.json"
 
 TEMP_PATTERN = re.compile(
     r"(?P<sign>[-−])?(?P<num>\d+)\s*(?:°\s*C|℃)",  # handles "-7°C", "7℃", "−3°C"
@@ -436,14 +439,80 @@ def _extract_archive(archive_path: Path, destination: Path) -> None:
             archive.extractall(destination, members=members)
 
 
+def _sha256(path: Path) -> str:
+    """Calculate the SHA-256 digest of a file."""
+    digest = hashlib.sha256()
+    with path.open("rb") as file_handle:
+        while chunk := file_handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _manifest_checksums(model_dir: Path) -> Optional[Mapping[str, str]]:
+    """Load per-file checksums when the model archive provides a manifest."""
+    manifest_path = model_dir / G2PW_MANIFEST_FILE
+    if not manifest_path.exists():
+        return None
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ValueError("g2pW manifest is not a regular file")
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Cannot read g2pW manifest") from exc
+
+    entries = manifest.get("files") if isinstance(manifest, dict) else None
+    if not isinstance(entries, dict):
+        raise ValueError("g2pW manifest does not contain a files object")
+
+    checksums: dict[str, str] = {}
+    for file_name in G2PW_REQUIRED_FILES:
+        entry = entries.get(file_name)
+        checksum = entry.get("sha256") if isinstance(entry, dict) else entry
+        if (
+            not isinstance(checksum, str)
+            or re.fullmatch(r"[0-9a-fA-F]{64}", checksum) is None
+        ):
+            raise ValueError(f"Missing valid SHA-256 for {file_name!r}")
+        checksums[file_name] = checksum.lower()
+    return checksums
+
+
+def _validate_onnx_model(model_path: Path) -> None:
+    """Ensure ONNX Runtime can load the model without running inference."""
+    import onnxruntime  # pylint: disable=import-outside-toplevel
+
+    onnxruntime.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+
+
+def _validate_model_dir(model_dir: Path) -> bool:
+    """Return whether a directory contains a complete, valid g2pW model."""
+    try:
+        checksums = _manifest_checksums(model_dir)
+        for file_name in G2PW_REQUIRED_FILES:
+            file_path = model_dir / file_name
+            if (
+                file_path.is_symlink()
+                or not file_path.is_file()
+                or file_path.stat().st_size <= 0
+            ):
+                return False
+            if checksums is not None and _sha256(file_path) != checksums[file_name]:
+                return False
+        _validate_onnx_model(model_dir / "g2pw.onnx")
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    except Exception:  # ONNX Runtime uses several exception classes by version.
+        return False
+    return True
+
+
 def download_model(model_dir: Union[str, Path]) -> None:
     """Download, validate, and atomically install the g2pW model."""
     model_dir = Path(model_dir)
-    model_path = model_dir / "g2pw.onnx"
-
-    if model_path.exists():
+    if _validate_model_dir(model_dir):
         # Already downloaded
-        _LOGGER.debug("Found g2pW model at %s", model_path)
+        _LOGGER.debug("Found complete g2pW model at %s", model_dir)
         return
 
     _LOGGER.info("Downloading g2pW model from '%s' to '%s'", G2PW_URL, model_dir)
@@ -468,13 +537,8 @@ def download_model(model_dir: Union[str, Path]) -> None:
             raise ValueError("Downloaded g2pW archive has an invalid SHA-256 checksum")
 
         _extract_archive(archive_path, temporary_dir)
-        missing = [
-            file_name
-            for file_name in G2PW_REQUIRED_FILES
-            if not (temporary_dir / file_name).is_file()
-        ]
-        if missing:
-            raise ValueError(f"g2pW archive is missing required files: {missing}")
+        if not _validate_model_dir(temporary_dir):
+            raise ValueError("Downloaded g2pW archive is incomplete or invalid")
         if model_dir.exists():
             backup_dir = temporary_dir.with_name(f"{temporary_dir.name}.old")
             os.replace(model_dir, backup_dir)
