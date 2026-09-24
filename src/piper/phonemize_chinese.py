@@ -5,11 +5,16 @@ Partially written by ChatGPT (December 2025).
 This code is Apache 2.0 licensed.
 """
 
+import hashlib
 import logging
+import os
+import posixpath
 import re
+import shutil
 import tarfile
+import tempfile
 from collections.abc import Mapping, Sequence
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Optional, Union
 from urllib.request import urlopen
 
@@ -188,6 +193,13 @@ GROUP_END_PHONEMES = {
 }
 
 G2PW_URL = "https://huggingface.co/datasets/rhasspy/piper-checkpoints/resolve/main/zh/zh_CN/_resources/g2pw.tar.gz?download=true"
+G2PW_SHA256 = "9137f37d8e15ab1fd04a448bfe9805e00c94db833786735f672d63a44fddc8dd"
+G2PW_REQUIRED_FILES = (
+    "g2pw.onnx",
+    "config.py",
+    "POLYPHONIC_CHARS.txt",
+    "MONOPHONIC_CHARS.txt",
+)
 
 TEMP_PATTERN = re.compile(
     r"(?P<sign>[-−])?(?P<num>\d+)\s*(?:°\s*C|℃)",  # handles "-7°C", "7℃", "−3°C"
@@ -366,8 +378,66 @@ def _split_initial_final_tone(syl: str):
     return ini, fin, tone
 
 
+def _validate_archive(members: Sequence[tarfile.TarInfo]) -> None:
+    """Validate every archive member before extraction."""
+    symlinks = set()
+    for member in members:
+        name = member.name
+        archive_path = PurePosixPath(name.replace("\\", "/"))
+        if (
+            name in ("", ".")
+            or "\\" in name
+            or archive_path.is_absolute()
+            or PureWindowsPath(name).is_absolute()
+            or ".." in archive_path.parts
+        ):
+            raise ValueError(f"Unsafe path in g2pW archive: {name!r}")
+        if not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
+            raise ValueError(f"Special file in g2pW archive: {name!r}")
+
+        if member.issym():
+            symlinks.add(name.rstrip("/"))
+            target = posixpath.normpath(
+                posixpath.join(posixpath.dirname(name), member.linkname)
+            )
+            if (
+                PureWindowsPath(member.linkname).is_absolute()
+                or "\\" in member.linkname
+                or member.linkname.startswith("/")
+                or target == ".."
+                or target.startswith("../")
+            ):
+                raise ValueError(f"Unsafe link in g2pW archive: {name!r}")
+        elif member.islnk():
+            target = posixpath.normpath(member.linkname)
+            if (
+                PureWindowsPath(member.linkname).is_absolute()
+                or "\\" in member.linkname
+                or member.linkname.startswith("/")
+                or target == ".."
+                or target.startswith("../")
+            ):
+                raise ValueError(f"Unsafe link in g2pW archive: {name!r}")
+
+    for member in members:
+        parents = Path(member.name).parents
+        if any(parent.as_posix() in symlinks for parent in parents):
+            raise ValueError(f"Archive path traverses a symbolic link: {member.name!r}")
+
+
+def _extract_archive(archive_path: Path, destination: Path) -> None:
+    """Extract a prevalidated model archive."""
+    with tarfile.open(archive_path, mode="r:gz") as archive:
+        members = archive.getmembers()
+        _validate_archive(members)
+        if hasattr(tarfile, "data_filter"):
+            archive.extractall(destination, members=members, filter="data")
+        else:
+            archive.extractall(destination, members=members)
+
+
 def download_model(model_dir: Union[str, Path]) -> None:
-    """Ensure g2pW model is downloaded."""
+    """Download, validate, and atomically install the g2pW model."""
     model_dir = Path(model_dir)
     model_path = model_dir / "g2pw.onnx"
 
@@ -377,7 +447,45 @@ def download_model(model_dir: Union[str, Path]) -> None:
         return
 
     _LOGGER.info("Downloading g2pW model from '%s' to '%s'", G2PW_URL, model_dir)
-    model_dir.mkdir(parents=True, exist_ok=True)
-    with urlopen(G2PW_URL) as response:
-        with tarfile.open(fileobj=response, mode="r|gz") as tar:
-            tar.extractall(path=model_dir)
+    model_dir.parent.mkdir(parents=True, exist_ok=True)
+    archive_file = tempfile.NamedTemporaryFile(
+        prefix=f".{model_dir.name}-",
+        suffix=".tar.gz",
+        dir=model_dir.parent,
+        delete=False,
+    )
+    archive_path = Path(archive_file.name)
+    temporary_dir = Path(
+        tempfile.mkdtemp(prefix=f".{model_dir.name}-", dir=model_dir.parent)
+    )
+    try:
+        digest = hashlib.sha256()
+        with archive_file, urlopen(G2PW_URL) as response:
+            while chunk := response.read(1024 * 1024):
+                archive_file.write(chunk)
+                digest.update(chunk)
+        if digest.hexdigest() != G2PW_SHA256:
+            raise ValueError("Downloaded g2pW archive has an invalid SHA-256 checksum")
+
+        _extract_archive(archive_path, temporary_dir)
+        missing = [
+            file_name
+            for file_name in G2PW_REQUIRED_FILES
+            if not (temporary_dir / file_name).is_file()
+        ]
+        if missing:
+            raise ValueError(f"g2pW archive is missing required files: {missing}")
+        if model_dir.exists():
+            backup_dir = temporary_dir.with_name(f"{temporary_dir.name}.old")
+            os.replace(model_dir, backup_dir)
+            try:
+                os.replace(temporary_dir, model_dir)
+            except BaseException:
+                os.replace(backup_dir, model_dir)
+                raise
+            shutil.rmtree(backup_dir)
+        else:
+            os.replace(temporary_dir, model_dir)
+    finally:
+        archive_path.unlink(missing_ok=True)
+        shutil.rmtree(temporary_dir, ignore_errors=True)
