@@ -9,9 +9,11 @@ import wave
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from piper import PiperVoice
+from piper.config import SynthesisConfig
 from piper.const import BOS, EOS
 from piper.phonemize_espeak import EspeakPhonemizer
 
@@ -107,6 +109,69 @@ def test_phonemize_synthesize() -> None:
     audio_array = voice.phoneme_ids_to_audio(phoneme_ids[0])
     assert len(audio_array) == voice.config.sample_rate  # 1 second of silence
     assert not any(audio_array)
+
+
+class _RecordingSession:
+    """Record ONNX inputs and return a minimal audio result."""
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def run(self, output_names, args):
+        """Record one inference call."""
+        self.calls.append((output_names, args))
+        return [np.zeros((1, 1), dtype=np.float32)]
+
+
+@pytest.mark.parametrize("speaker_id", [0, 2])
+def test_phoneme_ids_to_audio_accepts_speaker_id_boundaries(speaker_id) -> None:
+    """Accept the first and last identifiers for a multi-speaker voice."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    voice.config.num_speakers = 3
+    session = _RecordingSession()
+    voice.session = session
+
+    voice.phoneme_ids_to_audio([1, 2], SynthesisConfig(speaker_id=speaker_id))
+
+    assert session.calls[0][1]["sid"].tolist() == [speaker_id]
+
+
+@pytest.mark.parametrize("speaker_id", [-1, 3, "1", 1.0, True])
+def test_phoneme_ids_to_audio_rejects_invalid_speaker_id(speaker_id) -> None:
+    """Reject an invalid explicit speaker before creating NumPy tensors."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    voice.config.num_speakers = 3
+
+    with patch("piper.voice.np.array") as array:
+        with pytest.raises(ValueError, match=r"0 <= speaker_id < 3"):
+            voice.phoneme_ids_to_audio([1, 2], SynthesisConfig(speaker_id=speaker_id))
+
+    array.assert_not_called()
+
+
+def test_phoneme_ids_to_audio_rejects_invalid_default_speaker_id() -> None:
+    """Validate the default speaker before creating NumPy tensors."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    voice.config.num_speakers = 3
+    voice.config.default_speaker_id = 3
+
+    with patch("piper.voice.np.array") as array:
+        with pytest.raises(ValueError, match=r"0 <= speaker_id < 3"):
+            voice.phoneme_ids_to_audio([1, 2])
+
+    array.assert_not_called()
+
+
+@pytest.mark.parametrize("speaker_id", [-1, 1, "speaker", True])
+def test_single_speaker_voice_ignores_speaker_id(speaker_id) -> None:
+    """Ignore every speaker identifier for a single-speaker voice."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    session = _RecordingSession()
+    voice.session = session
+
+    voice.phoneme_ids_to_audio([1, 2], SynthesisConfig(speaker_id=speaker_id))
+
+    assert "sid" not in session.calls[0][1]
 
 
 def test_language_switch_flags_removed() -> None:

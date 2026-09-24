@@ -3,6 +3,7 @@
 import itertools
 import json
 import logging
+import numbers
 import re
 import threading
 import unicodedata
@@ -490,11 +491,34 @@ class PiperVoice:
         If include_alignments is True and the voice model supports it, the return
         value will be a tuple instead with (audio, phoneme_id_samples) where
         phoneme_id_samples contains the number of audio samples per phoneme id.
+
+        For single-speaker voices, ``speaker_id`` is ignored for backward
+        compatibility. Multi-speaker voices require an integer (but not a
+        boolean) in the range ``0 <= speaker_id < num_speakers``. When it is not
+        provided, ``default_speaker_id`` is validated and used instead.
         """
         if syn_config is None:
             syn_config = _DEFAULT_SYNTHESIS_CONFIG
 
         speaker_id = syn_config.speaker_id
+        if self.config.num_speakers <= 1:
+            # Single-speaker models have no sid input. Keep accepting speaker_id
+            # because older callers could pass one and it was ignored.
+            speaker_id = None
+        else:
+            if speaker_id is None:
+                speaker_id = self.config.default_speaker_id
+
+            if (
+                isinstance(speaker_id, bool)
+                or not isinstance(speaker_id, numbers.Integral)
+                or not 0 <= speaker_id < self.config.num_speakers
+            ):
+                raise ValueError(
+                    "speaker_id must be an integer in the range "
+                    f"0 <= speaker_id < {self.config.num_speakers}"
+                )
+
         length_scale = syn_config.length_scale
         noise_scale = syn_config.noise_scale
         noise_w_scale = syn_config.noise_w_scale
@@ -520,13 +544,6 @@ class PiperVoice:
             "input_lengths": phoneme_ids_lengths,
             "scales": scales,
         }
-
-        if self.config.num_speakers <= 1:
-            speaker_id = None
-
-        if (self.config.num_speakers > 1) and (speaker_id is None):
-            # Default speaker
-            speaker_id = self.config.default_speaker_id
 
         if speaker_id is not None:
             sid = np.array([speaker_id], dtype=np.int64)

@@ -57,8 +57,13 @@ def _validate_speaker_id(speaker_id: Any, num_speakers: int) -> int:
 
 def _select_speaker_id(
     data: Dict[str, Any], voice: PiperVoice, args: argparse.Namespace
-) -> int:
+) -> Optional[int]:
     """Select and validate a speaker identifier for a synthesis request."""
+    if voice.config.num_speakers <= 1:
+        # Match PiperVoice: single-speaker models have no speaker input, so all
+        # speaker selections are ignored for backward compatibility.
+        return None
+
     speaker_id = data.get("speaker_id")
     if speaker_id is None:
         speaker = data.get("speaker")

@@ -82,6 +82,11 @@ W zależności od wersji API dostępne mogą być między innymi następujące p
 - `noise_scale`: skala szumu (noise scale),
 - `noise_w_scale`: skala szumu długości (noise width scale).
 
+Dla modelu wielomówcowego `speaker_id` musi być liczbą całkowitą, ale nie
+wartością logiczną, z zakresu `0 <= speaker_id < num_speakers`. Dla modelu
+jednomówcowego pola `speaker` i `speaker_id` są ignorowane dla zgodności
+wstecznej, tak samo jak ustawienie mówcy w pozostałych interfejsach Pipera.
+
 Znaczenie parametrów syntezy opisano szerzej w [dokumentacji API Pythona](API_PYTHON.md).
 
 ### `length_scale`
