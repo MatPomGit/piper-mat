@@ -123,6 +123,109 @@ class _RecordingSession:
         return [np.zeros((1, 1), dtype=np.float32)]
 
 
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("length_scale", 0),
+        ("length_scale", -1),
+        ("length_scale", float("nan")),
+        ("length_scale", float("inf")),
+        ("length_scale", float("-inf")),
+        ("length_scale", True),
+        ("length_scale", "1"),
+        ("noise_scale", -1),
+        ("noise_scale", float("nan")),
+        ("noise_scale", float("inf")),
+        ("noise_scale", float("-inf")),
+        ("noise_scale", True),
+        ("noise_scale", "1"),
+        ("noise_w_scale", -1),
+        ("noise_w_scale", float("nan")),
+        ("noise_w_scale", float("inf")),
+        ("noise_w_scale", float("-inf")),
+        ("noise_w_scale", True),
+        ("noise_w_scale", "1"),
+    ],
+)
+def test_phoneme_ids_to_audio_rejects_invalid_scales(name, value) -> None:
+    """Reject invalid synthesis scales before inference."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    session = _RecordingSession()
+    voice.session = session
+
+    with pytest.raises(ValueError, match=name):
+        voice.phoneme_ids_to_audio([1, 2], SynthesisConfig(**{name: value}))
+
+    assert not session.calls
+
+
+def test_phoneme_ids_to_audio_accepts_scale_boundaries() -> None:
+    """Accept a positive length and zero-valued noise scales."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    session = _RecordingSession()
+    voice.session = session
+    config = SynthesisConfig(length_scale=0.5, noise_scale=0, noise_w_scale=0)
+
+    voice.phoneme_ids_to_audio([1, 2], config)
+
+    np.testing.assert_array_equal(
+        session.calls[0][1]["scales"], np.array([0, 0.5, 0], dtype=np.float32)
+    )
+
+
+@pytest.mark.parametrize("name", ["length_scale", "noise_scale", "noise_w_scale"])
+@pytest.mark.parametrize(
+    "value", [float("nan"), float("inf"), float("-inf"), True, "1"]
+)
+def test_phoneme_ids_to_audio_validates_default_scales(name, value) -> None:
+    """Validate a selected voice default just like an explicit scale."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    setattr(voice.config, name, value)
+    session = _RecordingSession()
+    voice.session = session
+
+    with pytest.raises(ValueError, match=name):
+        voice.phoneme_ids_to_audio([1, 2])
+
+    assert not session.calls
+
+
+@pytest.mark.parametrize(
+    "volume",
+    [-1, float("nan"), float("inf"), float("-inf"), True, "1"],
+)
+def test_synthesize_rejects_invalid_volume(volume) -> None:
+    """Reject invalid volume values before synthesis."""
+    voice = PiperVoice.load(_TEST_VOICE)
+
+    with patch.object(voice, "phonemize") as phonemize:
+        with pytest.raises(ValueError, match="volume"):
+            list(voice.synthesize("test", SynthesisConfig(volume=volume)))
+
+    phonemize.assert_not_called()
+
+
+@pytest.mark.parametrize("volume", [0, 0.5])
+def test_synthesize_accepts_valid_volume_boundaries(volume) -> None:
+    """Accept zero and positive finite volume values."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    config = SynthesisConfig(normalize_audio=False, volume=volume)
+
+    with (
+        patch.object(voice, "phonemize", return_value=[["x"]]),
+        patch.object(voice, "phonemes_to_ids", return_value=[1, 2]),
+        patch.object(
+            voice, "phoneme_ids_to_audio", return_value=np.ones(2, dtype=np.float32)
+        ),
+    ):
+        chunks = list(voice.synthesize("test", config))
+
+    assert len(chunks) == 1
+    np.testing.assert_array_equal(
+        chunks[0].audio_float_array, np.full(2, volume, dtype=np.float32)
+    )
+
+
 @pytest.mark.parametrize("speaker_id", [0, 2])
 def test_phoneme_ids_to_audio_accepts_speaker_id_boundaries(speaker_id) -> None:
     """Accept the first and last identifiers for a multi-speaker voice."""

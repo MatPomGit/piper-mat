@@ -3,6 +3,7 @@
 import itertools
 import json
 import logging
+import math
 import numbers
 import re
 import threading
@@ -29,6 +30,24 @@ _MAX_WAV_VALUE = 32767.0
 _PHONEME_BLOCK_PATTERN = re.compile(r"(\[\[.*?\]\])")
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _validate_scale(name: str, value: Any, *, allow_zero: bool) -> float:
+    """Validate and return a synthesis scale as a float."""
+    if isinstance(value, (bool, np.bool_)) or not isinstance(value, numbers.Real):
+        raise ValueError(f"{name} must be a finite number")
+
+    float_value = float(value)
+    if not math.isfinite(float_value):
+        raise ValueError(f"{name} must be a finite number")
+
+    if allow_zero:
+        if float_value < 0:
+            raise ValueError(f"{name} must be greater than or equal to zero")
+    elif float_value <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+
+    return float_value
 
 
 @dataclass
@@ -336,6 +355,8 @@ class PiperVoice:
         if syn_config is None:
             syn_config = _DEFAULT_SYNTHESIS_CONFIG
 
+        volume = _validate_scale("volume", syn_config.volume, allow_zero=True)
+
         sentence_phonemes = self.phonemize(text)
         _LOGGER.debug("text=%s, phonemes=%s", text, sentence_phonemes)
 
@@ -364,8 +385,8 @@ class PiperVoice:
                 else:
                     audio = audio / max_val
 
-            if syn_config.volume != 1.0:
-                audio = audio * syn_config.volume
+            if volume != 1.0:
+                audio = audio * volume
 
             audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
 
@@ -531,6 +552,10 @@ class PiperVoice:
 
         if noise_w_scale is None:
             noise_w_scale = self.config.noise_w_scale
+
+        length_scale = _validate_scale("length_scale", length_scale, allow_zero=False)
+        noise_scale = _validate_scale("noise_scale", noise_scale, allow_zero=True)
+        noise_w_scale = _validate_scale("noise_w_scale", noise_w_scale, allow_zero=True)
 
         phoneme_ids_array = np.expand_dims(np.array(phoneme_ids, dtype=np.int64), 0)
         phoneme_ids_lengths = np.array([phoneme_ids_array.shape[1]], dtype=np.int64)
