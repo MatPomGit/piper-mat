@@ -497,7 +497,7 @@ class PiperVoice:
 
     def phoneme_ids_to_audio(
         self,
-        phoneme_ids: list[int],
+        phoneme_ids: Sequence[int],
         syn_config: Optional[SynthesisConfig] = None,
         include_alignments: bool = False,
     ) -> Union[np.ndarray, Tuple[np.ndarray, Optional[np.ndarray]]]:
@@ -518,6 +518,20 @@ class PiperVoice:
         boolean) in the range ``0 <= speaker_id < num_speakers``. When it is not
         provided, ``default_speaker_id`` is validated and used instead.
         """
+        if len(phoneme_ids) == 0:
+            raise ValueError("phoneme_ids must be a non-empty sequence of integers")
+
+        for position, phoneme_id in enumerate(phoneme_ids):
+            if (
+                isinstance(phoneme_id, (bool, np.bool_))
+                or not isinstance(phoneme_id, numbers.Integral)
+                or not 0 <= phoneme_id < self.config.num_symbols
+            ):
+                raise ValueError(
+                    f"phoneme_ids[{position}] must be an integer in the range "
+                    f"0 <= phoneme_id < {self.config.num_symbols}; got {phoneme_id!r}"
+                )
+
         if syn_config is None:
             syn_config = _DEFAULT_SYNTHESIS_CONFIG
 
