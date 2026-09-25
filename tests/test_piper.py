@@ -123,6 +123,55 @@ class _RecordingSession:
         return [np.zeros((1, 1), dtype=np.float32)]
 
 
+def test_phoneme_ids_to_audio_rejects_empty_sequence() -> None:
+    """Reject an empty phoneme identifier sequence before creating an array."""
+    voice = PiperVoice.load(_TEST_VOICE)
+
+    with patch("piper.voice.np.array") as array:
+        with pytest.raises(ValueError, match="non-empty"):
+            voice.phoneme_ids_to_audio([])
+
+    array.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("phoneme_ids", "position", "value"),
+    [
+        ([1, -1, 2], 1, "-1"),
+        ([1, 256, 2], 1, "256"),
+        ([1, 1.5, 2], 1, "1.5"),
+        ([1, True, 2], 1, "True"),
+    ],
+)
+def test_phoneme_ids_to_audio_rejects_invalid_identifier(
+    phoneme_ids, position, value
+) -> None:
+    """Report the position and value of an invalid phoneme identifier."""
+    voice = PiperVoice.load(_TEST_VOICE)
+
+    with patch("piper.voice.np.array") as array:
+        with pytest.raises(ValueError) as error:
+            voice.phoneme_ids_to_audio(phoneme_ids)
+
+    assert f"phoneme_ids[{position}]" in str(error.value)
+    assert f"got {value}" in str(error.value)
+    array.assert_not_called()
+
+
+def test_phoneme_ids_to_audio_accepts_valid_identifier_sequence() -> None:
+    """Create the model input array for valid phoneme identifiers."""
+    voice = PiperVoice.load(_TEST_VOICE)
+    session = _RecordingSession()
+    voice.session = session
+
+    voice.phoneme_ids_to_audio([0, 1, voice.config.num_symbols - 1])
+
+    np.testing.assert_array_equal(
+        session.calls[0][1]["input"],
+        np.array([[0, 1, voice.config.num_symbols - 1]], dtype=np.int64),
+    )
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [
