@@ -374,9 +374,11 @@ def test_unknown_voice_returns_not_found_without_updating_state(
     assert load_calls == [default_path, unknown_path]
 
 
-@pytest.mark.parametrize("value", ["-0.1", "nan", "inf", "-inf"])
+@pytest.mark.parametrize("value", ["-1", "nan", "inf", "-inf", "not-a-number"])
 def test_server_rejects_invalid_sentence_silence(
-    monkeypatch: pytest.MonkeyPatch, value: str
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    value: str,
 ) -> None:
     """Reject non-finite and negative silence while parsing server options."""
     from piper.http_server import main
@@ -391,6 +393,7 @@ def test_server_rejects_invalid_sentence_silence(
         main()
 
     assert error.value.code == 2
+    assert "error:" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("sentence_silence", [0.15, 0.25, 0.45, 0.75])

@@ -13,6 +13,7 @@ from pathlib import Path
 from pathvalidate import sanitize_filename
 
 from . import PiperVoice, SynthesisConfig
+from .argparse_utils import nonnegative_finite_float, positive_finite_float
 from .audio_playback import AudioPlayer
 
 _FILE = Path(__file__)
@@ -58,17 +59,23 @@ def main() -> None:
     #
     parser.add_argument("-s", "--speaker", type=int, help="Id of speaker (default: 0)")
     parser.add_argument(
-        "--length-scale", "--length_scale", type=float, help="Phoneme length"
+        "--length-scale",
+        "--length_scale",
+        type=positive_finite_float,
+        help="Phoneme length",
     )
     parser.add_argument(
-        "--noise-scale", "--noise_scale", type=float, help="Generator noise"
+        "--noise-scale",
+        "--noise_scale",
+        type=nonnegative_finite_float,
+        help="Generator noise",
     )
     parser.add_argument(
         "--noise-w-scale",
         "--noise_w_scale",
         "--noise-w",
         "--noise_w",
-        type=float,
+        type=nonnegative_finite_float,
         help="Phoneme width noise",
     )
     #
@@ -77,12 +84,15 @@ def main() -> None:
     parser.add_argument(
         "--sentence-silence",
         "--sentence_silence",
-        type=float,
+        type=nonnegative_finite_float,
         default=0.0,
         help="Seconds of silence after each sentence",
     )
     parser.add_argument(
-        "--volume", type=float, default=1.0, help="Volume multiplier (default: 1.0)"
+        "--volume",
+        type=nonnegative_finite_float,
+        default=1.0,
+        help="Volume multiplier (default: 1.0)",
     )
     parser.add_argument(
         "--no-normalize", action="store_true", help="Don't normalize audio"

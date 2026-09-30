@@ -437,6 +437,48 @@ def test_sentence_silence_even_byte_count(
     assert data_size == expected_bytes
 
 
+@pytest.mark.parametrize(
+    ("option", "value", "is_valid"),
+    [
+        ("--sentence-silence", "-1", False),
+        ("--sentence-silence", "nan", False),
+        ("--sentence-silence", "inf", False),
+        ("--sentence-silence", "-inf", False),
+        ("--sentence-silence", "not-a-number", False),
+        ("--sentence-silence", "0", True),
+        ("--sentence-silence", "0.25", True),
+        ("--sentence_silence", "0.25", True),
+    ],
+)
+def test_cli_validates_sentence_silence_before_loading_model(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    option: str,
+    value: str,
+    is_valid: bool,
+) -> None:
+    """Validate sentence silence with ``argparse`` before loading a model."""
+    from piper.__main__ import main
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper", "--model", str(_TEST_VOICE), option, value],
+    )
+
+    with patch("piper.__main__.PiperVoice.load") as load_voice:
+        if is_valid:
+            load_voice.side_effect = RuntimeError("model loading reached")
+            with pytest.raises(RuntimeError, match="model loading reached"):
+                main()
+            load_voice.assert_called_once()
+        else:
+            with pytest.raises(SystemExit, match="2"):
+                main()
+            load_voice.assert_not_called()
+            assert "error:" in capsys.readouterr().err
+
+
 def test_cli_passes_explicit_config_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
