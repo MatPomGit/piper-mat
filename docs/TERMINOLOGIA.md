@@ -34,6 +34,7 @@ Nazwy parametrów programu, identyfikatorów, klas, funkcji, bibliotek, formató
 | peak RAM usage | [maksymalne użycie pamięci RAM](terminologia/maksymalne-uzycie-pamieci-ram.md) | Zamiast „peak RAM”. |
 | phonemization | [fonemizacja](terminologia/fonemizacja.md) | Zamiana tekstu na reprezentację fonemiczną. |
 | real-time factor | [współczynnik czasu rzeczywistego](terminologia/wspolczynnik-czasu-rzeczywistego.md) | Skrót RTF można stosować po pierwszym rozwinięciu. |
+| reverse proxy | odwrotny serwer proxy | Warstwa pośrednicząca odbierająca żądania klientów i przekazująca je do usługi. |
 | release | [wydanie](terminologia/wydanie.md) | Dotyczy wydań programu lub modelu. |
 | resume training | [wznowienie trenowania](terminologia/wznowienie-trenowania.md) | Nie używać „resume treningu”. |
 | sample | [próbka](terminologia/probka.md) | W audio może oznaczać próbkę sygnału albo element zbioru danych, dlatego trzeba doprecyzować kontekst. |

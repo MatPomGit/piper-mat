@@ -27,7 +27,7 @@ Dokładna nazwa opcji modelu może zależeć od używanej wersji Pipera. Przed a
 python -m piper.http_server --help
 ```
 
-Domyślnie serwer może nasłuchiwać na porcie `5000`. Adres i port można zmienić opcjami `--host` i `--port`, jeżeli obsługuje je dana wersja.
+Domyślnie serwer nasłuchuje pod adresem `127.0.0.1` na porcie `5000`. Adres i port można zmienić opcjami `--host` i `--port`.
 
 ## Adres nasłuchiwania
 
@@ -69,6 +69,12 @@ curl \
 ```
 
 Pole `text` jest tekstem przeznaczonym do syntezy. Nie należy przesyłać pustego tekstu ani nieograniczonych rozmiarowo danych pochodzących bezpośrednio od niezaufanego klienta.
+
+Serwer domyślnie przyjmuje żądania o rozmiarze do 65 536 bajtów i tekst do 10 000 znaków. Limity można zmienić odpowiednio opcjami `--max-request-bytes` i `--max-text-chars`. Przekroczenie któregokolwiek limitu powoduje odpowiedź HTTP `413`.
+
+## Pobieranie modeli
+
+Punkt końcowy `/download` jest domyślnie wyłączony i zwraca HTTP `403`. Można go włączyć opcją `--enable-download`, wyłącznie gdy klientom wolno zapisywać modele w katalogu skonfigurowanym dla serwera. Połączenia z katalogiem modeli mają ograniczony czas oczekiwania. Wynik punktu `/all-voices` jest przechowywany przez pięć minut w pamięci podręcznej (cache), aby nie pobierać katalogu przy każdym żądaniu.
 
 ## Parametry żądania
 
@@ -121,13 +127,14 @@ Nie należy traktować każdej awarii jako „błędu TTS”, ponieważ problem 
 
 ## Bezpieczeństwo
 
-W przypadku dostępu spoza hosta lokalnego należy co najmniej:
+W przypadku dostępu spoza hosta lokalnego serwer należy umieścić za odwrotnym serwerem proxy (reverse proxy), który zapewnia uwierzytelnianie, szyfrowanie TLS i ograniczanie liczby żądań. W tym serwerze nie należy implementować własnego systemu haseł. Ponadto należy:
 
 - ograniczyć dostęp sieciowy do wymaganych klientów,
 - nie przechowywać sekretów w repozytorium,
-- zastosować uwierzytelnianie w warstwie pośredniczącej, jeżeli usługa jest dostępna dla niezaufanych klientów,
-- zastosować TLS dla ruchu przechodzącego przez niezaufaną sieć,
-- ograniczyć maksymalną długość tekstu i częstotliwość żądań,
+- skonfigurować uwierzytelnianie w warstwie pośredniczącej,
+- zakończyć połączenie TLS w warstwie pośredniczącej,
+- skonfigurować w niej ograniczanie liczby żądań,
+- dostosować maksymalny rozmiar żądania i długość tekstu,
 - monitorować zużycie CPU, GPU i pamięci,
 - nie zwracać klientowi niepotrzebnych szczegółów wyjątków wewnętrznych.
 

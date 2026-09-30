@@ -1,7 +1,6 @@
 """Flask web server with HTTP API for Piper."""
 
 import argparse
-from collections import OrderedDict
 import importlib.util
 import io
 import json
@@ -9,6 +8,7 @@ import logging
 import re
 import time
 import wave
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 from urllib.request import urlopen
@@ -21,6 +21,8 @@ from .download_voices import VOICES_JSON, download_voice
 
 _LOGGER = logging.getLogger()
 _MODEL_ID_PATTERN = re.compile(r"[A-Za-z0-9_.-]+")
+_URL_OPEN_TIMEOUT_SECONDS = 10
+_ALL_VOICES_CACHE_SECONDS = 300
 
 
 def _model_id_from_path(path: Path, suffix: str) -> str:
@@ -147,8 +149,25 @@ def _alignment_info() -> Dict[str, Any]:
 def main() -> None:
     """Run HTTP server."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="0.0.0.0", help="HTTP server host")
+    parser.add_argument("--host", default="127.0.0.1", help="HTTP server host")
     parser.add_argument("--port", type=int, default=5000, help="HTTP server port")
+    parser.add_argument(
+        "--max-request-bytes",
+        type=_positive_int,
+        default=64 * 1024,
+        help="Maximum HTTP request size in bytes (default: 65536)",
+    )
+    parser.add_argument(
+        "--max-text-chars",
+        type=_positive_int,
+        default=10_000,
+        help="Maximum synthesis text length in characters (default: 10000)",
+    )
+    parser.add_argument(
+        "--enable-download",
+        action="store_true",
+        help="Enable the voice download endpoint",
+    )
     #
     parser.add_argument("-m", "--model", required=True, help="Path to Onnx model file")
     #
@@ -244,9 +263,11 @@ def main() -> None:
     # Create web server.
     # Images live in the "img" directory and are served under "/img".
     app = Flask(__name__, static_folder="img", static_url_path="/img")
+    app.config["MAX_CONTENT_LENGTH"] = args.max_request_bytes
 
     # Info about the most recently synthesized utterance (for the web page).
     last_synthesis: Dict[str, Any] = {}
+    all_voices_cache: Dict[str, Any] = {}
 
     @app.route("/", methods=["GET"])
     def app_index() -> str:
@@ -323,8 +344,13 @@ def main() -> None:
         Outputs voices.json from the piper-voices repo on HuggingFace.
         See: https://huggingface.co/rhasspy/piper-voices
         """
-        with urlopen(VOICES_JSON) as response:
-            return json.load(response)
+        now = time.monotonic()
+        if now >= all_voices_cache.get("expires_at", 0):
+            with urlopen(VOICES_JSON, timeout=_URL_OPEN_TIMEOUT_SECONDS) as response:
+                all_voices_cache["voices"] = json.load(response)
+            all_voices_cache["expires_at"] = now + _ALL_VOICES_CACHE_SECONDS
+
+        return all_voices_cache["voices"]
 
     @app.route("/download", methods=["POST"])
     def app_download() -> str:
@@ -342,13 +368,24 @@ def main() -> None:
         Returns the name of the voice.
         Voice format must be <language>-<name>-<quality> like "en_US-lessac-medium".
         """
-        data = json.loads(request.data)
+        if not args.enable_download:
+            abort(403, description="Voice downloads are disabled")
+
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            abort(400, description="Request body must be a JSON object")
+
         model_id = data.get("voice")
         if not model_id:
             raise ValueError("voice is required")
 
         force_redownload = data.get("force_redownload", False)
-        download_voice(model_id, download_dir, force_redownload=force_redownload)
+        download_voice(
+            model_id,
+            download_dir,
+            force_redownload=force_redownload,
+            timeout=_URL_OPEN_TIMEOUT_SECONDS,
+        )
 
         return model_id
 
@@ -367,10 +404,19 @@ def main() -> None:
           "length_w_scale": 0.8          (optional)
         }
         """
-        data = json.loads(request.data)
-        text = data.get("text", "").strip()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            abort(400, description="Request body must be a JSON object")
+
+        raw_text = data.get("text", "")
+        if not isinstance(raw_text, str):
+            abort(400, description="text must be a string")
+        if len(raw_text) > args.max_text_chars:
+            abort(413, description="Text exceeds the configured character limit")
+
+        text = raw_text.strip()
         if not text:
-            raise ValueError("No text provided")
+            abort(400, description="No text provided")
 
         _LOGGER.debug(data)
 

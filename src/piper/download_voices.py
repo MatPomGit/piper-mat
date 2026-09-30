@@ -7,6 +7,7 @@ import logging
 import re
 import shutil
 from pathlib import Path
+from typing import Optional
 from urllib.request import urlopen
 
 URL_FORMAT = "https://huggingface.co/rhasspy/piper-voices/resolve/main/{lang_family}/{lang_code}/{voice_name}/{voice_quality}/{lang_code}-{voice_name}-{voice_quality}{extension}?download=true"
@@ -75,7 +76,10 @@ def list_voices() -> None:
 
 
 def download_voice(
-    voice: str, download_dir: Path, force_redownload: bool = False
+    voice: str,
+    download_dir: Path,
+    force_redownload: bool = False,
+    timeout: Optional[float] = None,
 ) -> None:
     """Download a voice model and config file to a directory."""
     voice = voice.strip()
@@ -99,7 +103,7 @@ def download_voice(
     }
 
     _LOGGER.debug("Downloading voices.json file: '%s'", VOICES_JSON)
-    with urlopen(VOICES_JSON) as response:
+    with urlopen(VOICES_JSON, timeout=timeout) as response:
         voices_dict = json.load(response)
 
     voice_info = voices_dict.get(voice, {})
@@ -125,13 +129,19 @@ def download_voice(
             _LOGGER.debug(
                 "Downloading model from '%s' to '%s'", model_url, model_temporary_path
             )
-            _download_file(model_url, model_temporary_path, model_info)
+            _download_file(model_url, model_temporary_path, model_info, timeout=timeout)
             _LOGGER.debug(
                 "Downloading config from '%s' to '%s'",
                 config_url,
                 config_temporary_path,
             )
-            _download_file(config_url, config_temporary_path, config_info, is_json=True)
+            _download_file(
+                config_url,
+                config_temporary_path,
+                config_info,
+                is_json=True,
+                timeout=timeout,
+            )
             _publish_files(
                 (
                     (model_temporary_path, model_path),
@@ -162,10 +172,14 @@ def _get_file_info(voice_files: object, file_name: str) -> dict:
 
 
 def _download_file(
-    url: str, path: Path, file_info: dict, is_json: bool = False
+    url: str,
+    path: Path,
+    file_info: dict,
+    is_json: bool = False,
+    timeout: Optional[float] = None,
 ) -> None:
     """Download and validate a file at the supplied staging path."""
-    with urlopen(url) as response:
+    with urlopen(url, timeout=timeout) as response:
         with open(path, "wb") as output_file:
             shutil.copyfileobj(response, output_file)
             output_file.flush()
