@@ -6,7 +6,6 @@ import importlib.util
 import io
 import json
 import logging
-import math
 import re
 import time
 import wave
@@ -17,19 +16,11 @@ from urllib.request import urlopen
 from flask import Flask, abort, render_template, request
 
 from . import PiperVoice, SynthesisConfig
+from .argparse_utils import nonnegative_finite_float, positive_finite_float
 from .download_voices import VOICES_JSON, download_voice
 
 _LOGGER = logging.getLogger()
 _MODEL_ID_PATTERN = re.compile(r"[A-Za-z0-9_.-]+")
-
-
-def _nonnegative_finite_float(value: str) -> float:
-    """Parse a finite, nonnegative floating-point command-line value."""
-    parsed_value = float(value)
-    if not math.isfinite(parsed_value) or parsed_value < 0:
-        raise argparse.ArgumentTypeError("must be a finite, nonnegative number")
-
-    return parsed_value
 
 
 def _model_id_from_path(path: Path, suffix: str) -> str:
@@ -163,17 +154,23 @@ def main() -> None:
     #
     parser.add_argument("-s", "--speaker", type=int, help="Id of speaker (default: 0)")
     parser.add_argument(
-        "--length-scale", "--length_scale", type=float, help="Phoneme length"
+        "--length-scale",
+        "--length_scale",
+        type=positive_finite_float,
+        help="Phoneme length",
     )
     parser.add_argument(
-        "--noise-scale", "--noise_scale", type=float, help="Generator noise"
+        "--noise-scale",
+        "--noise_scale",
+        type=nonnegative_finite_float,
+        help="Generator noise",
     )
     parser.add_argument(
         "--noise-w-scale",
         "--noise_w_scale",
         "--noise-w",
         "--noise_w",
-        type=float,
+        type=nonnegative_finite_float,
         help="Phoneme width noise",
     )
     #
@@ -182,7 +179,7 @@ def main() -> None:
     parser.add_argument(
         "--sentence-silence",
         "--sentence_silence",
-        type=_nonnegative_finite_float,
+        type=nonnegative_finite_float,
         default=0.0,
         help="Seconds of silence after each sentence",
     )
