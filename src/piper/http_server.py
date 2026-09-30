@@ -1,15 +1,17 @@
 """Flask web server with HTTP API for Piper."""
 
 import argparse
+from collections import OrderedDict
 import importlib.util
 import io
 import json
 import logging
 import math
+import re
 import time
 import wave
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 from urllib.request import urlopen
 
 from flask import Flask, abort, render_template, request
@@ -18,6 +20,7 @@ from . import PiperVoice, SynthesisConfig
 from .download_voices import VOICES_JSON, download_voice
 
 _LOGGER = logging.getLogger()
+_MODEL_ID_PATTERN = re.compile(r"[A-Za-z0-9_.-]+")
 
 
 def _nonnegative_finite_float(value: str) -> float:
@@ -35,6 +38,46 @@ def _model_id_from_path(path: Path, suffix: str) -> str:
         raise ValueError(f"Model path must end with {suffix!r}: {path}")
 
     return path.name[: -len(suffix)]
+
+
+def _validate_model_id(model_id: Any) -> str:
+    """Return a safe model identifier or abort with HTTP 400."""
+    if (
+        not isinstance(model_id, str)
+        or not model_id
+        or model_id in {".", ".."}
+        or model_id.endswith(".onnx")
+        or _MODEL_ID_PATTERN.fullmatch(model_id) is None
+    ):
+        abort(
+            400,
+            description=(
+                "voice must be a nonempty model identifier containing only "
+                "ASCII letters, digits, '_', '-' and '.', without an .onnx suffix"
+            ),
+        )
+
+    return model_id
+
+
+def _find_model_path(model_id: str, data_dirs: Sequence[str]) -> Optional[Path]:
+    """Find a model file contained within one of the data directories."""
+    for data_dir in data_dirs:
+        root = Path(data_dir).resolve()
+        candidate = (root / f"{model_id}.onnx").resolve()
+        if candidate.is_relative_to(root) and candidate.is_file():
+            return candidate
+
+    return None
+
+
+def _positive_int(value: str) -> int:
+    """Parse a positive integer command-line value."""
+    parsed_value = int(value)
+    if parsed_value < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+
+    return parsed_value
 
 
 def _validate_speaker_id(speaker_id: Any, num_speakers: int) -> int:
@@ -156,6 +199,12 @@ def main() -> None:
         "--download_dir",
         help="Path to download voices (default: first data dir)",
     )
+    parser.add_argument(
+        "--max-loaded-voices",
+        type=_positive_int,
+        default=8,
+        help="Maximum number of voices kept in memory (default: 8)",
+    )
     #
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to console"
@@ -191,7 +240,9 @@ def main() -> None:
 
     # Load voice
     default_voice = _load_voice(model_path, args)
-    loaded_voices: Dict[str, PiperVoice] = {default_model_id: default_voice}
+    loaded_voices: OrderedDict[str, PiperVoice] = OrderedDict(
+        [(default_model_id, default_voice)]
+    )
 
     # Create web server.
     # Images live in the "img" directory and are served under "/img".
@@ -326,16 +377,28 @@ def main() -> None:
 
         _LOGGER.debug(data)
 
-        model_id = data["voice"] if "voice" in data else default_model_id
+        model_id = _validate_model_id(
+            data["voice"] if "voice" in data else default_model_id
+        )
         voice = loaded_voices.get(model_id)
         if voice is None:
-            for data_dir in args.data_dir:
-                maybe_model_path = Path(data_dir) / f"{model_id}.onnx"
-                if maybe_model_path.exists():
-                    _LOGGER.debug("Loading voice %s", model_id)
-                    voice = _load_voice(maybe_model_path, args)
+            model_path = _find_model_path(model_id, args.data_dir)
+            if model_path is not None:
+                _LOGGER.debug("Loading voice %s", model_id)
+                voice = _load_voice(model_path, args)
+                if args.max_loaded_voices > 1:
+                    while len(loaded_voices) >= args.max_loaded_voices:
+                        oldest_model_id = next(iter(loaded_voices))
+                        if oldest_model_id == default_model_id:
+                            loaded_voices.move_to_end(oldest_model_id)
+                            continue
+
+                        loaded_voices.popitem(last=False)
+
                     loaded_voices[model_id] = voice
-                    break
+
+        elif model_id != default_model_id:
+            loaded_voices.move_to_end(model_id)
 
         if voice is None:
             _LOGGER.warning("Voice not found: %s", model_id)

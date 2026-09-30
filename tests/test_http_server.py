@@ -12,8 +12,10 @@ from werkzeug.exceptions import BadRequest
 
 from piper.http_server import (
     _alignment_info,
+    _find_model_path,
     _model_id_from_path,
     _select_speaker_id,
+    _validate_model_id,
     _validate_speaker_id,
 )
 
@@ -43,6 +45,36 @@ def test_model_id_rejects_path_without_expected_suffix():
     """Reject a path that does not have the expected suffix."""
     with pytest.raises(ValueError, match="must end with"):
         _model_id_from_path(Path("voice.json"), ".onnx.json")
+
+
+def test_validate_model_id_accepts_voice_name():
+    """Accept a model identifier made from the supported characters."""
+    model_id = "pl_PL-mateusz-medium"
+
+    assert _validate_model_id(model_id) == model_id
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    ["../voice", "..\\voice", "/tmp/voice", "C:\\voice", ".", "..", 123],
+)
+def test_validate_model_id_rejects_unsafe_values(model_id):
+    """Reject path-like identifiers and values that are not strings."""
+    with pytest.raises(BadRequest) as error:
+        _validate_model_id(model_id)
+
+    assert error.value.code == 400
+
+
+def test_find_model_path_rejects_symlink_outside_data_dir(tmp_path):
+    """Reject a model symlink whose resolved target is outside the data directory."""
+    data_dir = tmp_path / "voices"
+    data_dir.mkdir()
+    outside_model = tmp_path / "outside.onnx"
+    outside_model.touch()
+    (data_dir / "linked.onnx").symlink_to(outside_model)
+
+    assert _find_model_path("linked", [str(data_dir)]) is None
 
 
 @pytest.mark.parametrize("speaker_id", [0, NUM_SPEAKERS - 1])
