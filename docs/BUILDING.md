@@ -127,6 +127,19 @@ Opcje CLI należy zapisywać dokładnie tak, jak definiuje je rzeczywisty interf
 
 ## Kontrola jakości zmian
 
+Po zainstalowaniu grupy zależności `dev` pełny zestaw testów i wszystkie
+kontrole jakości kodu można uruchomić bezpośrednio skryptami:
+
+```bash
+./script/test
+./script/lint
+```
+
+Skrypty automatycznie używają interpretera z `.venv`, jeżeli to środowisko
+istnieje. Argumenty podane po nazwie skryptu testowego są przekazywane do
+`pytest`, na przykład `./script/test --help` wyświetla pomoc bez uruchamiania
+zestawu testów.
+
 Po zmianie kodu należy uruchomić kontrole adekwatne do zakresu modyfikacji, na przykład:
 
 - testy jednostkowe,
