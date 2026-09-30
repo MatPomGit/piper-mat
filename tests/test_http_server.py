@@ -1,11 +1,11 @@
 """Tests for the Piper HTTP server."""
 
 import io
-from pathlib import Path
 import struct
 import sys
-from types import SimpleNamespace
 import wave
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from werkzeug.exceptions import BadRequest
@@ -21,6 +21,150 @@ from piper.http_server import (
 
 NUM_SPEAKERS = 3
 _TEST_VOICE = Path(__file__).parent / "test_voice.onnx"
+
+
+def _run_test_server(monkeypatch, tmp_path, client_action, *options):
+    """Run the server with a fake voice and expose its Flask test client."""
+    from flask import Flask
+
+    from piper.http_server import PiperVoice, main
+
+    model_path = tmp_path / "default.onnx"
+    model_path.touch()
+
+    class FakeVoice:
+        config = SimpleNamespace(
+            default_speaker_id=0,
+            espeak_voice="en-us",
+            length_scale=1.0,
+            noise_scale=0.667,
+            noise_w_scale=0.8,
+            num_speakers=1,
+            sample_rate=22_050,
+            speaker_id_map={},
+        )
+
+        def synthesize(self, text, syn_config, include_alignments=False):
+            del text, syn_config
+            assert include_alignments is True
+            yield SimpleNamespace(
+                audio_int16_bytes=b"\x00\x00",
+                phoneme_alignments=[],
+                phonemes=[],
+                sample_channels=1,
+                sample_rate=22_050,
+                sample_width=2,
+            )
+
+    run_arguments = {}
+
+    def test_run(app: Flask, **kwargs) -> None:
+        run_arguments.update(kwargs)
+        with app.test_client() as client:
+            client_action(client)
+
+    monkeypatch.setattr(PiperVoice, "load", lambda *args, **kwargs: FakeVoice())
+    monkeypatch.setattr(Flask, "run", test_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper-http-server", "--model", str(model_path), *options],
+    )
+
+    main()
+    return run_arguments
+
+
+def test_server_uses_localhost_by_default(monkeypatch, tmp_path):
+    """Bind to the IPv4 loopback address unless explicitly configured."""
+    run_arguments = _run_test_server(monkeypatch, tmp_path, lambda client: None)
+
+    assert run_arguments["host"] == "127.0.0.1"
+
+
+@pytest.mark.parametrize(
+    ("body", "content_type"),
+    [(b'{"text":', "application/json"), (b'["text"]', "application/json")],
+)
+def test_synthesize_rejects_invalid_or_non_object_json(
+    monkeypatch, tmp_path, body, content_type
+):
+    """Reject malformed JSON and JSON values other than objects."""
+    responses = []
+
+    def request_synthesis(client):
+        responses.append(
+            client.post("/synthesize", data=body, content_type=content_type)
+        )
+
+    _run_test_server(monkeypatch, tmp_path, request_synthesis)
+
+    assert responses[0].status_code == 400
+
+
+def test_synthesize_rejects_text_over_character_limit(monkeypatch, tmp_path):
+    """Reject text longer than the configured synthesis limit."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(
+            client.post("/synthesize", json={"text": "12345"})
+        ),
+        "--max-text-chars",
+        "4",
+    )
+
+    assert responses[0].status_code == 413
+
+
+def test_synthesize_rejects_request_over_byte_limit(monkeypatch, tmp_path):
+    """Reject a request body larger than MAX_CONTENT_LENGTH."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(
+            client.post("/synthesize", json={"text": "small"})
+        ),
+        "--max-request-bytes",
+        "8",
+    )
+
+    assert responses[0].status_code == 413
+
+
+def test_download_is_disabled_by_default(monkeypatch, tmp_path):
+    """Deny voice downloads unless explicitly enabled."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(
+            client.post("/download", json={"voice": "en_US-test-low"})
+        ),
+    )
+
+    assert responses[0].status_code == 403
+
+
+def test_synthesize_accepts_request_within_limits(monkeypatch, tmp_path):
+    """Synthesize a valid request within both configured limits."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(
+            client.post("/synthesize", json={"text": "Test"})
+        ),
+        "--max-request-bytes",
+        "128",
+        "--max-text-chars",
+        "10",
+    )
+
+    assert responses[0].status_code == 200
+    assert responses[0].mimetype == "text/html"
 
 
 @pytest.mark.parametrize(
