@@ -23,15 +23,6 @@ TASHKEEL_DATA_FILES = [
         "hint_id_map.json",
     )
 ]
-HEBREW_DATA_DIR = MODULE_DIR / "hebrew"
-HEBREW_DATA_FILES = [
-    (HEBREW_DATA_DIR / file_name).relative_to(MODULE_DIR)
-    for file_name in (
-        "nakdimon.onnx",
-        "LICENSE",
-        "SOURCE",
-    )
-]
 HTTP_DATA_FILES = [
     path.relative_to(MODULE_DIR)
     for path in itertools.chain(
@@ -108,15 +99,6 @@ setup(
         "alignment": [
             "onnx>=1,<2",
         ],
-        "zh": [
-            # g2pW supplies the pinyin/bopomofo lookup tables. Its model is run
-            # by piper.g2pw_onnx rather than g2pw.api, which keeps torch out of
-            # this extra because g2pw.api imports it for a DataLoader.
-            "g2pW>=0.1.1,<1",
-            "transformers>=4,<6",
-            "sentence-stream>=1.2.1,<2",
-            "unicode-rbnf>=2.4.0,<3",
-        ],
         "ja": [
             "pyopenjtalk-plus>=0.4,<1",
         ],
@@ -124,7 +106,6 @@ setup(
     packages=[
         "piper",
         "piper.tashkeel",
-        "piper.hebrew",
         "piper.train",
         "piper.train.vits",
         "piper.train.vits.monotonic_align",
@@ -138,7 +119,6 @@ setup(
                 PIPER_DATA_FILES,
                 ESPEAK_NG_DATA_FILES,
                 TASHKEEL_DATA_FILES,
-                HEBREW_DATA_FILES,
                 HTTP_DATA_FILES,
             )
         ],
