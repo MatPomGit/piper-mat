@@ -61,7 +61,11 @@ def test_download_rejects_invalid_checksum(
 ) -> None:
     data = _archive([_file("g2pw.onnx")])
     monkeypatch.setattr(phonemize_chinese, "G2PW_SHA256", "0" * 64)
-    monkeypatch.setattr(phonemize_chinese, "urlopen", lambda _url, **_kwargs: io.BytesIO(data))
+    monkeypatch.setattr(
+        phonemize_chinese,
+        "urlopen",
+        lambda _url, **_kwargs: io.BytesIO(data),
+    )
 
     with pytest.raises(ValueError, match="SHA-256"):
         phonemize_chinese.download_model(tmp_path / "model")
