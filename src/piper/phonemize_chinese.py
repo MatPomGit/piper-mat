@@ -26,6 +26,7 @@ from .g2pw_onnx import DATA_FILES, G2PWOnnxConverter
 from .phoneme_ids import DEFAULT_PHONEME_ID_MAP
 
 _LOGGER = logging.getLogger(__name__)
+_G2PW_DOWNLOAD_TIMEOUT_SECONDS = 30.0
 
 # NOTE: Must be sorted longest to shortest
 PINYIN_INITIALS = [
@@ -529,7 +530,7 @@ def download_model(model_dir: Union[str, Path]) -> None:
     )
     try:
         digest = hashlib.sha256()
-        with archive_file, urlopen(G2PW_URL) as response:
+        with archive_file, urlopen(G2PW_URL, timeout=_G2PW_DOWNLOAD_TIMEOUT_SECONDS) as response:
             while chunk := response.read(1024 * 1024):
                 archive_file.write(chunk)
                 digest.update(chunk)
