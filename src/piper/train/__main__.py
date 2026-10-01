@@ -19,6 +19,18 @@ _LOGGER = logging.getLogger(__package__)
 # LightningCLI config if you want different behavior.
 _MONITOR = "val_mel"
 
+
+class OptionalMetricCheckpoint(ModelCheckpoint):
+    """Save top checkpoints only when the monitored metric is available."""
+
+    def on_validation_end(self, trainer, pl_module) -> None:
+        """Skip this validation epoch when its optional metric was not logged."""
+        if self.monitor not in trainer.callback_metrics:
+            return
+
+        super().on_validation_end(trainer, pl_module)
+
+
 _DEFAULT_CALLBACKS = [
     ModelCheckpoint(
         monitor=_MONITOR,
@@ -28,13 +40,11 @@ _DEFAULT_CALLBACKS = [
         filename="epoch={epoch}-val_mel={val_mel:.4f}",
         auto_insert_metric_name=False,
     ),
-    # Also keep the best-by-perceptual-quality checkpoints. "val_mos" (UTMOS)
-    # tracks audible artifacts that mel L1 misses, so its winner is often the
-    # better-sounding model. If the MOS predictor can't be loaded, val_mos is
-    # never logged and this callback simply finds nothing to save (Lightning
-    # warns once and skips) -- it does not interfere with the val_mel/last
-    # checkpoints above. No save_last here to avoid clobbering last.ckpt.
-    ModelCheckpoint(
+    # Keep perceptual-quality checkpoints only for epochs in which UTMOS
+    # actually produced val_mos. The optional callback deliberately skips a
+    # missing metric, leaving val_mel and last.ckpt independent from UTMOS.
+    # No save_last here, so this callback cannot clobber last.ckpt.
+    OptionalMetricCheckpoint(
         monitor="val_mos",
         mode="max",
         save_top_k=5,
