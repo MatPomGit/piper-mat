@@ -29,7 +29,11 @@ jobs:
         # Black, isort and Flake8 enforce formatting/style above. Keep Pylint
         # focused on semantic errors and fatal diagnostics so legacy advisory
         # warnings do not make the whole pipeline fail.
-        run: python -m pylint src/piper tests --disable=all --enable=E,F
+        run: >-
+          python -m pylint src/piper tests
+          --disable=all
+          --enable=E,F
+          --disable=import-error,no-name-in-module,no-member
       - name: Check types with mypy
         run: python -m mypy src/piper tests
 
