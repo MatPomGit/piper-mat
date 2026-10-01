@@ -148,6 +148,69 @@ def test_download_is_disabled_by_default(monkeypatch, tmp_path):
     assert responses[0].status_code == 403
 
 
+def test_download_rejects_missing_voice(monkeypatch, tmp_path):
+    """Return HTTP 400 instead of an internal server error for a missing voice."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(client.post("/download", json={})),
+        "--enable-download",
+    )
+
+    assert responses[0].status_code == 400
+
+
+@pytest.mark.parametrize("value", ["yes", 1, None])
+def test_download_rejects_non_boolean_force_redownload(monkeypatch, tmp_path, value):
+    """Require a JSON Boolean for force_redownload."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(
+            client.post(
+                "/download",
+                json={"voice": "en_US-test-low", "force_redownload": value},
+            )
+        ),
+        "--enable-download",
+    )
+
+    assert responses[0].status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("length_scale", 0),
+        ("length_scale", -1),
+        ("length_scale", "1.0"),
+        ("length_scale", True),
+        ("noise_scale", -1),
+        ("noise_scale", "0.5"),
+        ("noise_scale", True),
+        ("noise_w_scale", -1),
+        ("noise_w_scale", "0.5"),
+        ("noise_w_scale", True),
+    ],
+)
+def test_synthesize_rejects_invalid_numeric_options(
+    monkeypatch, tmp_path, field, value
+):
+    """Return HTTP 400 for invalid synthesis scale values in JSON."""
+    responses = []
+    _run_test_server(
+        monkeypatch,
+        tmp_path,
+        lambda client: responses.append(
+            client.post("/synthesize", json={"text": "Test", field: value})
+        ),
+    )
+
+    assert responses[0].status_code == 400
+
+
 def test_synthesize_accepts_request_within_limits(monkeypatch, tmp_path):
     """Synthesize a valid request within both configured limits."""
     responses = []
