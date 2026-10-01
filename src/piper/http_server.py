@@ -74,7 +74,6 @@ def _positive_int(value: str) -> int:
     return parsed_value
 
 
-
 def _request_float(value: Any, name: str, *, positive: bool) -> float:
     """Validate a numeric synthesis option supplied in a JSON request."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
