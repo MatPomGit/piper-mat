@@ -19,6 +19,7 @@ VOICE_PATTERN = re.compile(
 )
 
 _LOGGER = logging.getLogger(__name__)
+_DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
 def main() -> None:
@@ -68,7 +69,7 @@ def main() -> None:
 def list_voices() -> None:
     """List available voices and exit."""
     _LOGGER.debug("Downloading voices.json file: '%s'", VOICES_JSON)
-    with urlopen(VOICES_JSON) as response:
+    with urlopen(VOICES_JSON, timeout=_DEFAULT_TIMEOUT_SECONDS) as response:
         voices_dict = json.load(response)
 
     for voice in sorted(voices_dict.keys()):
@@ -79,7 +80,7 @@ def download_voice(
     voice: str,
     download_dir: Path,
     force_redownload: bool = False,
-    timeout: Optional[float] = None,
+    timeout: Optional[float] = _DEFAULT_TIMEOUT_SECONDS,
 ) -> None:
     """Download a voice model and config file to a directory."""
     voice = voice.strip()
