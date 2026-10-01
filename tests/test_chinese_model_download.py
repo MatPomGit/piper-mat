@@ -48,7 +48,7 @@ def _download(monkeypatch: pytest.MonkeyPatch, model_dir: Path, data: bytes) -> 
     monkeypatch.setattr(
         phonemize_chinese, "G2PW_SHA256", hashlib.sha256(data).hexdigest()
     )
-    monkeypatch.setattr(phonemize_chinese, "urlopen", lambda _url: io.BytesIO(data))
+    monkeypatch.setattr(phonemize_chinese, "urlopen", lambda _url, **_kwargs: io.BytesIO(data))
     phonemize_chinese.download_model(model_dir)
 
 
@@ -57,7 +57,7 @@ def test_download_rejects_invalid_checksum(
 ) -> None:
     data = _archive([_file("g2pw.onnx")])
     monkeypatch.setattr(phonemize_chinese, "G2PW_SHA256", "0" * 64)
-    monkeypatch.setattr(phonemize_chinese, "urlopen", lambda _url: io.BytesIO(data))
+    monkeypatch.setattr(phonemize_chinese, "urlopen", lambda _url, **_kwargs: io.BytesIO(data))
 
     with pytest.raises(ValueError, match="SHA-256"):
         phonemize_chinese.download_model(tmp_path / "model")
@@ -162,7 +162,7 @@ def test_complete_directory_skips_download(
     for member, contents in _complete_members():
         (model_dir / member.name).write_bytes(contents)
 
-    def unexpected_download(_url: str) -> io.BytesIO:
+    def unexpected_download(_url: str, **_kwargs) -> io.BytesIO:
         raise AssertionError("complete model must not be downloaded again")
 
     monkeypatch.setattr(phonemize_chinese, "urlopen", unexpected_download)
