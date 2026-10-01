@@ -432,7 +432,7 @@ def main() -> None:
           "speaker_id": "<speaker id>",  (optional, overrides speaker)
           "length_scale": 1.0,           (optional)
           "noise_scale": 0.667,          (optional)
-          "length_w_scale": 0.8          (optional)
+          "noise_w_scale": 0.8          (optional)
         }
         """
         data = request.get_json(silent=True)
