@@ -40,8 +40,13 @@ jobs:
           cache: pip
       - name: Install project and test dependencies
         run: python -m pip install -e ".[dev,http]"
+      - name: Build native espeakbridge
+        run: python setup.py build_ext --inplace
       - name: Run unit tests
-        run: python -m pytest
+        # Chinese end-to-end phonemization downloads a large external model.
+        # Its downloader/security behavior is covered by hermetic unit tests;
+        # keep the network-dependent integration module out of the core CI run.
+        run: python -m pytest --ignore=tests/test_chinese_phonemizer.py
 
   project-validation:
     runs-on: ubuntu-latest
@@ -52,6 +57,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
+      - name: Install validation dependencies
+        run: python -m pip install pytest==8.3.4
       - name: Verify public script entry points
         run: |
           for path in \
