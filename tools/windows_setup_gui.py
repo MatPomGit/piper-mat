@@ -19,14 +19,14 @@ from tkinter import (
     END,
     LEFT,
     RIGHT,
-    X,
     BooleanVar,
     StringVar,
     Tk,
+    X,
     filedialog,
     messagebox,
+    ttk,
 )
-from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 
 REPO_URL = "https://github.com/MatPomGit/piper-mat.git"
@@ -147,8 +147,7 @@ STEPS = (
         11,
         "Otwórz raport",
         "Otwórz wyniki ostatniej sesji.",
-        "Raport zawiera metryki i wykresy umożliwiające porównanie kolejnych "
-        "sesji.",
+        "Raport zawiera metryki i wykresy umożliwiające porównanie kolejnych " "sesji.",
         "Otwórz raport",
         "open_report",
     ),
@@ -212,7 +211,9 @@ class WindowsSetupWizard(Tk):
         ttk.Button(
             tools,
             text="Sprawdź system",
-            command=lambda: self._run_in_background(self._diagnose, advance_on_success=False),
+            command=lambda: self._run_in_background(
+                self._diagnose, advance_on_success=False
+            ),
         ).pack(side=LEFT, padx=3)
         ttk.Button(
             tools,
@@ -244,9 +245,7 @@ class WindowsSetupWizard(Tk):
 
     def _build_step_navigation(self, parent: ttk.Frame) -> None:
         """Create the left navigation panel."""
-        ttk.Label(parent, text="Kroki", font=("Segoe UI", 12, "bold")).pack(
-            anchor="w"
-        )
+        ttk.Label(parent, text="Kroki", font=("Segoe UI", 12, "bold")).pack(anchor="w")
 
         self.step_buttons: list[ttk.Button] = []
         for index, step in enumerate(STEPS):
@@ -272,7 +271,9 @@ class WindowsSetupWizard(Tk):
         ttk.Button(
             parent,
             text="Pełna diagnoza",
-            command=lambda: self._run_in_background(self._diagnose, advance_on_success=False),
+            command=lambda: self._run_in_background(
+                self._diagnose, advance_on_success=False
+            ),
         ).pack(fill=X, pady=3)
 
     def _build_step_panel(self, parent: ttk.Frame) -> None:
@@ -362,16 +363,12 @@ class WindowsSetupWizard(Tk):
         step = STEPS[self.current_step]
 
         self.progress["value"] = self.current_step + 1
-        self.counter_label.config(
-            text=f"Krok {step.number} z {len(STEPS)}"
-        )
+        self.counter_label.config(text=f"Krok {step.number} z {len(STEPS)}")
         self.step_title_label.config(text=step.title)
         self.summary_label.config(text=step.summary)
         self.explanation_label.config(text=step.explanation)
         self.action_button.config(text=step.button_text)
-        self.previous_button.config(
-            state="normal" if self.current_step else "disabled"
-        )
+        self.previous_button.config(state="normal" if self.current_step else "disabled")
         can_go_next = self.current_step < len(STEPS) - 1
         if step.action_name == "start_training" and not self.training_step_succeeded:
             can_go_next = False
@@ -414,9 +411,7 @@ class WindowsSetupWizard(Tk):
         return_code = COMMAND_FAILURE
 
         for attempt in range(retries + 1):
-            display_command = subprocess.list2cmdline(
-                [str(item) for item in command]
-            )
+            display_command = subprocess.list2cmdline([str(item) for item in command])
             self.log_queue.put(f"> {display_command}")
             process: subprocess.Popen[str] | None = None
 
@@ -532,9 +527,7 @@ class WindowsSetupWizard(Tk):
                     "na tym samym etapie i można ją ponowić po usunięciu przyczyny."
                 )
             else:
-                hint = (
-                    "\n\nKliknij „Napraw bezpiecznie” albo przeczytaj log na dole."
-                )
+                hint = "\n\nKliknij „Napraw bezpiecznie” albo przeczytaj log na dole."
             messagebox.showerror("Problem", message + hint)
             return
 
@@ -641,8 +634,7 @@ class WindowsSetupWizard(Tk):
         if not git:
             return (
                 False,
-                "Brak Git. Uruchom program ponownie przez "
-                "START_PIPER_MAT_GUI.bat.",
+                "Brak Git. Uruchom program ponownie przez " "START_PIPER_MAT_GUI.bat.",
             )
 
         if (repo / ".git").is_dir():
@@ -650,18 +642,24 @@ class WindowsSetupWizard(Tk):
                 [git, "config", "--local", "core.longpaths", "true"],
                 cwd=repo,
             )
-            if self._run_command(
-                [git, "status", "--porcelain"],
-                cwd=repo,
-            ) != 0:
+            if (
+                self._run_command(
+                    [git, "status", "--porcelain"],
+                    cwd=repo,
+                )
+                != 0
+            ):
                 return False, "Repozytorium Git jest uszkodzone lub niedostępne."
 
-            if self._run_command(
-                [git, "fetch", "--prune", "origin"],
-                cwd=repo,
-                retries=2,
-                timeout=300,
-            ) != 0:
+            if (
+                self._run_command(
+                    [git, "fetch", "--prune", "origin"],
+                    cwd=repo,
+                    retries=2,
+                    timeout=300,
+                )
+                != 0
+            ):
                 return (
                     False,
                     "Nie udało się połączyć z GitHub. Sprawdź połączenie i "
@@ -763,9 +761,7 @@ class WindowsSetupWizard(Tk):
         if venv.exists():
             backup = repo / f".venv_broken_{datetime.now():%Y%m%d_%H%M%S}"
             venv.rename(backup)
-            self.log_queue.put(
-                f"Uszkodzone środowisko zachowano jako {backup.name}"
-            )
+            self.log_queue.put(f"Uszkodzone środowisko zachowano jako {backup.name}")
 
         return_code = self._run_command(
             [sys.executable, "-m", "venv", ".venv"],
@@ -801,12 +797,15 @@ class WindowsSetupWizard(Tk):
             [str(python), "-m", "pip", "install", "-e", ".[train]"],
         )
         for command in commands:
-            if self._run_command(
-                command,
-                cwd=repo,
-                retries=2,
-                timeout=3600,
-            ) != 0:
+            if (
+                self._run_command(
+                    command,
+                    cwd=repo,
+                    retries=2,
+                    timeout=3600,
+                )
+                != 0
+            ):
                 return (
                     False,
                     "Instalacja bibliotek nie powiodła się po kilku próbach.",

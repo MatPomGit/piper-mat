@@ -8,25 +8,25 @@ from typing import List, Tuple
 # ---------- Unicode constants ----------
 TAAMIM = r"[\u0591-\u05AF]"  # cantillation marks
 NIQQUD_ALL = r"[\u0591-\u05C7]"  # cantillation + niqqud
-DAGESH = "\u05BC"
-SHIN_DOT = "\u05C1"
-SIN_DOT = "\u05C2"
-GERESH = "\u05F3"  # ׳
-GERSHAYIM = "\u05F4"  # ״
+DAGESH = "\u05bc"
+SHIN_DOT = "\u05c1"
+SIN_DOT = "\u05c2"
+GERESH = "\u05f3"  # ׳
+GERSHAYIM = "\u05f4"  # ״
 
 # Niqqud
-SHEVA = "\u05B0"
-HATAF_SEGOL = "\u05B1"
-HATAF_PATAH = "\u05B2"
-HATAF_QAMATS = "\u05B3"
-HIRIQ = "\u05B4"
-TSERE = "\u05B5"
-SEGOL = "\u05B6"
-PATAH = "\u05B7"
-QAMATS = "\u05B8"
-HOLAM = "\u05B9"
-QUBUTZ = "\u05BB"
-QAMATS_QATAN = "\u05C7"  # explicit qamats qatan (rare but exists)
+SHEVA = "\u05b0"
+HATAF_SEGOL = "\u05b1"
+HATAF_PATAH = "\u05b2"
+HATAF_QAMATS = "\u05b3"
+HIRIQ = "\u05b4"
+TSERE = "\u05b5"
+SEGOL = "\u05b6"
+PATAH = "\u05b7"
+QAMATS = "\u05b8"
+HOLAM = "\u05b9"
+QUBUTZ = "\u05bb"
+QAMATS_QATAN = "\u05c7"  # explicit qamats qatan (rare but exists)
 
 VOWEL_MARKS = {
     SHEVA,

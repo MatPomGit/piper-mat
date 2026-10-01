@@ -73,9 +73,7 @@ def _sanitize_hyperparameters(
     """Remove legacy model arguments rejected by current LightningCLI."""
     sanitized = dict(hyperparameters)
     removed = sorted(
-        name
-        for name in sanitized
-        if isinstance(name, str) and name not in valid_names
+        name for name in sanitized if isinstance(name, str) and name not in valid_names
     )
     for name in removed:
         sanitized.pop(name, None)

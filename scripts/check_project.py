@@ -51,9 +51,7 @@ SESSION_PATH_FIELDS = ("runs_dir", "state_dir", "reports_dir")
 def load_config(errors: list[str]) -> dict[str, Any] | None:
     """Load the canonical project configuration and report parse errors."""
     if not CONFIG_PATH.is_file():
-        errors.append(
-            "brak konfiguracji głosu: configs/pl_PL-mateusz-medium.json"
-        )
+        errors.append("brak konfiguracji głosu: configs/pl_PL-mateusz-medium.json")
         return None
 
     try:
@@ -67,9 +65,7 @@ def check_required_paths(errors: list[str]) -> None:
     """Check that required project files and directories exist."""
     for path in REQUIRED_PATHS:
         if not path.exists():
-            errors.append(
-                f"brak wymaganej ścieżki: {path.relative_to(ROOT)}"
-            )
+            errors.append(f"brak wymaganej ścieżki: {path.relative_to(ROOT)}")
 
 
 def check_config_values(config: dict[str, Any], errors: list[str]) -> None:
@@ -78,8 +74,7 @@ def check_config_values(config: dict[str, Any], errors: list[str]) -> None:
         actual = config.get(key)
         if actual != expected:
             errors.append(
-                f"config {key!r}: oczekiwano {expected!r}, "
-                f"otrzymano {actual!r}"
+                f"config {key!r}: oczekiwano {expected!r}, " f"otrzymano {actual!r}"
             )
 
 
@@ -110,9 +105,7 @@ def check_training_sessions(
 
     sessions = training.get("sessions", {})
     if not isinstance(sessions, dict):
-        errors.append(
-            "pole training.sessions w konfiguracji musi być obiektem JSON"
-        )
+        errors.append("pole training.sessions w konfiguracji musi być obiektem JSON")
         return
 
     epochs = sessions.get("epochs_per_session")
@@ -123,8 +116,7 @@ def check_training_sessions(
         for epoch in epochs
     ):
         errors.append(
-            "epochs_per_session musi zawierać wyłącznie dodatnie "
-            "liczby całkowite"
+            "epochs_per_session musi zawierać wyłącznie dodatnie " "liczby całkowite"
         )
 
     for field_name in SESSION_PATH_FIELDS:

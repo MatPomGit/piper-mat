@@ -97,9 +97,7 @@ def copy_release_files(
     output: Path,
 ) -> list[Path]:
     """Copy release inputs into a clean output directory."""
-    sources_and_targets = [
-        (source, output / source.name) for source in required
-    ]
+    sources_and_targets = [(source, output / source.name) for source in required]
     if samples_dir.is_dir():
         sources_and_targets.extend(
             (source, output / "samples" / source.name)

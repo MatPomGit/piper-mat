@@ -89,7 +89,9 @@ def checkpoint_epoch(path: Path) -> int:
     try:
         import torch  # noqa: F401
     except ImportError as exc:
-        raise RuntimeError("Brak modułu PyTorch potrzebnego do odczytu checkpointu") from exc
+        raise RuntimeError(
+            "Brak modułu PyTorch potrzebnego do odczytu checkpointu"
+        ) from exc
 
     try:
         checkpoint = torch_load_checkpoint(
@@ -98,7 +100,9 @@ def checkpoint_epoch(path: Path) -> int:
             weights_only=False,
         )
     except (OSError, RuntimeError, ValueError, NotImplementedError) as exc:
-        raise RuntimeError(f"Nie można odczytać punktu kontrolnego {path}: {exc}") from exc
+        raise RuntimeError(
+            f"Nie można odczytać punktu kontrolnego {path}: {exc}"
+        ) from exc
 
     if not isinstance(checkpoint, dict) or "epoch" not in checkpoint:
         raise RuntimeError(f"Punkt kontrolny nie zawiera pola 'epoch': {path}")
@@ -385,7 +389,9 @@ def run_training_command(command: list[str], log_path: Path) -> int:
                 env=environment,
             )
         except OSError as exc:
-            raise RuntimeError(f"Nie można uruchomić procesu treningowego: {exc}") from exc
+            raise RuntimeError(
+                f"Nie można uruchomić procesu treningowego: {exc}"
+            ) from exc
 
         if process.stdout is None:
             process.kill()
@@ -398,6 +404,7 @@ def run_training_command(command: list[str], log_path: Path) -> int:
             print(line, end="", flush=True)
 
         return process.wait()
+
 
 def run_next(config_path: Path, dry_run: bool) -> int:
     """Uruchom następną niezakończoną sesję treningową."""

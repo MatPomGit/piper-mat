@@ -13,7 +13,6 @@ from array import array
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
@@ -37,9 +36,7 @@ class ValidationResult:
 
 def parse_args() -> argparse.Namespace:
     """Wczytaj argumenty interfejsu wiersza poleceń."""
-    parser = argparse.ArgumentParser(
-        description="Waliduj zbiór danych głosu Piper"
-    )
+    parser = argparse.ArgumentParser(description="Waliduj zbiór danych głosu Piper")
     parser.add_argument("--metadata", type=Path, required=True)
     parser.add_argument("--audio-dir", type=Path, required=True)
     parser.add_argument("--sample-rate", type=int, default=22050)
@@ -99,16 +96,8 @@ def inspect_pcm16(
         return float("-inf"), float("-inf"), 1.0, 0.0
 
     rms = math.sqrt(sum_squares / sample_count)
-    rms_dbfs = (
-        20.0 * math.log10(rms / max_value)
-        if rms > 0
-        else float("-inf")
-    )
-    peak_dbfs = (
-        20.0 * math.log10(peak / max_value)
-        if peak > 0
-        else float("-inf")
-    )
+    rms_dbfs = 20.0 * math.log10(rms / max_value) if rms > 0 else float("-inf")
+    peak_dbfs = 20.0 * math.log10(peak / max_value) if peak > 0 else float("-inf")
     return (
         rms_dbfs,
         peak_dbfs,
@@ -162,11 +151,7 @@ def find_unreferenced_audio(
 ) -> None:
     """Znajdź pliki dźwiękowe, które nie występują w metadata.csv."""
     referenced = {filename for filename, _ in result.rows}
-    audio_files = {
-        path.name
-        for path in audio_dir.iterdir()
-        if path.is_file()
-    }
+    audio_files = {path.name for path in audio_dir.iterdir() if path.is_file()}
     result.unreferenced_audio_files = sorted(audio_files - referenced)
     for filename in result.unreferenced_audio_files:
         result.warnings.append(
@@ -184,9 +169,7 @@ def inspect_audio_file(
     """Sprawdź format WAV i podstawowe parametry sygnału."""
     filename = path.name
     if path.suffix.lower() != ".wav":
-        result.warnings.append(
-            f"pominięto analizę pliku innego niż WAV: {filename}"
-        )
+        result.warnings.append(f"pominięto analizę pliku innego niż WAV: {filename}")
         return
 
     try:
@@ -221,9 +204,7 @@ def inspect_audio_file(
                 f"{filename}: bardzo krótka wypowiedź ({duration:.2f} s)"
             )
         if duration > 20.0:
-            result.warnings.append(
-                f"{filename}: długa wypowiedź ({duration:.2f} s)"
-            )
+            result.warnings.append(f"{filename}: długa wypowiedź ({duration:.2f} s)")
 
         if channels == 1 and sample_width == 2:
             wav_file.rewind()
@@ -282,27 +263,19 @@ def inspect_referenced_audio(
 def print_summary(result: ValidationResult) -> None:
     """Wyświetl statystyki i komunikaty walidatora."""
     print(f"utterances: {len(result.rows)}")
-    print(
-        "unreferenced_audio_files: "
-        f"{len(result.unreferenced_audio_files)}"
-    )
+    print("unreferenced_audio_files: " f"{len(result.unreferenced_audio_files)}")
     if result.durations:
         print(f"duration_total_s: {sum(result.durations):.2f}")
-        print(
-            f"duration_median_s: {statistics.median(result.durations):.2f}"
-        )
+        print(f"duration_median_s: {statistics.median(result.durations):.2f}")
         print(f"duration_min_s: {min(result.durations):.2f}")
         print(f"duration_max_s: {max(result.durations):.2f}")
     if result.rms_values:
-        print(
-            f"rms_median_dbfs: {statistics.median(result.rms_values):.2f}"
-        )
+        print(f"rms_median_dbfs: {statistics.median(result.rms_values):.2f}")
     if result.peak_values:
         print(f"peak_max_dbfs: {max(result.peak_values):.2f}")
     if result.silence_ratios:
         print(
-            "silence_ratio_median: "
-            f"{statistics.median(result.silence_ratios):.4f}"
+            "silence_ratio_median: " f"{statistics.median(result.silence_ratios):.4f}"
         )
     if result.clipping_ratios:
         print(f"clipping_ratio_max: {max(result.clipping_ratios):.6f}")

@@ -14,9 +14,7 @@ import time
 import wave
 from pathlib import Path
 
-DEFAULT_TEXT = (
-    "To jest powtarzalny test wydajności polskiego modelu głosu Piper."
-)
+DEFAULT_TEXT = "To jest powtarzalny test wydajności polskiego modelu głosu Piper."
 WAV_HEADER_SIZE = 44
 
 
@@ -98,13 +96,9 @@ def collect_measurements(
             wav_path = Path(temp_dir) / f"benchmark-{iteration}.wav"
             elapsed = run_synthesis(model, text, wav_path)
             if not wav_path.is_file():
-                raise RuntimeError(
-                    "Piper nie utworzył pliku WAV w bieżącym przebiegu."
-                )
+                raise RuntimeError("Piper nie utworzył pliku WAV w bieżącym przebiegu.")
             if wav_path.stat().st_size <= WAV_HEADER_SIZE:
-                raise RuntimeError(
-                    "Piper wygenerował plik WAV bez danych dźwiękowych."
-                )
+                raise RuntimeError("Piper wygenerował plik WAV bez danych dźwiękowych.")
 
             try:
                 audio_duration = wav_duration(wav_path)

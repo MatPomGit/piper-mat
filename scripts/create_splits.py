@@ -59,9 +59,7 @@ def load_ids(path: Path) -> list[str]:
 
             identifier = row[0].strip()
             if not identifier:
-                raise ValueError(
-                    f"wiersz {line_number}: pusty identyfikator nagrania"
-                )
+                raise ValueError(f"wiersz {line_number}: pusty identyfikator nagrania")
             if identifier in seen:
                 raise ValueError(
                     f"wiersz {line_number}: zduplikowany identyfikator {identifier}"
@@ -86,9 +84,7 @@ def validate_ratios(validation_ratio: float, test_ratio: float) -> None:
             raise ValueError(f"{name} musi należeć do przedziału [0, 1)")
 
     if validation_ratio + test_ratio >= 1.0:
-        raise ValueError(
-            "suma validation_ratio i test_ratio musi być mniejsza niż 1"
-        )
+        raise ValueError("suma validation_ratio i test_ratio musi być mniejsza niż 1")
 
 
 def build_payload(
@@ -108,9 +104,7 @@ def build_payload(
     validation_count = round(total * validation_ratio)
 
     test = sorted(shuffled[:test_count])
-    validation = sorted(
-        shuffled[test_count : test_count + validation_count]
-    )
+    validation = sorted(shuffled[test_count : test_count + validation_count])
     train = sorted(shuffled[test_count + validation_count :])
 
     return {
@@ -162,9 +156,7 @@ def main() -> int:
     counts = payload["counts"]
     assert isinstance(counts, dict)
     print(f"Zapisano: {args.output}")
-    print(
-        "trening={train} walidacja={validation} test={test}".format(**counts)
-    )
+    print("trening={train} walidacja={validation} test={test}".format(**counts))
     return 0
 
 

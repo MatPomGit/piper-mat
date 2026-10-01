@@ -92,7 +92,9 @@ def read_path_field(
         return None
 
 
-def validate_session_plan(training: Any, errors: list[str], warnings: list[str]) -> None:
+def validate_session_plan(
+    training: Any, errors: list[str], warnings: list[str]
+) -> None:
     """Sprawdź plan dodatkowych epok dla kolejnych sesji."""
     if not isinstance(training, dict):
         errors.append("sekcja training musi być obiektem")
@@ -113,7 +115,9 @@ def validate_session_plan(training: Any, errors: list[str], warnings: list[str])
         for value in increments
     )
     if invalid:
-        errors.append("każda wartość epochs_per_session musi być dodatnią liczbą całkowitą")
+        errors.append(
+            "każda wartość epochs_per_session musi być dodatnią liczbą całkowitą"
+        )
         return
 
     if not 3 <= len(increments) <= 6:
@@ -133,9 +137,7 @@ def validate_project_paths(
 
     metadata = read_path_field(dataset_dict, "dataset.metadata", errors)
     audio_dir = read_path_field(dataset_dict, "dataset.audio_dir", errors)
-    base_checkpoint = read_path_field(
-        training_dict, "training.base_checkpoint", errors
-    )
+    base_checkpoint = read_path_field(training_dict, "training.base_checkpoint", errors)
 
     if metadata is not None and not metadata.is_file():
         errors.append(f"brak metadanych: {metadata}")
@@ -258,6 +260,7 @@ def validate_espeakbridge(errors: list[str]) -> None:
             "natywny moduł espeakbridge nie jest gotowy: "
             f"{exc}; uruchom `python setup.py build_ext --inplace`"
         )
+
 
 def validate_monotonic_align(errors: list[str]) -> None:
     """Sprawdź dostępność skompilowanego rozszerzenia monotonic_align."""
