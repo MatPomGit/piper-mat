@@ -71,6 +71,8 @@ Przed trenowaniem należy wykonać:
 python scripts/validate_dataset.py \
   --metadata dataset/metadata.csv \
   --audio-dir dataset/wavs
+python scripts/create_splits.py
+python scripts/check_training_ready.py
 ```
 
 ## Najważniejsze parametry

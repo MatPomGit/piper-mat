@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -25,6 +26,7 @@ REQUIRED_CONFIG_KEYS = (
 REQUIRED_MODULES = ("torch", "lightning", "tensorboard", "librosa", "piper")
 LFS_HEADER_BYTES = 200
 LFS_PATH_EXAMPLE_LIMIT = 5
+HASH_CHUNK_SIZE = 1024 * 1024
 
 
 def is_lfs_pointer(path: Path) -> bool:
@@ -49,6 +51,70 @@ def load_config(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError("konfiguracja musi zawierać obiekt JSON")
     return data
+
+
+def sha256_file(path: Path) -> str:
+    """Oblicz sumę kontrolną SHA-256 pliku."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(HASH_CHUNK_SIZE), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def validate_splits_file(
+    splits_path: Path,
+    metadata_path: Path | None,
+    errors: list[str],
+) -> None:
+    """Sprawdź strukturę podziału danych i zgodność z metadanymi."""
+    if not splits_path.is_file():
+        errors.append(f"brak pliku podziału danych: {splits_path}")
+        return
+
+    try:
+        data = json.loads(splits_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"nie można odczytać pliku podziału danych {splits_path}: {exc}")
+        return
+
+    if not isinstance(data, dict):
+        errors.append(f"plik podziału danych musi zawierać obiekt JSON: {splits_path}")
+        return
+
+    splits = data.get("splits")
+    if not isinstance(splits, dict):
+        errors.append(f"brak obiektu splits w pliku podziału danych: {splits_path}")
+    else:
+        for split_name in ("train", "validation", "test"):
+            if not isinstance(splits.get(split_name), list):
+                errors.append(
+                    f"splits.{split_name} musi być listą w pliku podziału danych: "
+                    f"{splits_path}"
+                )
+        for split_name in ("train", "validation"):
+            if splits.get(split_name) == []:
+                errors.append(
+                    f"splits.{split_name} nie może być pustą listą w pliku "
+                    f"podziału danych: {splits_path}"
+                )
+
+    expected_hash = data.get("metadata_sha256")
+    if not isinstance(expected_hash, str) or not expected_hash:
+        errors.append(
+            f"brak poprawnego metadata_sha256 w pliku podziału danych: {splits_path}"
+        )
+    elif metadata_path is not None and metadata_path.is_file():
+        try:
+            actual_hash = sha256_file(metadata_path)
+        except OSError as exc:
+            errors.append(f"nie można obliczyć SHA-256 {metadata_path}: {exc}")
+        else:
+            if expected_hash != actual_hash:
+                errors.append(
+                    f"plik podziału danych {splits_path} nie odpowiada aktualnym "
+                    f"metadanym {metadata_path}"
+                )
 
 
 def validate_required_keys(config: dict[str, Any], errors: list[str]) -> None:
@@ -137,12 +203,15 @@ def validate_project_paths(
 
     metadata = read_path_field(dataset_dict, "dataset.metadata", errors)
     audio_dir = read_path_field(dataset_dict, "dataset.audio_dir", errors)
+    splits_path = read_path_field(dataset_dict, "dataset.splits_path", errors)
     base_checkpoint = read_path_field(training_dict, "training.base_checkpoint", errors)
 
     if metadata is not None and not metadata.is_file():
         errors.append(f"brak metadanych: {metadata}")
     if audio_dir is not None and not audio_dir.is_dir():
         errors.append(f"brak katalogu nagrań: {audio_dir}")
+    if splits_path is not None:
+        validate_splits_file(splits_path, metadata, errors)
 
     checkpoint_is_pointer = False
     if base_checkpoint is not None and not base_checkpoint.is_file():
