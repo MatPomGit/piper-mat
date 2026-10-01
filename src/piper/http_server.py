@@ -484,21 +484,27 @@ def main() -> None:
 
         length_scale = data.get(
             "length_scale",
-            args.length_scale
-            if args.length_scale is not None
-            else voice.config.length_scale,
+            (
+                args.length_scale
+                if args.length_scale is not None
+                else voice.config.length_scale
+            ),
         )
         noise_scale = data.get(
             "noise_scale",
-            args.noise_scale
-            if args.noise_scale is not None
-            else voice.config.noise_scale,
+            (
+                args.noise_scale
+                if args.noise_scale is not None
+                else voice.config.noise_scale
+            ),
         )
         noise_w_scale = data.get(
             "noise_w_scale",
-            args.noise_w_scale
-            if args.noise_w_scale is not None
-            else voice.config.noise_w_scale,
+            (
+                args.noise_w_scale
+                if args.noise_w_scale is not None
+                else voice.config.noise_w_scale
+            ),
         )
         syn_config = SynthesisConfig(
             speaker_id=speaker_id,
