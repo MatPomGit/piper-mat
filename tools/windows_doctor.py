@@ -92,8 +92,7 @@ def refresh_path() -> None:
             errors="replace",
         ).strip()
         user = subprocess.check_output(
-            command_prefix
-            + ["[Environment]::GetEnvironmentVariable('Path','User')"],
+            command_prefix + ["[Environment]::GetEnvironmentVariable('Path','User')"],
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -351,9 +350,12 @@ def nvidia_gpu_details() -> str | None:
     """Return NVIDIA GPU/driver details when nvidia-smi is usable."""
     executable = shutil.which("nvidia-smi")
     if executable is None:
-        standard = Path(
-            os.environ.get("ProgramW6432", r"C:\\Program Files")
-        ) / "NVIDIA Corporation" / "NVSMI" / "nvidia-smi.exe"
+        standard = (
+            Path(os.environ.get("ProgramW6432", r"C:\\Program Files"))
+            / "NVIDIA Corporation"
+            / "NVSMI"
+            / "nvidia-smi.exe"
+        )
         if standard.is_file():
             executable = str(standard)
     if executable is None:
@@ -370,6 +372,7 @@ def nvidia_gpu_details() -> str | None:
     if return_code != 0 or not output.strip():
         return None
     return output.strip()
+
 
 def check_training_dependencies() -> list[Check]:
     """Check training libraries, CUDA, espeakbridge, and monotonic_align."""
@@ -649,7 +652,9 @@ def _repair_cpp_build_tools(log: list[str]) -> None:
         "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended",
     ]
     return_code, output = run(command, timeout=5400)
-    _log_result(log, "instalacja Visual Studio 2022 C++ Build Tools", return_code, output)
+    _log_result(
+        log, "instalacja Visual Studio 2022 C++ Build Tools", return_code, output
+    )
     refresh_path()
 
     post_check = check_cpp_build_tools()
@@ -786,9 +791,7 @@ def _repair_cuda_pytorch(log: list[str]) -> None:
         timeout=60,
     )
     if return_code != 0:
-        log.append(
-            "BŁĄD: nie można sprawdzić wersji PyTorch przed naprawą CUDA."
-        )
+        log.append("BŁĄD: nie można sprawdzić wersji PyTorch przed naprawą CUDA.")
         return
     lines = [line.strip() for line in output.splitlines() if line.strip()]
     if len(lines) >= 2 and lines[-1] == "True":
@@ -840,6 +843,7 @@ def _repair_cuda_pytorch(log: list[str]) -> None:
             "BŁĄD: wariant CUDA PyTorch został zainstalowany, ale CUDA nadal "
             f"nie jest dostępna: {verify_output}"
         )
+
 
 def _build_espeakbridge(log: list[str]) -> None:
     """Build and verify Piper's native eSpeak NG bridge in the source tree."""

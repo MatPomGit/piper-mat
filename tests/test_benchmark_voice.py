@@ -1,7 +1,7 @@
 """Testy benchmarku syntezy głosu."""
 
-from types import SimpleNamespace
 import wave
+from types import SimpleNamespace
 
 import pytest
 

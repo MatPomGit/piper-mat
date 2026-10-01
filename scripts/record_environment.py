@@ -138,8 +138,7 @@ def command_output(
     stderr = result.stderr.strip() or None
     if result.returncode != 0:
         error = stderr or (
-            f"polecenie {command_name!r} zakończyło się kodem "
-            f"{result.returncode}"
+            f"polecenie {command_name!r} zakończyło się kodem " f"{result.returncode}"
         )
         warnings.append(error)
         return {

@@ -8,8 +8,10 @@ _PROGRAM_DIR = _DIR.parent
 _VENV_DIR = _PROGRAM_DIR / ".venv"
 _MODULE_DIR = _PROGRAM_DIR / "src" / "piper"
 _TESTS_DIR = _PROGRAM_DIR / "tests"
+_SCRIPTS_DIR = _PROGRAM_DIR / "scripts"
+_TOOLS_DIR = _PROGRAM_DIR / "tools"
 
-_LINT_DIRS = [_MODULE_DIR, _TESTS_DIR]
+_LINT_DIRS = [_MODULE_DIR, _TESTS_DIR, _SCRIPTS_DIR, _TOOLS_DIR]
 _LINT_DIRS = [d.relative_to(_PROGRAM_DIR) for d in _LINT_DIRS]
 
 if _VENV_DIR.exists():

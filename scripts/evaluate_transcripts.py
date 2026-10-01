@@ -74,9 +74,7 @@ def load_pairs(path: Path) -> list[tuple[str, str]]:
                 ) from exc
 
             if not isinstance(row, dict):
-                raise ValueError(
-                    f"wiersz {line_number}: oczekiwano obiektu JSON"
-                )
+                raise ValueError(f"wiersz {line_number}: oczekiwano obiektu JSON")
             if "reference" not in row or "hypothesis" not in row:
                 raise ValueError(
                     f"wiersz {line_number}: brak pola reference lub hypothesis"
@@ -137,11 +135,7 @@ def evaluate_pairs(pairs: list[tuple[str, str]]) -> dict[str, int | float | None
         "wer": word_errors / word_total if word_total else None,
         "character_errors": character_errors,
         "reference_characters": character_total,
-        "cer": (
-            character_errors / character_total
-            if character_total
-            else None
-        ),
+        "cer": (character_errors / character_total if character_total else None),
     }
 
 
