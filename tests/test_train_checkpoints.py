@@ -6,9 +6,9 @@ import pytest
 
 L = pytest.importorskip("lightning")
 torch = pytest.importorskip("torch")
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset  # noqa: E402
 
-from piper.train.__main__ import OptionalMetricCheckpoint
+from piper.train.__main__ import OptionalMetricCheckpoint  # noqa: E402
 
 
 class ValidationModel(L.LightningModule):
