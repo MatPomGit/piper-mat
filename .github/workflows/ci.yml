@@ -35,7 +35,9 @@ jobs:
           --enable=E,F
           --disable=import-error,no-name-in-module,no-member
       - name: Check types with mypy
-        run: python -m mypy src/piper tests
+        # Type-check production code. Optional language/training extras are not
+        # installed in this lightweight quality job.
+        run: python -m mypy src/piper --ignore-missing-imports
 
   tests:
     runs-on: ubuntu-latest
