@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import logging
+import math
 import re
 import time
 import wave
@@ -71,6 +72,32 @@ def _positive_int(value: str) -> int:
         raise argparse.ArgumentTypeError("must be a positive integer")
 
     return parsed_value
+
+
+
+def _request_float(value: Any, name: str, *, positive: bool) -> float:
+    """Validate a numeric synthesis option supplied in a JSON request."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        abort(400, description=f"{name} must be a number")
+
+    parsed_value = float(value)
+    if not math.isfinite(parsed_value):
+        abort(400, description=f"{name} must be finite")
+    if positive:
+        if parsed_value <= 0:
+            abort(400, description=f"{name} must be greater than zero")
+    elif parsed_value < 0:
+        abort(400, description=f"{name} must be nonnegative")
+
+    return parsed_value
+
+
+def _request_bool(value: Any, name: str) -> bool:
+    """Validate a Boolean option supplied in a JSON request."""
+    if not isinstance(value, bool):
+        abort(400, description=f"{name} must be a boolean")
+
+    return value
 
 
 def _validate_speaker_id(speaker_id: Any, num_speakers: int) -> int:
@@ -237,17 +264,17 @@ def main() -> None:
 
     # Download voice if file doesn't exist
     model_path = Path(args.model)
-    if not model_path.exists():
+    if not model_path.is_file():
         # Look in data directories
         voice_name = args.model
         for data_dir in args.data_dir:
             maybe_model_path = Path(data_dir) / f"{voice_name}.onnx"
             _LOGGER.debug("Checking '%s'", maybe_model_path)
-            if maybe_model_path.exists():
+            if maybe_model_path.is_file():
                 model_path = maybe_model_path
                 break
 
-    if not model_path.exists():
+    if not model_path.is_file():
         raise ValueError(
             f"Unable to find voice: {model_path} (use piper.download_voices)"
         )
@@ -376,16 +403,21 @@ def main() -> None:
             abort(400, description="Request body must be a JSON object")
 
         model_id = data.get("voice")
-        if not model_id:
-            raise ValueError("voice is required")
+        if not isinstance(model_id, str) or not model_id.strip():
+            abort(400, description="voice must be a nonempty string")
 
-        force_redownload = data.get("force_redownload", False)
-        download_voice(
-            model_id,
-            download_dir,
-            force_redownload=force_redownload,
-            timeout=_URL_OPEN_TIMEOUT_SECONDS,
+        force_redownload = _request_bool(
+            data.get("force_redownload", False), "force_redownload"
         )
+        try:
+            download_voice(
+                model_id,
+                download_dir,
+                force_redownload=force_redownload,
+                timeout=_URL_OPEN_TIMEOUT_SECONDS,
+            )
+        except ValueError as exc:
+            abort(400, description=str(exc))
 
         return model_id
 
@@ -451,37 +483,30 @@ def main() -> None:
         silence_samples = int(voice.config.sample_rate * args.sentence_silence)
         silence_bytes = bytes(silence_samples * 2)
 
+        length_scale = data.get(
+            "length_scale",
+            args.length_scale
+            if args.length_scale is not None
+            else voice.config.length_scale,
+        )
+        noise_scale = data.get(
+            "noise_scale",
+            args.noise_scale
+            if args.noise_scale is not None
+            else voice.config.noise_scale,
+        )
+        noise_w_scale = data.get(
+            "noise_w_scale",
+            args.noise_w_scale
+            if args.noise_w_scale is not None
+            else voice.config.noise_w_scale,
+        )
         syn_config = SynthesisConfig(
             speaker_id=speaker_id,
-            length_scale=float(
-                data.get(
-                    "length_scale",
-                    (
-                        args.length_scale
-                        if args.length_scale is not None
-                        else voice.config.length_scale
-                    ),
-                )
-            ),
-            noise_scale=float(
-                data.get(
-                    "noise_scale",
-                    (
-                        args.noise_scale
-                        if args.noise_scale is not None
-                        else voice.config.noise_scale
-                    ),
-                )
-            ),
-            noise_w_scale=float(
-                data.get(
-                    "noise_w_scale",
-                    (
-                        args.noise_w_scale
-                        if args.noise_w_scale is not None
-                        else voice.config.noise_w_scale
-                    ),
-                )
+            length_scale=_request_float(length_scale, "length_scale", positive=True),
+            noise_scale=_request_float(noise_scale, "noise_scale", positive=False),
+            noise_w_scale=_request_float(
+                noise_w_scale, "noise_w_scale", positive=False
             ),
         )
 
