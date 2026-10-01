@@ -530,7 +530,10 @@ def download_model(model_dir: Union[str, Path]) -> None:
     )
     try:
         digest = hashlib.sha256()
-        with archive_file, urlopen(G2PW_URL, timeout=_G2PW_DOWNLOAD_TIMEOUT_SECONDS) as response:
+        with (
+            archive_file,
+            urlopen(G2PW_URL, timeout=_G2PW_DOWNLOAD_TIMEOUT_SECONDS) as response,
+        ):
             while chunk := response.read(1024 * 1024):
                 archive_file.write(chunk)
                 digest.update(chunk)
