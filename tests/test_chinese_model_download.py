@@ -14,7 +14,7 @@ unicode_rbnf = types.ModuleType("unicode_rbnf")
 unicode_rbnf.RbnfEngine = object
 sys.modules.setdefault("unicode_rbnf", unicode_rbnf)
 
-from piper import phonemize_chinese
+from piper import phonemize_chinese  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
