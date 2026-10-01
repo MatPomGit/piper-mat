@@ -17,6 +17,7 @@ else:
     from checkpoint_manifest import load_entry
 
 CHUNK_SIZE = 1024 * 1024
+DOWNLOAD_TIMEOUT_SECONDS = 30.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,7 +48,7 @@ def sha256_file(path: Path) -> str:
 
 def download_file(url: str, destination: Path) -> None:
     """Pobierz plik do ścieżki tymczasowej."""
-    with urllib.request.urlopen(url) as response, destination.open("wb") as handle:
+    with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, destination.open("wb") as handle:
         shutil.copyfileobj(response, handle)
 
 
