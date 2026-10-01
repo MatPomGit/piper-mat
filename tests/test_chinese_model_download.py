@@ -48,7 +48,11 @@ def _download(monkeypatch: pytest.MonkeyPatch, model_dir: Path, data: bytes) -> 
     monkeypatch.setattr(
         phonemize_chinese, "G2PW_SHA256", hashlib.sha256(data).hexdigest()
     )
-    monkeypatch.setattr(phonemize_chinese, "urlopen", lambda _url, **_kwargs: io.BytesIO(data))
+    monkeypatch.setattr(
+        phonemize_chinese,
+        "urlopen",
+        lambda _url, **_kwargs: io.BytesIO(data),
+    )
     phonemize_chinese.download_model(model_dir)
 
 
