@@ -4,6 +4,8 @@
 
 Repozytorium zawiera bazowy kod Piper oraz warstwę projektu głosu: konfiguracje eksperymentów, narzędzia walidacji danych, trenowanie etapowe, ocenę jakości, karty artefaktów i proces wydawania modelu.
 
+Zakres językowy projektu obejmuje wyłącznie **język polski i angielski**. Kod obsługi innych języków może pozostawać w części odziedziczonej po upstream Piper dla zgodności źródeł, ale nie jest objęty wymaganiami projektu, testami regresyjnymi ani pakietowaniem `piper-mat`.
+
 ## Stan projektu
 
 Projekt jest w fazie rozwoju. Infrastruktura procesu jest w dużej części przygotowana, natomiast stabilne wydanie modelu wymaga zakończenia właściwego trenowania i wykonania pełnej oceny na rzeczywistych danych.
