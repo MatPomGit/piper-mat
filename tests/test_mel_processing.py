@@ -170,6 +170,26 @@ def test_mel_spectrogram_accepts_inclusive_boundaries():
     assert result.shape[:2] == (1, BASE_CONFIG["num_mels"])
 
 
+def test_mel_spectrogram_accepts_none_fmax_as_nyquist():
+    """Treat Piper's default fmax=None as the Nyquist frequency."""
+    waveform = torch.linspace(-0.8, 0.8, steps=128).unsqueeze(0)
+    common = {
+        **BASE_CONFIG,
+        "fmin": 0,
+        "hop_size": 4,
+        "win_size": 16,
+    }
+
+    implicit_nyquist = mel_processing.mel_spectrogram_torch(
+        waveform, **{**common, "fmax": None}
+    )
+    explicit_nyquist = mel_processing.mel_spectrogram_torch(
+        waveform, **{**common, "fmax": 8_000}
+    )
+
+    torch.testing.assert_close(implicit_nyquist, explicit_nyquist)
+
+
 @pytest.mark.parametrize(
     "function,extra_parameters",
     [
