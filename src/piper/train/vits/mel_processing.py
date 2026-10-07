@@ -76,16 +76,27 @@ def _validate_spectral_parameters(
         )
 
     if num_mels is not _UNSET:
-        for name, value in (("fmin", fmin), ("fmax", fmax)):
-            if isinstance(value, bool) or not isinstance(value, Real):
-                raise ValueError(f"{name} must be a real number; got {name}={value!r}")
-
-        if not 0 <= fmin < fmax:
+        if isinstance(fmin, bool) or not isinstance(fmin, Real):
+            raise ValueError(f"fmin must be a real number; got fmin={fmin!r}")
+        if fmax is not None and (
+            isinstance(fmax, bool) or not isinstance(fmax, Real)
+        ):
             raise ValueError(
-                "fmin must satisfy 0 <= fmin < fmax; "
-                f"got fmin={fmin!r}, fmax={fmax!r}"
+                "fmax must be a real number or None; "
+                f"got fmax={fmax!r}"
             )
-        if fmax > sampling_rate / 2:
+
+        # librosa uses Nyquist when fmax=None. Piper's VitsModel intentionally
+        # exposes mel_fmax as Optional[float], so None is a valid and common
+        # checkpoint/default value rather than a malformed spectral parameter.
+        effective_fmax = sampling_rate / 2 if fmax is None else fmax
+        if not 0 <= fmin < effective_fmax:
+            raise ValueError(
+                "fmin must satisfy 0 <= fmin < effective fmax; "
+                f"got fmin={fmin!r}, fmax={fmax!r}, "
+                f"effective_fmax={effective_fmax!r}"
+            )
+        if effective_fmax > sampling_rate / 2:
             raise ValueError(
                 "fmax must be less than or equal to sampling_rate / 2; "
                 f"got fmax={fmax!r}, sampling_rate={sampling_rate!r}"
