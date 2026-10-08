@@ -79,7 +79,7 @@ def _validate_spectral_parameters(
         if isinstance(fmin, bool) or not isinstance(fmin, Real):
             raise ValueError(f"fmin must be a real number; got fmin={fmin!r}")
         if fmax is not None and (isinstance(fmax, bool) or not isinstance(fmax, Real)):
-            raise ValueError("fmax must be a real number or None; " f"got fmax={fmax!r}")
+            raise ValueError(f"fmax must be a real number or None; got fmax={fmax!r}")
 
         # librosa uses Nyquist when fmax=None. Piper's VitsModel intentionally
         # exposes mel_fmax as Optional[float], so None is a valid and common
