@@ -1,0 +1,44 @@
+name: Lightweight source checks on homeserver
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "script/**"
+      - "tools/**"
+      - "setup.py"
+      - "pyproject.toml"
+      - "train.sh"
+      - "build_monotonic_align.sh"
+      - ".github/workflows/quality-local.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: piper-local-quick-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # Trusted main only. Avoid large native espeakbridge/PyTorch builds on Raspberry Pi.
+    runs-on: [self-hosted, Linux, ARM64, homeserver]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Syntax and checked-in source structure
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q scripts tools src/piper
+          bash -n train.sh build_monotonic_align.sh
+          python3 - <<'PY'
+          import pathlib
+          for name in ("pyproject.toml", "setup.py", "src/piper"):
+              assert pathlib.Path(name).exists(), name
+          print("Lightweight Piper source checks passed")
+          PY
