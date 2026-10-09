@@ -1,9 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Heavy dependencies/builds run only after an approved budget/Andromeda job is ready.
+  workflow_dispatch:
 
 permissions:
   contents: read
