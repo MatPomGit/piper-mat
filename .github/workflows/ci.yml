@@ -3,7 +3,29 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'script/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'setup.py'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
   pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'script/**'
+      - 'scripts/**'
+      - 'tools/**'
+      - 'setup.py'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: piper-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
