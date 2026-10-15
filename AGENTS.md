@@ -156,3 +156,10 @@ Czytelność i poprawność mają pierwszeństwo przed skracaniem kodu. Optymali
 Zmiana powinna być możliwie mała i skupiona na konkretnym problemie. Nie należy wykonywać niezwiązanych refaktoryzacji przy okazji poprawki, chyba że są konieczne do bezpiecznego wdrożenia zmiany.
 
 Po zmianie kodu należy sprawdzić odpowiednie testy, narzędzia kontroli jakości oraz zgodność dokumentacji z rzeczywistym zachowaniem programu. Dokumentacja, testy i kod powinny opisywać ten sam stan projektu.
+
+## GitHub Actions: zasady dla agentów AI
+
+- Domyślnie **ręczne** `workflow_dispatch` wyłącznie na `main`: testy, badania, trening i generowanie wydania. Żadnych Actions na PR i gałęziach roboczych.
+- Automatyczny wyjątek może dotyczyć jedynie uzasadnionego procesu na `push.branches: [main]` z wąskimi filtrami `paths` (np. GitHub Pages). Nie wprowadzaj nowych automatycznych obliczeń bez decyzji o budżecie.
+- Każdy job wymaga `github.ref == 'refs/heads/main'`. Nie obchodź go przez `workflow_run`, `pull_request_target`, tag, harmonogram wyzwalający branch roboczy, `repository_dispatch` czy `always()`.
+- Testuj zmiany lokalnie przed scaleniem. Nie podawaj testów ani publikacji jako ukończonych bez dowodów. Ręczne uruchomienie wybieraj wyłącznie z `main` (na starszych gałęziach zabezpieczenie może nie działać).

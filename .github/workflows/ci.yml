@@ -1,27 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'script/**'
-      - 'scripts/**'
-      - 'tools/**'
-      - 'setup.py'
-      - 'pyproject.toml'
-      - '.github/workflows/ci.yml'
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'script/**'
-      - 'scripts/**'
-      - 'tools/**'
-      - 'setup.py'
-      - 'pyproject.toml'
-      - '.github/workflows/ci.yml'
+  workflow_dispatch:
 
 concurrency:
   group: piper-ci-${{ github.workflow }}-${{ github.ref }}
@@ -32,6 +12,7 @@ permissions:
 
 jobs:
   quality:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -62,6 +43,7 @@ jobs:
         run: python -m mypy src/piper --ignore-missing-imports
 
   tests:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -83,6 +65,7 @@ jobs:
           --ignore=tests/test_hebrew_phonemizer.py
 
   project-validation:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -262,6 +245,7 @@ jobs:
           python scripts/evaluate_transcripts.py /tmp/transcripts.jsonl --output /tmp/metrics.json
 
   windows-gui-validation:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -339,6 +323,7 @@ jobs:
           if (-not (Select-String -Path 'START_PIPER_MAT_GUI.bat' -Pattern 'exit /b' -Quiet)) { exit 1 }
 
   docs:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
