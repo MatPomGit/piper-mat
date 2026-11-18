@@ -17,6 +17,9 @@ def load_entry(manifest_path: Path, checkpoint_name: str) -> dict[str, object]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"nie można odczytać manifestu: {exc}") from exc
 
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest musi zawierać obiekt JSON")
+
     checkpoints = manifest.get("checkpoints")
     if not isinstance(checkpoints, dict):
         raise ValueError("manifest nie zawiera obiektu checkpoints")

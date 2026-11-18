@@ -24,6 +24,7 @@ def build_command(
     checkpoint: Path | None = None,
     max_epochs: int | None = None,
     default_root_dir: Path | None = None,
+    create_output_dir: bool = True,
 ) -> list[str]:
     """Build the Piper training command for one invocation."""
     config = load_config(config_path)
@@ -31,7 +32,8 @@ def build_command(
     training = config["training"]
 
     output_dir = Path(training["output_dir"])
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if create_output_dir:
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     resume_checkpoint = checkpoint or Path(training["base_checkpoint"])
     command = [
@@ -123,6 +125,7 @@ def main() -> int:
             checkpoint=args.checkpoint,
             max_epochs=args.max_epochs,
             default_root_dir=args.default_root_dir,
+            create_output_dir=not args.dry_run,
         )
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         print(f"BŁĄD: nie można zbudować polecenia treningowego: {exc}")

@@ -461,6 +461,7 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         checkpoint=resume_checkpoint,
         max_epochs=target_max_epochs,
         default_root_dir=run_dir,
+        create_output_dir=not dry_run,
     )
     print(f"Sesja {number}/{len(increments)}")
     print("Polecenie:")
