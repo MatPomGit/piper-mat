@@ -1,7 +1,10 @@
 """Testy izolacji samodzielnych uruchomień zgodnego trenera Piper."""
 
 import json
+import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -77,31 +80,27 @@ def test_direct_compat_holds_lock_until_training_exits(
         pass
 
 
-def test_parent_delegation_prevents_nested_lock(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Podproces prawidłowego menedżera może pracować pod jego blokadą."""
+def test_parent_delegation_prevents_nested_lock(tmp_path: Path) -> None:
+    """Rzeczywisty podproces rodzica może korzystać z jego blokady."""
     config_path, state_dir = create_config(tmp_path)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["piper_train_compat.py", "fit", "--piper-mat-config", str(config_path)],
-    )
-    environment = locked_subprocess_environment(state_dir)
-    monkeypatch.setenv(
-        "PIPER_MAT_LOCK_PARENT_DIR", environment["PIPER_MAT_LOCK_PARENT_DIR"]
-    )
-    # Symulacja odrębnego procesu, którego rodzicem jest właściciel blokady.
-    monkeypatch.setenv(
-        "PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid())
-    )
-    monkeypatch.setattr(
-        piper_train_compat, "_run_compatible_training", lambda: 19
+    project_root = Path(__file__).resolve().parents[1]
+    script = (
+        "import sys; from scripts import piper_train_compat as m; "
+        "m._run_compatible_training=lambda:19; "
+        "sys.argv=['piper_train_compat.py','fit',"
+        "'--piper-mat-config',sys.argv[1]]; "
+        "sys.exit(m.main())"
     )
     with training_session_lock(state_dir):
-        assert delegated_lock_directory() == state_dir.resolve()
-        assert piper_train_compat.main() == 19
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(config_path)],
+            env=locked_subprocess_environment(state_dir),
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    assert result.returncode == 19, result.stderr
 
 
 def test_invalid_parent_marker_does_not_bypass_lock(
@@ -182,31 +181,33 @@ def test_orphan_worker_prevents_new_session(tmp_path: Path) -> None:
         pass
 
 
-def test_delegated_training_holds_worker_lock(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Właściwy trening utrzymuje własną blokadę do końca pracy."""
+def test_delegated_training_holds_worker_lock(tmp_path: Path) -> None:
+    """Delegowany proces utrzymuje własną wyłączną blokadę."""
     config_path, state_dir = create_config(tmp_path)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["piper_train_compat.py", "fit", "--piper-mat-config", str(config_path)],
-    )
-    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
-    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir.resolve()))
-
-    def fake_training() -> int:
-        with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
-            with training_worker_lock(state_dir):
-                pass
-        return 0
-
-    monkeypatch.setattr(
-        piper_train_compat, "_run_compatible_training", fake_training
+    project_root = Path(__file__).resolve().parents[1]
+    script = (
+        "import sys; from pathlib import Path; "
+        "from scripts import piper_train_compat as m; "
+        "from scripts.session_lock import training_worker_lock; "
+        "d=Path(sys.argv[2]); "
+        "def_check = None; "
+        "exec('def fake():\\n try:\\n  with training_worker_lock(d):"
+        " return 23\\n except RuntimeError:\\n  return 0'); "
+        "m._run_compatible_training=fake; "
+        "sys.argv=['piper_train_compat.py','fit',"
+        "'--piper-mat-config',sys.argv[1]]; "
+        "sys.exit(m.main())"
     )
     with training_session_lock(state_dir):
-        assert piper_train_compat.main() == 0
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(config_path), str(state_dir)],
+            env=locked_subprocess_environment(state_dir),
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    assert result.returncode == 0, result.stderr
     with training_worker_lock(state_dir):
         pass
 
@@ -219,32 +220,36 @@ def test_parent_marker_without_active_lock_is_ignored(
     state_dir = tmp_path / "state"
     state_dir.mkdir()
     (state_dir / ".train_sessions.lock").touch()
-    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(os.getppid()))
     monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir))
     assert delegated_lock_directory() is None
 
 
 def test_delegated_worker_lock_conflict_returns_code_two(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Podproces odmawia treningu, gdy inny worker posiada blokadę."""
+    """Delegowany proces odmawia pracy, gdy blokada trenera jest zajęta."""
     config_path, state_dir = create_config(tmp_path)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["piper_train_compat.py", "fit", "--piper-mat-config", str(config_path)],
-    )
-    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
-    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir.resolve()))
-    monkeypatch.setattr(
-        piper_train_compat,
-        "_run_compatible_training",
-        lambda: pytest.fail("Nie wolno wywołać Lightning"),
+    project_root = Path(__file__).resolve().parents[1]
+    script = (
+        "import sys; from scripts import piper_train_compat as m; "
+        "m._run_compatible_training=lambda:75; "
+        "sys.argv=['piper_train_compat.py','fit',"
+        "'--piper-mat-config',sys.argv[1]]; "
+        "sys.exit(m.main())"
     )
     with training_session_lock(state_dir):
         with training_worker_lock(state_dir):
-            assert piper_train_compat.main() == 2
+            result = subprocess.run(
+                [sys.executable, "-c", script, str(config_path)],
+                env=locked_subprocess_environment(state_dir),
+                cwd=project_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+    assert result.returncode == 2, result.stderr
+    assert "Nie można uzyskać blokady" in result.stderr
 
 
 def test_missing_project_config_argument_is_rejected(
@@ -266,9 +271,6 @@ def test_orphan_worker_remains_protected_across_processes(
     tmp_path: Path,
 ) -> None:
     """Osierocony podproces utrzymuje blokadę po zakończeniu rodzica."""
-    import subprocess
-    import time
-
     project_root = Path(__file__).resolve().parents[1]
     worker_script = (
         "import sys,time; from pathlib import Path; "
