@@ -185,19 +185,27 @@ def test_delegated_training_holds_worker_lock(tmp_path: Path) -> None:
     """Delegowany proces utrzymuje własną wyłączną blokadę."""
     config_path, state_dir = create_config(tmp_path)
     project_root = Path(__file__).resolve().parents[1]
-    script = (
-        "import sys; from pathlib import Path; "
-        "from scripts import piper_train_compat as m; "
-        "from scripts.session_lock import training_worker_lock; "
-        "d=Path(sys.argv[2]); "
-        "def_check = None; "
-        "exec('def fake():\\n try:\\n  with training_worker_lock(d):"
-        " return 23\\n except RuntimeError:\\n  return 0'); "
-        "m._run_compatible_training=fake; "
-        "sys.argv=['piper_train_compat.py','fit',"
-        "'--piper-mat-config',sys.argv[1]]; "
-        "sys.exit(m.main())"
-    )
+    script = """\
+import sys
+from pathlib import Path
+from scripts import piper_train_compat as m
+from scripts.session_lock import training_worker_lock
+
+state_dir = Path(sys.argv[2])
+
+
+def fake_training():
+    try:
+        with training_worker_lock(state_dir):
+            return 23
+    except RuntimeError:
+        return 0
+
+
+m._run_compatible_training = fake_training
+sys.argv = ["piper_train_compat.py", "fit", "--piper-mat-config", sys.argv[1]]
+raise SystemExit(m.main())
+"""
     with training_session_lock(state_dir):
         result = subprocess.run(
             [sys.executable, "-c", script, str(config_path), str(state_dir)],
