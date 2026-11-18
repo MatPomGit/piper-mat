@@ -151,7 +151,11 @@ def find_unreferenced_audio(
 ) -> None:
     """Znajdź pliki dźwiękowe, które nie występują w metadata.csv."""
     referenced = {filename for filename, _ in result.rows}
-    audio_files = {path.name for path in audio_dir.iterdir() if path.is_file()}
+    audio_files = {
+        path.name
+        for path in audio_dir.iterdir()
+        if path.is_file() and path.suffix.lower() == ".wav"
+    }
     result.unreferenced_audio_files = sorted(audio_files - referenced)
     for filename in result.unreferenced_audio_files:
         result.warnings.append(

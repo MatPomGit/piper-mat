@@ -103,6 +103,13 @@ def build_payload(
     test_count = round(total * test_ratio)
     validation_count = round(total * validation_ratio)
 
+    if validation_ratio > 0 and validation_count == 0:
+        raise ValueError("za mało nagrań na niepusty zbiór walidacyjny")
+    if test_ratio > 0 and test_count == 0:
+        raise ValueError("za mało nagrań na niepusty zbiór testowy")
+    if test_count + validation_count >= total:
+        raise ValueError("brak nagrań w zbiorze treningowym po podziale")
+
     test = sorted(shuffled[:test_count])
     validation = sorted(shuffled[test_count : test_count + validation_count])
     train = sorted(shuffled[test_count + validation_count :])
