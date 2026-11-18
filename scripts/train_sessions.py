@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from checkpoint_compat import torch_load_checkpoint
+from session_lock import training_session_lock
 from train_voice import build_command
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -415,8 +416,22 @@ def run_training_command(command: list[str], log_path: Path) -> int:
 
 
 def run_next(config_path: Path, dry_run: bool) -> int:
-    """Uruchom następną niezakończoną sesję treningową."""
+    """Uruchom sesję pod blokadą albo wykonaj podgląd bez zapisu."""
     config = load_config(config_path)
+    if dry_run:
+        return _run_next_with_config(config_path, dry_run, config)
+
+    state_dir = Path(config["training"]["sessions"]["state_dir"])
+    with training_session_lock(state_dir):
+        return _run_next_with_config(config_path, dry_run, config)
+
+
+def _run_next_with_config(
+    config_path: Path,
+    dry_run: bool,
+    config: dict[str, Any],
+) -> int:
+    """Przetwórz następną sesję po przejęciu blokady lub w trybie próbnym."""
     increments = get_session_increments(config)
     sessions = config["training"]["sessions"]
 

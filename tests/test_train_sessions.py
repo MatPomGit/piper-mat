@@ -321,3 +321,46 @@ def test_main_reports_io_failure_instead_of_traceback(
     monkeypatch.setattr(train_sessions, "run_next", fail_run)
     assert train_sessions.main() == 2
     assert "BŁĄD: brak miejsca na dysku" in capsys.readouterr().err
+
+
+def test_run_next_acquires_lock_before_running(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prawdziwy trening wymaga wyłącznej blokady katalogu stanu."""
+    state_dir = tmp_path / "state"
+    config = {"training": {"sessions": {"state_dir": str(state_dir)}}}
+    monkeypatch.setattr(train_sessions, "load_config", lambda path: config)
+
+    def simulate_session(config_path: Path, dry_run: bool, loaded: dict) -> int:
+        assert not dry_run
+        assert loaded is config
+        with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
+            with train_sessions.training_session_lock(state_dir):
+                pytest.fail("Wewnętrzna sesja otrzymała blokadę")
+        return 17
+
+    monkeypatch.setattr(
+        train_sessions, "_run_next_with_config", simulate_session
+    )
+
+    assert train_sessions.run_next(tmp_path / "config.json", False) == 17
+    assert (state_dir / ".train_sessions.lock").is_file()
+
+
+def test_run_next_dry_run_does_not_create_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Podgląd następnej sesji nie tworzy nawet katalogu blokady."""
+    state_dir = tmp_path / "state"
+    config = {"training": {"sessions": {"state_dir": str(state_dir)}}}
+    monkeypatch.setattr(train_sessions, "load_config", lambda path: config)
+    monkeypatch.setattr(
+        train_sessions,
+        "_run_next_with_config",
+        lambda path, dry_run, loaded: 17 if dry_run else 3,
+    )
+
+    assert train_sessions.run_next(tmp_path / "config.json", True) == 17
+    assert not state_dir.exists()

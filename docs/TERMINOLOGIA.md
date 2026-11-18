@@ -23,6 +23,7 @@ Nazwy parametrów programu, identyfikatorów, klas, funkcji, bibliotek, formató
 | epoch | [epoka](terminologia/epoka.md) | Jedno pełne przejście przez zbiór treningowy. |
 | evaluation | [ocena](terminologia/ocena.md) | W zależności od kontekstu dopuszczalne: „ewaluacja”, zwłaszcza w opisie eksperymentu. |
 | fine-tuning | [dostrajanie](terminologia/dostrajanie.md) | Preferowane zamiast „fine-tuning” i „dostrojenie modelu”. |
+| interprocess lock | blokada międzyprocesowa | Systemowa blokada dostępu zapobiegająca równoczesnej modyfikacji stanu przez kilka procesów. |
 | inference | [wnioskowanie](terminologia/wnioskowanie.md) | Generowanie wyniku przez wytrenowany model. |
 | learning rate | [współczynnik uczenia](terminologia/wspolczynnik-uczenia.md) | Nie używać kalki „tempo uczenia”. |
 | loss | [funkcja straty](terminologia/funkcja-straty.md) | Jeżeli omawiana jest jej wartość: „wartość funkcji straty”. |
