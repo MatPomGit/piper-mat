@@ -169,3 +169,27 @@ def test_validate_project_paths_rejects_mismatched_metadata_hash(
 
     assert len(errors) == 1
     assert "nie odpowiada aktualnym metadanym" in errors[0]
+
+
+def test_validate_project_paths_rejects_overlapping_splits(tmp_path: Path) -> None:
+    """Nie dopuść do przecieku nagrań między podziałami."""
+    dataset, training = project_paths(tmp_path)
+    metadata = Path(dataset["metadata"])
+    Path(dataset["splits_path"]).write_text(
+        json.dumps(
+            {
+                "metadata_sha256": hashlib.sha256(metadata.read_bytes()).hexdigest(),
+                "splits": {
+                    "train": ["recording.wav"],
+                    "validation": ["recording.wav"],
+                    "test": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+
+    validate_project_paths(dataset, training, errors)
+
+    assert any("występuje" in error for error in errors)

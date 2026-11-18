@@ -10,6 +10,11 @@ import math
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from .split_integrity import validate_split_membership
+else:
+    from split_integrity import validate_split_membership
+
 DEFAULT_MODEL = Path("output/pl_PL-mateusz-medium.onnx")
 DEFAULT_SPLITS = Path("dataset/splits.json")
 DEFAULT_METADATA = Path("dataset/metadata.csv")
@@ -96,6 +101,9 @@ def check_split_integrity(
 
     if expected != actual:
         errors.append("dataset/splits.json nie odpowiada aktualnemu metadata.csv")
+        return
+
+    validate_split_membership(split_data, metadata_path, errors)
 
 
 def check_evaluation(path: Path, errors: list[str]) -> None:

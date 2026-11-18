@@ -1,10 +1,11 @@
 """Testy kontroli rekordu oceny kandydata do wydania."""
 
+import hashlib
 import json
 
 import pytest
 
-from scripts.check_release_readiness import check_evaluation
+from scripts.check_release_readiness import check_evaluation, check_split_integrity
 
 
 def _check_record(tmp_path, metrics):
@@ -92,3 +93,28 @@ def test_check_evaluation_accepts_complete_valid_record(tmp_path):
     }
 
     assert _check_record(tmp_path, metrics) == []
+
+
+def test_release_rejects_overlapping_splits_even_with_valid_hash(tmp_path):
+    """Nie akceptuj przecieku danych przy zgodnej sumie SHA-256."""
+    metadata = tmp_path / "metadata.csv"
+    metadata.write_text("a.wav|A\nb.wav|B\n", encoding="utf-8")
+    splits_path = tmp_path / "splits.json"
+    splits_path.write_text(
+        json.dumps(
+            {
+                "metadata_sha256": hashlib.sha256(metadata.read_bytes()).hexdigest(),
+                "splits": {
+                    "train": ["a.wav"],
+                    "validation": ["a.wav"],
+                    "test": ["b.wav"],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    errors = []
+
+    check_split_integrity(splits_path, metadata, errors)
+
+    assert any("występuje" in error for error in errors)
