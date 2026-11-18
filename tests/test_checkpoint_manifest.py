@@ -79,3 +79,15 @@ def test_load_entry_accepts_valid_entry_and_normalizes_hash(
     assert loaded_entry["sha256"] == VALID_HASH.lower()
     assert loaded_entry["size_bytes"] == 1
     assert loaded_entry["source"] == {"url": VALID_URL}
+
+
+@pytest.mark.parametrize("invalid_root", [None, [], "tekst", 17])
+def test_load_entry_rejects_non_object_manifest(
+    tmp_path: Path, invalid_root: object
+) -> None:
+    """Niepoprawny główny obiekt JSON zgłoś jako błąd walidacji."""
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(invalid_root), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="musi zawierać obiekt JSON"):
+        load_entry(manifest_path, "model.ckpt")

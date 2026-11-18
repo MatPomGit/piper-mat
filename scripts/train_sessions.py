@@ -461,6 +461,7 @@ def run_next(config_path: Path, dry_run: bool) -> int:
         checkpoint=resume_checkpoint,
         max_epochs=target_max_epochs,
         default_root_dir=run_dir,
+        create_output_dir=not dry_run,
     )
     print(f"Sesja {number}/{len(increments)}")
     print("Polecenie:")
@@ -564,3 +565,48 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def test_dry_run_with_actual_command_builder_does_not_create_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nie twórz katalogu modelu przy podglądzie rzeczywistego polecenia."""
+    base_checkpoint = tmp_path / "base.ckpt"
+    base_checkpoint.touch()
+    output_dir = tmp_path / "generated-model"
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "voice_name": "mateusz",
+                "sample_rate": 22050,
+                "espeak_voice": "pl",
+                "batch_size": 8,
+                "dataset": {
+                    "metadata": str(tmp_path / "metadata.csv"),
+                    "audio_dir": str(tmp_path / "wavs"),
+                    "splits_path": str(tmp_path / "splits.json"),
+                },
+                "training": {
+                    "base_checkpoint": str(base_checkpoint),
+                    "output_dir": str(output_dir),
+                    "cache_dir": str(tmp_path / "cache"),
+                    "sessions": {
+                        "epochs_per_session": [5],
+                        "state_dir": str(tmp_path / "state"),
+                        "runs_dir": str(tmp_path / "runs"),
+                        "reports_dir": str(tmp_path / "reports"),
+                    },
+                },
+                "export": {"config_filename": "voice.onnx.json"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(train_sessions, "checkpoint_epoch", lambda path: 9)
+
+    assert train_sessions.run_next(config_path, dry_run=True) == 0
+    assert not output_dir.exists()
+    assert not (tmp_path / "state").exists()
+    assert not (tmp_path / "runs").exists()
