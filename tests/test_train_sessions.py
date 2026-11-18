@@ -1,5 +1,6 @@
 """Testy zarządzania wielosesyjnym treningiem."""
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -297,3 +298,26 @@ def test_overlapping_state_saves_have_distinct_temporary_paths(
 
     assert json.loads(path.read_text(encoding="utf-8")) == {"epoch": 3}
     assert list(tmp_path.iterdir()) == [path]
+
+
+def test_main_reports_io_failure_instead_of_traceback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Awaria archiwizacji kończy się kontrolowanym kodem błędu."""
+    monkeypatch.setattr(
+        train_sessions,
+        "parse_args",
+        lambda: argparse.Namespace(
+            config=tmp_path / "config.json", status=False, dry_run=False
+        ),
+    )
+    monkeypatch.setattr(train_sessions, "load_config", lambda path: {})
+
+    def fail_run(*_args: object) -> int:
+        raise OSError("brak miejsca na dysku")
+
+    monkeypatch.setattr(train_sessions, "run_next", fail_run)
+    assert train_sessions.main() == 2
+    assert "BŁĄD: brak miejsca na dysku" in capsys.readouterr().err
