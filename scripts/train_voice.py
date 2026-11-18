@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from .session_lock import training_session_lock
+else:
+    from session_lock import training_session_lock
+
 DEFAULT_CONFIG_PATH = Path("configs/pl_PL-mateusz-medium.json")
 
 
@@ -115,29 +120,51 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def state_dir_for_config(config: dict[str, Any]) -> Path:
+    """Wybierz wspólny katalog blokady dla bezpośredniego treningu."""
+    training = config["training"]
+    sessions = training.get("sessions")
+    if sessions is None:
+        return Path(training["output_dir"]) / "training_state"
+    if not isinstance(sessions, dict):
+        raise TypeError("training.sessions musi być obiektem JSON")
+    return Path(sessions["state_dir"])
+
+
 def main() -> int:
-    """Build and optionally execute the canonical training command."""
+    """Podglądaj polecenie lub trenuj pod wspólną blokadą sesji."""
     args = parse_args()
 
     try:
-        command = build_command(
-            args.config,
-            checkpoint=args.checkpoint,
-            max_epochs=args.max_epochs,
-            default_root_dir=args.default_root_dir,
-            create_output_dir=not args.dry_run,
+        if args.dry_run:
+            command = build_command(
+                args.config,
+                checkpoint=args.checkpoint,
+                max_epochs=args.max_epochs,
+                default_root_dir=args.default_root_dir,
+                create_output_dir=False,
+            )
+            print("Polecenie treningowe:")
+            print(subprocess.list2cmdline(command))
+            return 0
+
+        config = load_config(args.config)
+        with training_session_lock(state_dir_for_config(config)):
+            command = build_command(
+                args.config,
+                checkpoint=args.checkpoint,
+                max_epochs=args.max_epochs,
+                default_root_dir=args.default_root_dir,
+            )
+            print("Polecenie treningowe:")
+            print(subprocess.list2cmdline(command))
+            return subprocess.run(command, check=False).returncode
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, RuntimeError) as exc:
+        print(
+            f"BŁĄD: nie można przygotować lub uruchomić treningu: {exc}",
+            file=sys.stderr,
         )
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
-        print(f"BŁĄD: nie można zbudować polecenia treningowego: {exc}")
         return 2
-
-    print("Polecenie treningowe:")
-    print(subprocess.list2cmdline(command))
-
-    if args.dry_run:
-        return 0
-
-    return subprocess.run(command, check=False).returncode
 
 
 if __name__ == "__main__":
