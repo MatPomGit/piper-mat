@@ -47,14 +47,17 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def write_json_atomic(path: Path, data: dict[str, Any]) -> None:
-    """Zapisz obiekt JSON atomowo, aby ograniczyć ryzyko uszkodzenia stanu."""
+    """Zapisz JSON atomowo bez wspólnego pliku tymczasowego."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = path.with_suffix(path.suffix + ".tmp")
-    temporary_path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    temporary_path.replace(path)
+    with tempfile.TemporaryDirectory(
+        prefix=f".{path.name}.working-", dir=path.parent
+    ) as working_dir:
+        temporary_path = Path(working_dir) / path.name
+        temporary_path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temporary_path.replace(path)
 
 
 def load_config(path: Path) -> dict[str, Any]:

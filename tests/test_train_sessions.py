@@ -241,3 +241,59 @@ def test_archive_replace_failure_preserves_checkpoint(
 
     assert target.read_bytes() == b"previous checkpoint"
     assert list(target.parent.iterdir()) == [target]
+
+
+def test_state_save_success_replaces_existing_json(tmp_path: Path) -> None:
+    """Wymień stary plik stanu dopiero po pełnym zapisie nowego."""
+    path = tmp_path / "state.json"
+    path.write_text('{"epoch": 11}', encoding="utf-8")
+
+    train_sessions.write_json_atomic(path, {"epoch": 12})
+
+    assert json.loads(path.read_text(encoding="utf-8")) == {"epoch": 12}
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_state_save_failure_preserves_previous_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Po błędzie końcowej podmiany pozostaw poprzedni plik bez zmian."""
+    path = tmp_path / "state.json"
+    path.write_text('{"epoch": 11}', encoding="utf-8")
+    original_replace = Path.replace
+
+    def fail_replace(staged: Path, destination: Path) -> Path:
+        if destination == path:
+            raise OSError("permission denied")
+        return original_replace(staged, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_replace)
+    with pytest.raises(OSError, match="permission denied"):
+        train_sessions.write_json_atomic(path, {"epoch": 12})
+
+    assert json.loads(path.read_text(encoding="utf-8")) == {"epoch": 11}
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_overlapping_state_saves_have_distinct_temporary_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dwa przeplatane zapisy nie mogą usuwać sobie pliku tymczasowego."""
+    path = tmp_path / "state.json"
+    original_replace = Path.replace
+    inner_done = False
+
+    def interleaved_replace(staged: Path, destination: Path) -> Path:
+        nonlocal inner_done
+        if destination == path and not inner_done:
+            inner_done = True
+            train_sessions.write_json_atomic(path, {"epoch": 2})
+        return original_replace(staged, destination)
+
+    monkeypatch.setattr(Path, "replace", interleaved_replace)
+    train_sessions.write_json_atomic(path, {"epoch": 3})
+
+    assert json.loads(path.read_text(encoding="utf-8")) == {"epoch": 3}
+    assert list(tmp_path.iterdir()) == [path]
