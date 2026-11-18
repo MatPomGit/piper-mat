@@ -8,6 +8,7 @@ import csv
 import hashlib
 import json
 import sys
+import tempfile
 from pathlib import Path
 from random import Random
 
@@ -136,6 +137,20 @@ def build_payload(
     }
 
 
+
+def write_splits_atomic(output: Path, payload: dict[str, object]) -> None:
+    """Zapisz podział atomowo, zachowując poprzedni plik przy błędzie."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=f".{output.name}.", dir=output.parent
+    ) as temp_dir:
+        temporary = Path(temp_dir) / output.name
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(output)
+
 def main() -> int:
     """Utwórz i zapisz deterministyczny podział zbioru danych."""
     args = parse_args()
@@ -154,11 +169,11 @@ def main() -> int:
         print(f"BŁĄD: {exc}", file=sys.stderr)
         return 2
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    try:
+        write_splits_atomic(args.output, payload)
+    except OSError as exc:
+        print(f"BŁĄD: nie można zapisać podziału danych: {exc}", file=sys.stderr)
+        return 2
 
     counts = payload["counts"]
     assert isinstance(counts, dict)
