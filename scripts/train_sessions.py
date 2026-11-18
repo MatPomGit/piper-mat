@@ -566,7 +566,7 @@ def main() -> int:
             print_status(config, load_state(config))
             return 0
         return run_next(args.config, args.dry_run)
-    except (KeyError, TypeError, ValueError, RuntimeError) as exc:
+    except (KeyError, TypeError, ValueError, RuntimeError, OSError) as exc:
         print(f"BŁĄD: {exc}", file=sys.stderr)
         return 2
 
