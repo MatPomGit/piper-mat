@@ -62,6 +62,7 @@ def test_regular_command_builder_creates_output_directory(tmp_path: Path) -> Non
     assert output_dir.is_dir()
     assert str(output_dir / "voice.onnx.json") in command
 
+
 def config_with_sessions(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Dodaj do konfiguracji wspólny katalog stanu sesji."""
     config_path, output_dir = voice_config(tmp_path)
