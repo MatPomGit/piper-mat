@@ -209,3 +209,16 @@ def test_delegated_training_holds_worker_lock(
         assert piper_train_compat.main() == 0
     with training_worker_lock(state_dir):
         pass
+
+
+def test_parent_marker_without_active_lock_is_ignored(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sam identyfikator rodzica nie wystarcza do pominięcia blokady."""
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    (state_dir / ".train_sessions.lock").touch()
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir))
+    assert delegated_lock_directory() is None

@@ -25,7 +25,18 @@ def delegated_lock_directory() -> Path | None:
     parent_dir = os.environ.get(LOCK_PARENT_DIR_ENV)
     if parent_pid != str(os.getppid()) or not parent_dir:
         return None
-    return Path(parent_dir)
+
+    state_dir = Path(parent_dir)
+    if not (state_dir / ".train_sessions.lock").is_file():
+        return None
+    try:
+        with _file_lock(state_dir, ".train_sessions.lock"):
+            pass
+    except RuntimeError as exc:
+        if "Nie można uzyskać blokady treningu" not in str(exc):
+            raise
+        return state_dir
+    return None
 
 
 @contextmanager
