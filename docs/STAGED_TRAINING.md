@@ -105,6 +105,14 @@ Menedżer odczyta `output/training_state/state.json`, wybierze końcowy punkt ko
 
 Nie trzeba ręcznie podawać ścieżki do poprzedniego punktu kontrolnego.
 
+## Ochrona przed równoczesnymi sesjami
+
+Menedżer stosuje blokadę międzyprocesową (interprocess lock) powiązaną z katalogiem stanu. Przed rozpoczęciem sesji musi uzyskać wyłączną blokadę pliku `output/training_state/.train_sessions.lock`. Gdy inny proces trenuje już model w tym samym katalogu stanu, kolejne uruchomienie kończy się kontrolowanym błędem zamiast nadpisywać raporty i punkty kontrolne.
+
+Blokada jest zwalniana automatycznie po zakończeniu procesu, także gdy trening zakończy się błędem. Sam plik `.train_sessions.lock` pozostaje na dysku celowo i nie należy go usuwać ręcznie. Opcje `--status` i `--dry-run` nie przejmują blokady, ponieważ nie uruchamiają treningu. Mechanizm dotyczy `train.sh`, `train.ps1` i `train_sessions.py`, ale nie obejmuje bezpośrednich wywołań `train_voice.py`.
+
+Blokada korzysta z mechanizmów systemowych Windows i Linux. Nie należy traktować jej jako rozproszonej synchronizacji między odrębnymi komputerami lub różnymi środowiskami systemowymi współdzielącymi katalog stanu.
+
 ## Sprawdzenie postępu bez uruchamiania trenowania
 
 Linux:
