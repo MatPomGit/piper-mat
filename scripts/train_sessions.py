@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from checkpoint_compat import torch_load_checkpoint
-from session_lock import training_session_lock
+from session_lock import locked_subprocess_environment, training_session_lock
 from train_voice import build_command
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -372,10 +372,12 @@ def format_process_return_code(return_code: int) -> str:
     return str(return_code)
 
 
-def run_training_command(command: list[str], log_path: Path) -> int:
+def run_training_command(
+    command: list[str], log_path: Path, state_dir: Path
+) -> int:
     """Uruchom trening, pokazuj wyjście na żywo i zachowaj pełny log."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    environment = dict(os.environ)
+    environment = locked_subprocess_environment(state_dir)
     environment.update(
         {
             "PYTHONIOENCODING": "utf-8",
@@ -498,7 +500,9 @@ def _run_next_with_config(
     write_session_metadata(metadata_path, metadata)
 
     previous_modification_times = checkpoint_modification_times(run_dir)
-    return_code = run_training_command(command, training_log_path)
+    return_code = run_training_command(
+        command, training_log_path, Path(sessions["state_dir"])
+    )
     metadata["finished_at"] = utc_now()
     metadata["return_code"] = return_code
     write_session_metadata(metadata_path, metadata)

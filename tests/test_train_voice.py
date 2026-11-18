@@ -115,10 +115,14 @@ def test_direct_training_holds_lock_until_process_exits(
     config_path, state_dir, output_dir = config_with_sessions(tmp_path)
     set_cli_args(monkeypatch, config_path)
 
-    def fake_run(command: list[str], *, check: bool) -> SimpleNamespace:
+    def fake_run(
+        command: list[str], *, check: bool, env: dict[str, str]
+    ) -> SimpleNamespace:
         assert output_dir.is_dir()
         assert not check
         assert "--ckpt_path" in command
+        assert env["PIPER_MAT_LOCK_PARENT_PID"]
+        assert Path(env["PIPER_MAT_LOCK_PARENT_DIR"]) == state_dir.resolve()
         with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
             with training_session_lock(state_dir):
                 pass
@@ -153,8 +157,11 @@ def test_legacy_config_without_sessions_uses_output_local_lock(
     state_dir = output_dir / "training_state"
     set_cli_args(monkeypatch, config_path)
 
-    def fake_run(command: list[str], *, check: bool) -> SimpleNamespace:
+    def fake_run(
+        command: list[str], *, check: bool, env: dict[str, str]
+    ) -> SimpleNamespace:
         assert not check
+        assert Path(env["PIPER_MAT_LOCK_PARENT_DIR"]) == state_dir.resolve()
         with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
             with training_session_lock(state_dir):
                 pass
@@ -174,7 +181,10 @@ def test_direct_training_reports_subprocess_error_and_unlocks(
     config_path, state_dir, _ = config_with_sessions(tmp_path)
     set_cli_args(monkeypatch, config_path)
 
-    def fail_run(command: list[str], *, check: bool) -> None:
+    def fail_run(
+        command: list[str], *, check: bool, env: dict[str, str]
+    ) -> None:
+        assert Path(env["PIPER_MAT_LOCK_PARENT_DIR"]) == state_dir.resolve()
         raise OSError("testowy błąd uruchomienia")
 
     monkeypatch.setattr(train_voice.subprocess, "run", fail_run)

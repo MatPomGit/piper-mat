@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
-    from .session_lock import training_session_lock
+    from .session_lock import locked_subprocess_environment, training_session_lock
 else:
-    from session_lock import training_session_lock
+    from session_lock import locked_subprocess_environment, training_session_lock
 
 DEFAULT_CONFIG_PATH = Path("configs/pl_PL-mateusz-medium.json")
 
@@ -149,7 +149,8 @@ def main() -> int:
             return 0
 
         config = load_config(args.config)
-        with training_session_lock(state_dir_for_config(config)):
+        state_dir = state_dir_for_config(config)
+        with training_session_lock(state_dir):
             command = build_command(
                 args.config,
                 checkpoint=args.checkpoint,
@@ -158,7 +159,10 @@ def main() -> int:
             )
             print("Polecenie treningowe:")
             print(subprocess.list2cmdline(command))
-            return subprocess.run(command, check=False).returncode
+            environment = locked_subprocess_environment(state_dir)
+            return subprocess.run(
+                command, check=False, env=environment
+            ).returncode
     except (OSError, json.JSONDecodeError, KeyError, TypeError, RuntimeError) as exc:
         print(
             f"BŁĄD: nie można przygotować lub uruchomić treningu: {exc}",
