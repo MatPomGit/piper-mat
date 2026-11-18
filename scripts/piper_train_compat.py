@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import runpy
 import sys
@@ -11,7 +12,19 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from checkpoint_compat import checkpoint_path_compatibility, torch_load_checkpoint
+if __package__:
+    from .checkpoint_compat import (
+        checkpoint_path_compatibility,
+        torch_load_checkpoint,
+    )
+    from .session_lock import delegated_lock_directory, training_session_lock
+    from .train_voice import state_dir_for_config
+else:
+    from checkpoint_compat import checkpoint_path_compatibility, torch_load_checkpoint
+    from session_lock import delegated_lock_directory, training_session_lock
+    from train_voice import state_dir_for_config
+
+PROJECT_CONFIG_DEFAULT = Path("configs/pl_PL-mateusz-medium.json")
 
 _LOGGER = logging.getLogger("piper_mat.checkpoint_compat")
 
@@ -143,8 +156,40 @@ def _prepare_checkpoint_for_lightning(path: Path) -> tuple[Path, Path | None]:
     return temporary_path, temporary_path
 
 
-def main() -> int:
-    """Execute Piper training with legacy-checkpoint compatibility."""
+def _take_project_config_arg(argv: list[str] | None = None) -> Path:
+    """Usuń opcję projektu przed wywołaniem parsera biblioteki Lightning."""
+    args = sys.argv if argv is None else argv
+    config_path = PROJECT_CONFIG_DEFAULT
+    for index in range(1, len(args)):
+        argument = args[index]
+        if argument == "--piper-mat-config":
+            if index + 1 >= len(args):
+                raise ValueError("brak ścieżki po --piper-mat-config")
+            config_path = Path(args[index + 1])
+            del args[index : index + 2]
+            return config_path
+        if argument.startswith("--piper-mat-config="):
+            config_path = Path(argument.split("=", 1)[1])
+            del args[index]
+            return config_path
+    return config_path
+
+
+def _state_dir_from_project_file(path: Path) -> Path:
+    """Wczytaj katalog blokady z konfiguracji tego samego projektu."""
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(config, dict):
+            raise ValueError("konfiguracja musi być obiektem JSON")
+        return state_dir_for_config(config)
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise ValueError(
+            f"nie można ustalić blokady na podstawie {path}: {exc}"
+        ) from exc
+
+
+def _run_compatible_training() -> int:
+    """Wykonaj właściwe trenowanie po ustaleniu wyłączności sesji."""
     logging.basicConfig(level=logging.INFO)
     checkpoint_path = _checkpoint_path_from_argv()
     temporary_path: Path | None = None
@@ -164,6 +209,31 @@ def main() -> int:
             temporary_path.unlink(missing_ok=True)
 
     return 0
+
+
+def main() -> int:
+    """Uruchom trening bezpośredni pod tą samą blokadą co menedżer."""
+    try:
+        config_path = _take_project_config_arg()
+        if delegated_lock_directory() is not None:
+            return _run_compatible_training()
+
+        if "--help" in sys.argv or "-h" in sys.argv:
+            return _run_compatible_training()
+
+        state_dir = _state_dir_from_project_file(config_path)
+    except ValueError as exc:
+        print(f"BŁĄD: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        with training_session_lock(state_dir):
+            return _run_compatible_training()
+    except RuntimeError as exc:
+        if "Nie można uzyskać blokady treningu" not in str(exc):
+            raise
+        print(f"BŁĄD: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

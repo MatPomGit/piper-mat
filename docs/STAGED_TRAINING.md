@@ -109,7 +109,7 @@ Nie trzeba ręcznie podawać ścieżki do poprzedniego punktu kontrolnego.
 
 Menedżer stosuje blokadę międzyprocesową (interprocess lock) powiązaną z katalogiem stanu. Przed rozpoczęciem sesji musi uzyskać wyłączną blokadę pliku `output/training_state/.train_sessions.lock`. Gdy inny proces trenuje już model w tym samym katalogu stanu, kolejne uruchomienie kończy się kontrolowanym błędem zamiast nadpisywać raporty i punkty kontrolne.
 
-Blokada jest zwalniana automatycznie po zakończeniu procesu, także gdy trening zakończy się błędem. Sam plik `.train_sessions.lock` pozostaje na dysku celowo i nie należy go usuwać ręcznie. Opcje `--status` i `--dry-run` nie przejmują blokady, ponieważ nie uruchamiają treningu. Mechanizm obejmuje `train.sh`, `train.ps1`, `train_sessions.py` i bezpośrednie wywołania `train_voice.py` korzystające z tej samej konfiguracji. W przypadku starszej konfiguracji bez sekcji `training.sessions` bezpośredni program używa katalogu `training.output_dir/training_state`.
+Blokada jest zwalniana automatycznie po zakończeniu procesu, także gdy trening zakończy się błędem. Sam plik `.train_sessions.lock` pozostaje na dysku celowo i nie należy go usuwać ręcznie. Opcje `--status` i `--dry-run` nie przejmują blokady, ponieważ nie uruchamiają treningu. Mechanizm obejmuje `train.sh`, `train.ps1`, `train_sessions.py`, `train_voice.py` oraz bezpośrednie uruchomienie `piper_train_compat.py`. Podproces zgodnego trenera otrzymuje od uruchamiającego go menedżera identyfikator właściciela blokady, aby uniknąć ponownego blokowania tej samej sesji. W przypadku starszej konfiguracji bez sekcji `training.sessions` bezpośredni program używa katalogu `training.output_dir/training_state`.
 
 Blokada korzysta z mechanizmów systemowych Windows i Linux. Nie należy traktować jej jako rozproszonej synchronizacji między odrębnymi komputerami lub różnymi środowiskami systemowymi współdzielącymi katalog stanu.
 
@@ -220,6 +220,14 @@ python scripts/train_voice.py \
   --max-epochs 2915 \
   --default-root-dir output/manual-run
 ```
+
+Bezpośrednie wywołanie zgodnego trenera `piper_train_compat.py` również przejmuje blokadę. Domyślnie odczytuje katalog stanu z `configs/pl_PL-mateusz-medium.json`. W przypadku innego pliku konfiguracji należy przekazać dodatkową opcję `--piper-mat-config`, np.:
+
+```bash
+python scripts/piper_train_compat.py fit --piper-mat-config configs/moj-glos.json
+```
+
+Opcja `--piper-mat-config` jest przeznaczona dla programu zgodności i nie jest przekazywana do parsera Lightning. Należy używać tej samej ścieżki do katalogu stanu we wszystkich sposobach uruchamiania trenowania. Bezpośrednie wywołanie `python -m piper.train`, omijające skrypty projektu, nie korzysta z tej blokady.
 
 Do normalnego trenowania głosu zalecany jest jednak `train.sh` lub `train.ps1`, ponieważ menedżer sesji pilnuje stanu, raportów i archiwizacji.
 

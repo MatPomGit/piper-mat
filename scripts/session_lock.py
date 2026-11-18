@@ -7,6 +7,26 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+LOCK_PARENT_PID_ENV = "PIPER_MAT_LOCK_PARENT_PID"
+LOCK_PARENT_DIR_ENV = "PIPER_MAT_LOCK_PARENT_DIR"
+
+
+def locked_subprocess_environment(state_dir: Path) -> dict[str, str]:
+    """Przekaż podprocesowi identyfikator właściciela aktywnej blokady."""
+    environment = dict(os.environ)
+    environment[LOCK_PARENT_PID_ENV] = str(os.getpid())
+    environment[LOCK_PARENT_DIR_ENV] = str(state_dir.resolve())
+    return environment
+
+
+def delegated_lock_directory() -> Path | None:
+    """Rozpoznaj podproces uruchomiony bezpośrednio przez właściciela blokady."""
+    parent_pid = os.environ.get(LOCK_PARENT_PID_ENV)
+    parent_dir = os.environ.get(LOCK_PARENT_DIR_ENV)
+    if parent_pid != str(os.getppid()) or not parent_dir:
+        return None
+    return Path(parent_dir)
+
 
 @contextmanager
 def training_session_lock(state_dir: Path) -> Iterator[None]:
