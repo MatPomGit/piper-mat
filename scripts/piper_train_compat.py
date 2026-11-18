@@ -220,23 +220,27 @@ def _run_compatible_training() -> int:
 
 
 def main() -> int:
-    """Uruchom trening bezpośredni pod tą samą blokadą co menedżer."""
+    """Uruchom trenowanie z blokadą menedżera lub jego podprocesu."""
     try:
         config_path = _take_project_config_arg()
-        delegated_dir = delegated_lock_directory()
-        if delegated_dir is not None:
-            with training_worker_lock(delegated_dir):
-                return _run_compatible_training()
-
         if "--help" in sys.argv or "-h" in sys.argv:
             return _run_compatible_training()
 
-        state_dir = _state_dir_from_project_file(config_path)
-    except ValueError as exc:
+        delegated_dir = delegated_lock_directory()
+        state_dir = (
+            delegated_dir
+            if delegated_dir is not None
+            else _state_dir_from_project_file(config_path)
+        )
+    except (ValueError, OSError) as exc:
         print(f"BŁĄD: {exc}", file=sys.stderr)
         return 2
 
     try:
+        if delegated_dir is not None:
+            with training_worker_lock(state_dir):
+                return _run_compatible_training()
+
         with training_session_lock(state_dir):
             with training_worker_lock(state_dir):
                 return _run_compatible_training()
@@ -244,6 +248,9 @@ def main() -> int:
         if "Nie można uzyskać blokady treningu" not in str(exc):
             raise
         print(f"BŁĄD: {exc}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        print(f"BŁĄD: nie można uzyskać blokady treningu: {exc}", file=sys.stderr)
         return 2
 
 

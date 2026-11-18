@@ -222,3 +222,102 @@ def test_parent_marker_without_active_lock_is_ignored(
     monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
     monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir))
     assert delegated_lock_directory() is None
+
+
+def test_delegated_worker_lock_conflict_returns_code_two(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Podproces odmawia treningu, gdy inny worker posiada blokadę."""
+    config_path, state_dir = create_config(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper_train_compat.py", "fit", "--piper-mat-config", str(config_path)],
+    )
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir.resolve()))
+    monkeypatch.setattr(
+        piper_train_compat,
+        "_run_compatible_training",
+        lambda: pytest.fail("Nie wolno wywołać Lightning"),
+    )
+    with training_session_lock(state_dir):
+        with training_worker_lock(state_dir):
+            assert piper_train_compat.main() == 2
+
+
+def test_missing_project_config_argument_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zgłoś czytelny błąd, gdy opcja nie zawiera wymaganej ścieżki."""
+    monkeypatch.setattr(
+        sys, "argv", ["piper_train_compat.py", "fit", "--piper-mat-config"]
+    )
+    monkeypatch.setattr(
+        piper_train_compat,
+        "_run_compatible_training",
+        lambda: pytest.fail("Nie wolno wywołać Lightning"),
+    )
+    assert piper_train_compat.main() == 2
+
+
+def test_orphan_worker_remains_protected_across_processes(
+    tmp_path: Path,
+) -> None:
+    """Osierocony podproces utrzymuje blokadę po zakończeniu rodzica."""
+    import subprocess
+    import time
+
+    project_root = Path(__file__).resolve().parents[1]
+    worker_script = (
+        "import sys,time; from pathlib import Path; "
+        "from scripts.session_lock import training_worker_lock;\n"
+        "with training_worker_lock(Path(sys.argv[1])):\n"
+        " print('READY',flush=True); time.sleep(1.5)"
+    )
+    parent_script = (
+        "import subprocess,sys,os; from pathlib import Path; "
+        "from scripts.session_lock import "
+        "training_session_lock,locked_subprocess_environment; "
+        "d=Path(sys.argv[1]);\n"
+        "with training_session_lock(d):\n"
+        " p=subprocess.Popen([sys.executable,'-c',sys.argv[2],str(d)],"
+        "env=locked_subprocess_environment(d),stdout=subprocess.PIPE,"
+        "text=True,cwd=sys.argv[3]); "
+        "assert p.stdout.readline().strip()=='READY'; "
+        "print(p.pid,flush=True); os._exit(0)"
+    )
+    parent = subprocess.Popen(
+        [
+            sys.executable,
+            "-u",
+            "-c",
+            parent_script,
+            str(tmp_path),
+            worker_script,
+            str(project_root),
+        ],
+        cwd=project_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    assert parent.stdout is not None
+    worker_pid = parent.stdout.readline().strip()
+    assert worker_pid.isdigit()
+    assert parent.wait(timeout=5) == 0
+
+    with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
+        with training_session_lock(tmp_path):
+            pass
+
+    deadline = time.monotonic() + 5
+    while True:
+        try:
+            with training_session_lock(tmp_path):
+                break
+        except RuntimeError:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(0.05)
