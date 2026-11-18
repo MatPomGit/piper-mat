@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -190,13 +191,17 @@ def choose_best_by_filename(
 
 
 def archive_file(source: Path, destination: Path) -> None:
-    """Zarchiwizuj plik przez twarde dowiązanie lub kopię zapasową."""
+    """Archiwizuj punkt kontrolny bez usuwania poprzedniego przy błędzie."""
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.unlink(missing_ok=True)
-    try:
-        os.link(source, destination)
-    except OSError:
-        shutil.copy2(source, destination)
+    with tempfile.TemporaryDirectory(
+        prefix=f".{destination.name}.working-", dir=destination.parent
+    ) as working_dir:
+        staged = Path(working_dir) / destination.name
+        try:
+            os.link(source, staged)
+        except OSError:
+            shutil.copy2(source, staged)
+        staged.replace(destination)
 
 
 def session_paths(
