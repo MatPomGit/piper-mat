@@ -13,6 +13,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from .split_integrity import validate_split_membership
+else:
+    from split_integrity import validate_split_membership
+
 DEFAULT_CONFIG = Path("configs/pl_PL-mateusz-medium.json")
 REQUIRED_CONFIG_KEYS = (
     "voice_name",
@@ -82,24 +87,8 @@ def validate_splits_file(
         errors.append(f"plik podziału danych musi zawierać obiekt JSON: {splits_path}")
         return
 
-    splits = data.get("splits")
-    if not isinstance(splits, dict):
-        errors.append(f"brak obiektu splits w pliku podziału danych: {splits_path}")
-    else:
-        for split_name in ("train", "validation", "test"):
-            if not isinstance(splits.get(split_name), list):
-                errors.append(
-                    f"splits.{split_name} musi być listą w pliku podziału danych: "
-                    f"{splits_path}"
-                )
-        for split_name in ("train", "validation"):
-            if splits.get(split_name) == []:
-                errors.append(
-                    f"splits.{split_name} nie może być pustą listą w pliku "
-                    f"podziału danych: {splits_path}"
-                )
-
     expected_hash = data.get("metadata_sha256")
+    metadata_for_membership = metadata_path
     if not isinstance(expected_hash, str) or not expected_hash:
         errors.append(
             f"brak poprawnego metadata_sha256 w pliku podziału danych: {splits_path}"
@@ -109,12 +98,16 @@ def validate_splits_file(
             actual_hash = sha256_file(metadata_path)
         except OSError as exc:
             errors.append(f"nie można obliczyć SHA-256 {metadata_path}: {exc}")
+            metadata_for_membership = None
         else:
             if expected_hash != actual_hash:
                 errors.append(
                     f"plik podziału danych {splits_path} nie odpowiada aktualnym "
                     f"metadanym {metadata_path}"
                 )
+                metadata_for_membership = None
+
+    validate_split_membership(data, metadata_for_membership, errors)
 
 
 def validate_required_keys(config: dict[str, Any], errors: list[str]) -> None:
