@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -65,6 +67,16 @@ def verify_file(path: Path, entry: dict[str, object]) -> tuple[bool, str, int]:
     return valid, actual_sha, actual_size
 
 
+
+def create_temporary_download(output: Path) -> Path:
+    """Utwórz unikalny plik tymczasowy w katalogu docelowym."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(
+        prefix=f".{output.name}.", suffix=".part", dir=output.parent
+    )
+    os.close(descriptor)
+    return Path(name)
+
 def main() -> int:
     """Pobierz i zweryfikuj wskazany punkt kontrolny."""
     args = parse_args()
@@ -79,34 +91,27 @@ def main() -> int:
     assert isinstance(source, dict)
     url = str(source["url"])
     output = args.output or Path("checkpoints") / args.name
-    temporary = output.with_suffix(output.suffix + ".part")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    temporary.unlink(missing_ok=True)
-
+    temporary: Path | None = None
     print(f"Pobieranie: {url}")
     try:
+        temporary = create_temporary_download(output)
         download_file(url, temporary)
         valid, actual_sha, actual_size = verify_file(temporary, entry)
-    except (OSError, urllib.error.URLError) as exc:
-        temporary.unlink(missing_ok=True)
-        print(f"BŁĄD: pobieranie nie powiodło się: {exc}", file=sys.stderr)
-        return 2
+        if not valid:
+            print(
+                "BŁĄD: weryfikacja nie powiodła się: "
+                f"rozmiar={actual_size}, sha256={actual_sha}",
+                file=sys.stderr,
+            )
+            return 1
 
-    if not valid:
-        temporary.unlink(missing_ok=True)
-        print(
-            "BŁĄD: weryfikacja nie powiodła się: "
-            f"rozmiar={actual_size}, sha256={actual_sha}",
-            file=sys.stderr,
-        )
-        return 1
-
-    try:
         temporary.replace(output)
-    except OSError as exc:
-        temporary.unlink(missing_ok=True)
-        print(f"BŁĄD: nie można zapisać punktu kontrolnego: {exc}", file=sys.stderr)
+    except (OSError, urllib.error.URLError) as exc:
+        print(f"BŁĄD: pobieranie lub zapis nie powiodły się: {exc}", file=sys.stderr)
         return 2
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
     print(f"Zweryfikowano i zapisano: {output}")
     return 0
