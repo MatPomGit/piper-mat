@@ -154,3 +154,91 @@ def test_dry_run_with_actual_command_builder_does_not_create_output(
     assert not output_dir.exists()
     assert not (tmp_path / "state").exists()
     assert not (tmp_path / "runs").exists()
+
+def test_archive_copy_failure_preserves_previous_checkpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nie nadpisuj poprzedniego checkpointu przy częściowej kopii."""
+    source = tmp_path / "new.ckpt"
+    target = tmp_path / "archive" / "last.ckpt"
+    source.write_bytes(b"new checkpoint")
+    target.parent.mkdir()
+    target.write_bytes(b"previous valid checkpoint")
+
+    def fail_link(*_args: object) -> None:
+        raise OSError("cross-device link")
+
+    def fail_copy(source_path: Path, target_path: Path) -> None:
+        target_path.write_bytes(b"partial checkpoint")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(train_sessions.os, "link", fail_link)
+    monkeypatch.setattr(train_sessions.shutil, "copy2", fail_copy)
+
+    with pytest.raises(OSError, match="disk full"):
+        train_sessions.archive_file(source, target)
+
+    assert target.read_bytes() == b"previous valid checkpoint"
+    assert list(target.parent.iterdir()) == [target]
+
+
+def test_archive_hard_link_replaces_checkpoint_atomically(tmp_path: Path) -> None:
+    """Zachowaj szybkie dowiązanie twarde po udanej archiwizacji."""
+    source = tmp_path / "new.ckpt"
+    target = tmp_path / "archive" / "last.ckpt"
+    source.write_bytes(b"new valid checkpoint")
+    target.parent.mkdir()
+    target.write_bytes(b"old checkpoint")
+
+    train_sessions.archive_file(source, target)
+
+    assert target.read_bytes() == source.read_bytes()
+    assert target.stat().st_ino == source.stat().st_ino
+    assert list(target.parent.iterdir()) == [target]
+
+
+def test_archive_copy_fallback_replaces_checkpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Po błędzie dowiązania skopiuj plik i zastąp nim stary checkpoint."""
+    source = tmp_path / "new.ckpt"
+    target = tmp_path / "archive" / "last.ckpt"
+    source.write_bytes(b"new valid checkpoint")
+    target.parent.mkdir()
+    target.write_bytes(b"old checkpoint")
+
+    def fail_link(*_args: object) -> None:
+        raise OSError("cross-device link")
+
+    monkeypatch.setattr(train_sessions.os, "link", fail_link)
+    train_sessions.archive_file(source, target)
+
+    assert target.read_bytes() == source.read_bytes()
+    assert list(target.parent.iterdir()) == [target]
+
+
+def test_archive_replace_failure_preserves_checkpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nie usuń starszego checkpointu po awarii końcowego zastąpienia."""
+    source = tmp_path / "new.ckpt"
+    target = tmp_path / "archive" / "last.ckpt"
+    source.write_bytes(b"new checkpoint")
+    target.parent.mkdir()
+    target.write_bytes(b"previous checkpoint")
+    original_replace = Path.replace
+
+    def fail_replace(staged: Path, destination: Path) -> Path:
+        if destination == target:
+            raise OSError("permission denied")
+        return original_replace(staged, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_replace)
+    with pytest.raises(OSError, match="permission denied"):
+        train_sessions.archive_file(source, target)
+
+    assert target.read_bytes() == b"previous checkpoint"
+    assert list(target.parent.iterdir()) == [target]
