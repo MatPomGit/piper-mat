@@ -11,6 +11,7 @@ from scripts.session_lock import (
     delegated_lock_directory,
     locked_subprocess_environment,
     training_session_lock,
+    training_worker_lock,
 )
 
 
@@ -168,3 +169,43 @@ def test_missing_project_config_fails_without_training(
         lambda: pytest.fail("Nie wolno uruchomić treningu"),
     )
     assert piper_train_compat.main() == 2
+
+
+def test_orphan_worker_prevents_new_session(tmp_path: Path) -> None:
+    """Po awarii menedżera nie pozwól wznowić przy aktywnym trenerze."""
+    state_dir = tmp_path / "state"
+    with training_worker_lock(state_dir):
+        with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
+            with training_session_lock(state_dir):
+                pytest.fail("Nowa sesja nie może wyprzedzić trenera")
+    with training_session_lock(state_dir):
+        pass
+
+
+def test_delegated_training_holds_worker_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Właściwy trening utrzymuje własną blokadę do końca pracy."""
+    config_path, state_dir = create_config(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["piper_train_compat.py", "fit", "--piper-mat-config", str(config_path)],
+    )
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_PID", str(__import__("os").getppid()))
+    monkeypatch.setenv("PIPER_MAT_LOCK_PARENT_DIR", str(state_dir.resolve()))
+
+    def fake_training() -> int:
+        with pytest.raises(RuntimeError, match="Nie można uzyskać blokady"):
+            with training_worker_lock(state_dir):
+                pass
+        return 0
+
+    monkeypatch.setattr(
+        piper_train_compat, "_run_compatible_training", fake_training
+    )
+    with training_session_lock(state_dir):
+        assert piper_train_compat.main() == 0
+    with training_worker_lock(state_dir):
+        pass

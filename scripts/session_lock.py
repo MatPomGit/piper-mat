@@ -29,12 +29,10 @@ def delegated_lock_directory() -> Path | None:
 
 
 @contextmanager
-def training_session_lock(state_dir: Path) -> Iterator[None]:
-    """Wyklucz równoczesne sesje korzystające z jednego katalogu stanu."""
+def _file_lock(state_dir: Path, name: str) -> Iterator[None]:
+    """Zajmij pojedynczą, nieusuwaną blokadę systemową."""
     state_dir.mkdir(parents=True, exist_ok=True)
-    lock_path = state_dir / ".train_sessions.lock"
-
-    # Nie usuwaj pliku blokady: drugi proces mógł go już otworzyć.
+    lock_path = state_dir / name
     with lock_path.open("a+b") as handle:
         if os.name == "nt":
             import msvcrt
@@ -70,3 +68,20 @@ def training_session_lock(state_dir: Path) -> Iterator[None]:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def training_worker_lock(state_dir: Path) -> Iterator[None]:
+    """Chroń aktywny proces uczenia także po utracie procesu nadrzędnego."""
+    with _file_lock(state_dir, ".train_worker.lock"):
+        yield
+
+
+@contextmanager
+def training_session_lock(state_dir: Path) -> Iterator[None]:
+    """Wyklucz sesje i sprawdź, czy nie pozostał osierocony trener."""
+    with _file_lock(state_dir, ".train_sessions.lock"):
+        # Sprawdzaj osierocony proces przed uruchomieniem nowej sesji.
+        with training_worker_lock(state_dir):
+            pass
+        yield

@@ -17,11 +17,19 @@ if __package__:
         checkpoint_path_compatibility,
         torch_load_checkpoint,
     )
-    from .session_lock import delegated_lock_directory, training_session_lock
+    from .session_lock import (
+        delegated_lock_directory,
+        training_session_lock,
+        training_worker_lock,
+    )
     from .train_voice import state_dir_for_config
 else:
     from checkpoint_compat import checkpoint_path_compatibility, torch_load_checkpoint
-    from session_lock import delegated_lock_directory, training_session_lock
+    from session_lock import (
+        delegated_lock_directory,
+        training_session_lock,
+        training_worker_lock,
+    )
     from train_voice import state_dir_for_config
 
 PROJECT_CONFIG_DEFAULT = Path("configs/pl_PL-mateusz-medium.json")
@@ -215,8 +223,10 @@ def main() -> int:
     """Uruchom trening bezpośredni pod tą samą blokadą co menedżer."""
     try:
         config_path = _take_project_config_arg()
-        if delegated_lock_directory() is not None:
-            return _run_compatible_training()
+        delegated_dir = delegated_lock_directory()
+        if delegated_dir is not None:
+            with training_worker_lock(delegated_dir):
+                return _run_compatible_training()
 
         if "--help" in sys.argv or "-h" in sys.argv:
             return _run_compatible_training()
@@ -228,7 +238,8 @@ def main() -> int:
 
     try:
         with training_session_lock(state_dir):
-            return _run_compatible_training()
+            with training_worker_lock(state_dir):
+                return _run_compatible_training()
     except RuntimeError as exc:
         if "Nie można uzyskać blokady treningu" not in str(exc):
             raise

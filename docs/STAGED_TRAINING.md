@@ -111,6 +111,8 @@ Menedżer stosuje blokadę międzyprocesową (interprocess lock) powiązaną z k
 
 Blokada jest zwalniana automatycznie po zakończeniu procesu, także gdy trening zakończy się błędem. Sam plik `.train_sessions.lock` pozostaje na dysku celowo i nie należy go usuwać ręcznie. Opcje `--status` i `--dry-run` nie przejmują blokady, ponieważ nie uruchamiają treningu. Mechanizm obejmuje `train.sh`, `train.ps1`, `train_sessions.py`, `train_voice.py` oraz bezpośrednie uruchomienie `piper_train_compat.py`. Podproces zgodnego trenera otrzymuje od uruchamiającego go menedżera identyfikator właściciela blokady, aby uniknąć ponownego blokowania tej samej sesji. W przypadku starszej konfiguracji bez sekcji `training.sessions` bezpośredni program używa katalogu `training.output_dir/training_state`.
 
+Właściwy proces trenowania utrzymuje dodatkową blokadę `.train_worker.lock`. Nowy menedżer sprawdza ją przed rozpoczęciem kolejnej sesji. Dzięki temu przerwanie procesu nadrzędnego nie umożliwia uruchomienia nowej sesji, gdy poprzedni proces treningowy jeszcze działa. Pliki obu blokad pozostają na dysku i nie należy ich usuwać ręcznie.
+
 Blokada korzysta z mechanizmów systemowych Windows i Linux. Nie należy traktować jej jako rozproszonej synchronizacji między odrębnymi komputerami lub różnymi środowiskami systemowymi współdzielącymi katalog stanu.
 
 ## Sprawdzenie postępu bez uruchamiania trenowania
