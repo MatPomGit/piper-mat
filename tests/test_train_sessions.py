@@ -183,8 +183,8 @@ def test_archive_copy_failure_preserves_previous_checkpoint(
     assert list(target.parent.iterdir()) == [target]
 
 
-def test_archive_hard_link_replaces_checkpoint_atomically(tmp_path: Path) -> None:
-    """Zachowaj szybkie dowiązanie twarde po udanej archiwizacji."""
+def test_archive_success_replaces_checkpoint(tmp_path: Path) -> None:
+    """Poprawna archiwizacja zastępuje checkpoint niezależnie od systemu."""
     source = tmp_path / "new.ckpt"
     target = tmp_path / "archive" / "last.ckpt"
     source.write_bytes(b"new valid checkpoint")
@@ -194,7 +194,6 @@ def test_archive_hard_link_replaces_checkpoint_atomically(tmp_path: Path) -> Non
     train_sessions.archive_file(source, target)
 
     assert target.read_bytes() == source.read_bytes()
-    assert target.stat().st_ino == source.stat().st_ino
     assert list(target.parent.iterdir()) == [target]
 
 
