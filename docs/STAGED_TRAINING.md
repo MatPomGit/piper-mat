@@ -203,6 +203,10 @@ Piper zapisuje `last.ckpt` i najlepsze modele przez projektowe wywołania zwrotn
 
 Jeżeli trenowanie zostanie przerwane błędem albo ręcznie przed dojściem do zaplanowanego końca sesji, `state.json` nie jest przesuwany do kolejnej sesji. Następne uruchomienie rozpocznie tę samą sesję od ostatniego oficjalnie zakończonego punktu kontrolnego poprzedniej sesji.
 
+Gdy trenowanie zakończyło się, a awaria nastąpiła podczas archiwizacji lub raportowania, menedżer sprawdza zapisane metadane sesji, sumę kontrolną SHA-256, numer epoki, parametry modelu, stan optymalizatora i pętli Lightning. Jeśli archiwalny punkt jest kompletny, sesja zostaje zatwierdzona w `state.json` bez ponawiania kosztownego trenowania. Jeżeli suma kontrolna lub struktura nie są zgodne, program zatrzymuje odzyskiwanie i nie nadpisuje archiwum. Brak kompletnych metadanych oznacza powtórzenie niezakończonej sesji od ostatniego zatwierdzonego checkpointu.
+
+Zapis `state.json` jest wykonywany przed sprzątaniem tymczasowych punktów kontrolnych. Nieudane usuwanie plików roboczych daje ostrzeżenie, a nie unieważnia już zatwierdzonej sesji.
+
 Nie należy wyłączać komputera przez odcięcie zasilania podczas zapisu punktu kontrolnego. Najbezpieczniej poczekać na zakończenie zaplanowanej sesji.
 
 ## Jednorazowe trenowanie bez menedżera sesji
