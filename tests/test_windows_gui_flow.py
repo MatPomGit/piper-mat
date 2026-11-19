@@ -155,3 +155,17 @@ def test_start_rejects_corrupted_state(tmp_path: Path) -> None:
     success, message = wizard._action_start_training()
     assert not success
     assert "Nie można odczytać stanu treningu" in message
+
+def test_preflight_accepts_completed_project_check(tmp_path: Path) -> None:
+    """Pełna diagnostyka może dopuścić trenowanie po obu kontrolach."""
+    wizard = wizard_for_project(tmp_path)
+    script = tmp_path / "scripts" / "check_training_ready.py"
+    script.parent.mkdir()
+    script.touch()
+    wizard._diagnose = lambda: (True, "System działa")
+    wizard._run_command = lambda *args, **kwargs: 0
+
+    ready, message = wizard._action_check_ready()
+
+    assert ready
+    assert "gotowe" in message
