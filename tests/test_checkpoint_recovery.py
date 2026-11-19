@@ -276,3 +276,41 @@ def test_cleanup_failure_does_not_undo_completed_session(
     assert state is not None
     assert len(state["completed_sessions"]) == 1
     assert Path(state["latest_checkpoint"]).is_file()
+
+def test_tampered_archived_checkpoint_blocks_gpu_restart(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Po wykryciu uszkodzonego archiwum nie uruchamiaj treningu."""
+    config_path, config = setup_training(tmp_path)
+    run_dir = tmp_path / "runs" / "session_01"
+    archive_dir = tmp_path / "state" / "session_01"
+    archived_last = archive_dir / "last.ckpt"
+    write_checkpoint(archived_last, epoch=11)
+    metadata = {
+        "session": 1,
+        "resume_checkpoint": str(tmp_path / "base.ckpt"),
+        "target_max_epochs": 12,
+        "return_code": 0,
+        "finished_at": "2026-11-19T09:46:00+00:00",
+        "completed_epoch": 11,
+        "archived_checkpoints": {"last": str(archived_last)},
+        "archive_last_sha256": sha256_file(archived_last),
+    }
+    run_dir.mkdir(parents=True)
+    (run_dir / "session.json").write_text(
+        json.dumps(metadata), encoding="utf-8"
+    )
+    archived_last.write_bytes(b"BROKEN")
+
+    def reject_call(*args: object, **kwargs: object) -> int:
+        pytest.fail("Nie wolno uruchamiać treningu przy uszkodzonym archiwum")
+
+    monkeypatch.setattr(train_sessions, "build_command", reject_call)
+    monkeypatch.setattr(train_sessions, "run_training_command", reject_call)
+    with pytest.raises(RuntimeError, match="SHA-256"):
+        train_sessions.run_next(config_path, False)
+
+    state = train_sessions.load_state(config)
+    assert state is not None
+    assert state["completed_sessions"] == []
