@@ -197,7 +197,7 @@ best_val_mos.ckpt
 
 `last.ckpt` jest punktem używanym do wznowienia kolejnej sesji. Punkty `best_*` służą do późniejszego odsłuchu i wyboru kandydata do eksportu ONNX. Punkt `best_val_mos.ckpt` powstaje tylko wtedy, gdy w konfiguracji włączono pomiar średniej oceny opinii słuchaczy (Mean Opinion Score, MOS), a UTMOS został poprawnie załadowany i zwrócił metrykę `val_mos`. Brak tej metryki nie blokuje zapisu `best_val_mel.ckpt` ani `last.ckpt`.
 
-Piper sam zapisuje `last.ckpt` i najlepsze modele dzięki mechanizmom wywołań zwrotnych (callbacks) `ModelCheckpoint`. Projekt po zakończeniu sesji archiwizuje wybrane pliki i może usunąć pozostałe tymczasowe punkty kontrolne, aby ograniczyć zajętość dysku.
+Piper zapisuje `last.ckpt` i najlepsze modele przez projektowe wywołania zwrotne `AtomicModelCheckpoint`. Najpierw zapisuje kompletny plik roboczy w katalogu docelowym, wymusza zapis na dysk, a dopiero potem zastępuje checkpoint docelowy. W razie przerwania zapisu poprzedni poprawny checkpoint pozostaje dostępny, a pozostałości tymczasowe można bezpiecznie usunąć po zatrzymaniu treningu. Projekt po zakończeniu sesji archiwizuje wybrane pliki i może usunąć pozostałe tymczasowe punkty kontrolne, aby ograniczyć zajętość dysku.
 
 ## Przerwanie awaryjne
 
