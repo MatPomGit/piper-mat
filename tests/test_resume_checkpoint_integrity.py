@@ -79,7 +79,7 @@ def test_previous_checkpoint_is_validated_before_next_session(
 def test_modified_previous_checkpoint_is_rejected(tmp_path: Path) -> None:
     """Nie uruchamiaj kolejnej sesji, jeśli punkt wznowienia zmieniono."""
     config, state, path = completed_session(tmp_path)
-    save_checkpoint(path, epoch=11)
+    path.write_bytes(path.read_bytes() + b"EXTRA")
     with pytest.raises(RuntimeError, match="SHA-256"):
         train_sessions.verify_committed_checkpoint(config, state)
 
