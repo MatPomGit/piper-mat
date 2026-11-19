@@ -900,11 +900,20 @@ def _build_monotonic_align(log: list[str]) -> None:
     if return_code != 0:
         return
 
-    for built in source.glob("core*.pyd"):
+    built_extensions = list(source.glob("core*.pyd"))
+    if not built_extensions:
+        log.append("BŁĄD: kompilator nie utworzył modułu monotonic_align (.pyd).")
+        return
+
+    for built in built_extensions:
         destination = target / built.name
-        if destination.exists():
-            destination.unlink()
-        shutil.move(str(built), str(destination))
+        try:
+            built.replace(destination)
+        except OSError as exc:
+            log.append(
+                f"BŁĄD: nie można zachować modułu monotonic_align {built.name}: {exc}"
+            )
+            return
 
 
 def repair() -> list[str]:

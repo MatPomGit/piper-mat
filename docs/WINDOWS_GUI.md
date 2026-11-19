@@ -29,6 +29,8 @@ Narzędzie może między innymi:
 - zaktualizować `pip`, `setuptools` i `wheel`,
 - ponownie zainstalować wymagane zależności.
 
+Kreator zachowuje uszkodzone środowiska pod nazwami `.venv_broken_...` z unikalnymi sufiksami. Podczas wymiany skompilowanego modułu `monotonic_align` nie usuwa działającej poprzedniej biblioteki przed udanym przeniesieniem nowej. Niepowodzenie inicjalizacji Git LFS zatrzymuje krok pobierania dużych plików.
+
 Automatyczna naprawa nie powinna:
 
 - usuwać nagrań,
