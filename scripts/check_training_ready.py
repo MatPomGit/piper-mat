@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
+    from .checkpoint_compat import torch_load_checkpoint
     from .split_integrity import validate_split_membership
 else:
+    from checkpoint_compat import torch_load_checkpoint
     from split_integrity import validate_split_membership
 
 DEFAULT_CONFIG = Path("configs/pl_PL-mateusz-medium.json")
@@ -275,9 +277,7 @@ def validate_checkpoint_load(
         return
 
     try:
-        import torch
-
-        checkpoint = torch.load(
+        checkpoint = torch_load_checkpoint(
             base_checkpoint,
             map_location="cpu",
             weights_only=False,

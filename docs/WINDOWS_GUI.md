@@ -137,6 +137,8 @@ Należy przeanalizować nie tylko błędy, ale również ostrzeżenia dotyczące
 
 Przed trenowaniem należy wykonać pełną kontrolę systemu. Ten etap potwierdza, że środowisko jest spójne po wszystkich wcześniejszych zmianach.
 
+Kontrola w kroku 8 przebiega dwustopniowo. Najpierw `windows_doctor.py` sprawdza system Windows, biblioteki i narzędzia. Następnie `check_training_ready.py` weryfikuje konfigurację eksperymentu, kompletność i rozłączność podziałów danych oraz możliwość odczytania bazowego punktu kontrolnego. Brak powodzenia któregokolwiek sprawdzenia blokuje przycisk START.
+
 ### 9. Kontrola planu trenowania
 
 Kreator pokazuje liczbę zaplanowanych sesji, dotychczasowy postęp i punkt, od którego zostanie wznowione trenowanie.
@@ -147,7 +149,7 @@ Przed rozpoczęciem należy sprawdzić, czy wskazany punkt kontrolny odpowiada o
 
 Bezpośrednio przed startem wykonywana jest ponowna diagnostyka. Błąd blokujący powinien zatrzymać operację przed uruchomieniem kosztownego procesu trenowania.
 
-Po rozpoczęciu sesji nie należy równolegle modyfikować zbioru danych, konfiguracji ani aktywnego punktu kontrolnego.
+Po rozpoczęciu sesji nie należy równolegle modyfikować zbioru danych, konfiguracji ani aktywnego punktu kontrolnego. GUI sprawdza liczbę zakończonych sesji przed i po uruchomieniu. Jeśli wszystkie sesje są już ukończone, nie rozpoczyna nowego treningu. Sam kod zakończenia 0 nie jest uznawany za potwierdzenie ukończenia kolejnej sesji bez aktualizacji `state.json`.
 
 ### 11. Analiza raportu
 
