@@ -282,7 +282,8 @@ def validate_checkpoint_load(
             map_location="cpu",
             weights_only=False,
         )
-    except (OSError, RuntimeError, ValueError, TypeError) as exc:
+    except Exception as exc:
+        # Uszkodzenie checkpointu może wywołać także UnpicklingError.
         errors.append(
             "nie można zdeserializować bazowego punktu kontrolnego na tym systemie: "
             f"{exc}. Nie rozpoczynaj treningu, dopóki aktywny punkt kontrolny "

@@ -109,7 +109,8 @@ def checkpoint_epoch(path: Path) -> int:
             map_location="cpu",
             weights_only=False,
         )
-    except (OSError, RuntimeError, ValueError, NotImplementedError) as exc:
+    except Exception as exc:
+        # Nieprzewidziany wyjątek deserializacji nie może ominąć obsługi błędów.
         raise RuntimeError(
             f"Nie można odczytać punktu kontrolnego {path}: {exc}"
         ) from exc

@@ -30,7 +30,8 @@ def validate_resume_checkpoint(path: Path, min_epoch: int) -> int:
         checkpoint = torch_load_checkpoint(
             path, map_location="cpu", weights_only=False
         )
-    except (OSError, RuntimeError, ValueError, EOFError, KeyError) as exc:
+    except Exception as exc:
+        # Uszkodzony plik może zgłosić m.in. UnpicklingError lub BadZipFile.
         raise RuntimeError(
             f"Nie można odczytać checkpointu {path}: {exc}"
         ) from exc
