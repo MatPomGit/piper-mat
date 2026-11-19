@@ -166,6 +166,10 @@ Należy sprawdzić:
 - zapisane punkty kontrolne,
 - komunikaty ostrzegawcze.
 
+## Zamykanie kreatora podczas operacji
+
+Podczas wykonywania komendy kreator ostrzega przed zamknięciem okna. Zamknięcie GUI w trakcie trenowania może przerwać monitorowanie procesu i pozostawić obliczenia bez nadzoru. Samo zamknięcie okna nie jest procedurą bezpiecznego anulowania treningu. Należy najpierw sprawdzić stan sesji i logi. Na kroku uruchamiania trenowania przycisk przejścia dalej pozostaje wyłączony do potwierdzenia wyniku sesji.
+
 ## Kolejny dzień pracy
 
 Po ponownym uruchomieniu komputera nie trzeba odtwarzać całego środowiska.
