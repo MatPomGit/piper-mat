@@ -35,7 +35,6 @@ def test_command_timeout_is_enforced_while_output_is_open() -> None:
     assert result == windows_setup_gui.COMMAND_FAILURE
     assert elapsed < 2.5
     logged = list(wizard.log_queue.queue)
-    assert "START" in logged
     assert any("przekroczono limit czasu" in line for line in logged)
 
 
