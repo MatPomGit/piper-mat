@@ -15,6 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from checkpoint_compat import torch_load_checkpoint
+from checkpoint_recovery import (
+    recoverable_session_archive,
+    sha256_file,
+    validate_resume_checkpoint,
+)
 from session_lock import locked_subprocess_environment, training_session_lock
 from train_voice import build_command
 
@@ -54,10 +59,10 @@ def write_json_atomic(path: Path, data: dict[str, Any]) -> None:
         prefix=f".{path.name}.working-", dir=path.parent
     ) as working_dir:
         temporary_path = Path(working_dir) / path.name
-        temporary_path.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        with temporary_path.open("w", encoding="utf-8") as stream:
+            stream.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
         temporary_path.replace(path)
 
 
@@ -238,6 +243,69 @@ def load_state(config: dict[str, Any]) -> dict[str, Any] | None:
 def save_state(config: dict[str, Any], state: dict[str, Any]) -> None:
     """Zapisz stan sesji atomowo."""
     write_json_atomic(state_path(config), state)
+
+
+def commit_completed_session(
+    config: dict[str, Any],
+    state: dict[str, Any],
+    number: int,
+    checkpoint: Path,
+    epoch: int,
+    report: Path,
+    finished_at: str,
+) -> None:
+    """Zapisz trwały postęp dopiero po potwierdzeniu checkpointu."""
+    new_state = dict(state)
+    new_state["latest_checkpoint"] = str(checkpoint)
+    new_state["completed_sessions"] = [
+        *state["completed_sessions"],
+        {
+            "session": number,
+            "checkpoint": str(checkpoint),
+            "completed_epoch": epoch,
+            "report": str(report),
+            "finished_at": finished_at,
+        },
+    ]
+    save_state(config, new_state)
+    state.update(new_state)
+
+
+def try_recover_completed_session(
+    config: dict[str, Any],
+    state: dict[str, Any],
+    number: int,
+    archive_dir: Path,
+    report_dir: Path,
+    metadata_path: Path,
+    target_max_epochs: int,
+) -> bool:
+    """Odzyskaj zweryfikowaną sesję po przerwaniu przed zapisem stanu."""
+    archived_last = archive_dir / "last.ckpt"
+    recovered = recoverable_session_archive(
+        metadata_path,
+        archived_last,
+        session=number,
+        previous_checkpoint=Path(state["latest_checkpoint"]),
+        target_max_epochs=target_max_epochs,
+    )
+    if recovered is None:
+        return False
+    epoch, metadata = recovered
+    commit_completed_session(
+        config,
+        state,
+        number,
+        archived_last,
+        epoch,
+        report_dir / "REPORT.md",
+        metadata["finished_at"],
+    )
+    print(
+        f"Odzyskano zakończoną sesję {number} z checkpointu "
+        f"{archived_last}. Trenowanie nie zostało powtórzone."
+    )
+    return True
 
 
 def initialize_state(config: dict[str, Any]) -> dict[str, Any]:
@@ -481,6 +549,17 @@ def _run_next_with_config(
     }
     metadata_path = run_dir / "session.json"
 
+    if not dry_run and try_recover_completed_session(
+        config,
+        state,
+        number,
+        archive_dir,
+        report_dir,
+        metadata_path,
+        target_max_epochs,
+    ):
+        return 0
+
     command = build_command(
         config_path,
         checkpoint=resume_checkpoint,
@@ -524,8 +603,17 @@ def _run_next_with_config(
     )
     archived = archive_session_checkpoints(run_dir, archive_dir, sessions, last)
     archived_last = Path(archived["last"])
+    verified_epoch = validate_resume_checkpoint(
+        archived_last, minimum_expected_epoch(target_max_epochs)
+    )
+    if verified_epoch != completed_epoch:
+        raise RuntimeError(
+            "Epoka zarchiwizowanego checkpointu różni się od epoki "
+            "punktu źródłowego."
+        )
     metadata["archived_checkpoints"] = archived
-    metadata["completed_epoch"] = completed_epoch
+    metadata["completed_epoch"] = verified_epoch
+    metadata["archive_last_sha256"] = sha256_file(archived_last)
     write_session_metadata(metadata_path, metadata)
 
     report_return_code = generate_report(run_dir, report_dir, metadata_path)
@@ -535,21 +623,25 @@ def _run_next_with_config(
             file=sys.stderr,
         )
 
-    if sessions.get("cleanup_temporary_checkpoints", True):
-        cleanup_checkpoints(run_dir)
-
     report_path = report_dir / "REPORT.md"
-    state["latest_checkpoint"] = str(archived_last)
-    state["completed_sessions"].append(
-        {
-            "session": number,
-            "checkpoint": str(archived_last),
-            "completed_epoch": metadata["completed_epoch"],
-            "report": str(report_path),
-            "finished_at": metadata["finished_at"],
-        }
+    commit_completed_session(
+        config,
+        state,
+        number,
+        archived_last,
+        verified_epoch,
+        report_path,
+        metadata["finished_at"],
     )
-    save_state(config, state)
+
+    if sessions.get("cleanup_temporary_checkpoints", True):
+        try:
+            cleanup_checkpoints(run_dir)
+        except OSError as exc:
+            print(
+                f"Ostrzeżenie: nie udało się usunąć plików roboczych: {exc}",
+                file=sys.stderr,
+            )
 
     print(f"Sesja {number} zakończona. Można bezpiecznie wyłączyć komputer.")
     print(f"Punkt wznowienia: {archived_last}")
