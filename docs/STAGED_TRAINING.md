@@ -101,7 +101,7 @@ albo:
 ./train.sh
 ```
 
-Menedżer odczyta `output/training_state/state.json`, wybierze końcowy punkt kontrolny poprzedniej sesji i wznowi pełny stan Lightning. Obejmuje to model, optymalizatory, harmonogramy współczynnika uczenia (learning-rate schedulers) oraz licznik epok i kroków zapisany w punkcie kontrolnym.
+Menedżer odczyta `output/training_state/state.json`, wybierze końcowy punkt kontrolny poprzedniej sesji, sprawdzi jego pełny stan, numer epoki i SHA-256 z dziennika poprzedniej sesji (jeżeli jest dostępna), a dopiero potem wznowi pełny stan Lightning. Obejmuje to model, optymalizatory, harmonogramy współczynnika uczenia (learning-rate schedulers) oraz licznik epok i kroków zapisany w punkcie kontrolnym.
 
 Nie trzeba ręcznie podawać ścieżki do poprzedniego punktu kontrolnego.
 
@@ -195,7 +195,7 @@ best_val_mel.ckpt
 best_val_mos.ckpt
 ```
 
-`last.ckpt` jest punktem używanym do wznowienia kolejnej sesji. Punkty `best_*` służą do późniejszego odsłuchu i wyboru kandydata do eksportu ONNX. Punkt `best_val_mos.ckpt` powstaje tylko wtedy, gdy w konfiguracji włączono pomiar średniej oceny opinii słuchaczy (Mean Opinion Score, MOS), a UTMOS został poprawnie załadowany i zwrócił metrykę `val_mos`. Brak tej metryki nie blokuje zapisu `best_val_mel.ckpt` ani `last.ckpt`.
+`last.ckpt` jest punktem używanym do wznowienia kolejnej sesji. Punkty `best_*` służą do późniejszego odsłuchu i wyboru kandydata do eksportu ONNX. Punkt `best_val_mos.ckpt` powstaje tylko wtedy, gdy w konfiguracji włączono pomiar średniej oceny opinii słuchaczy (Mean Opinion Score, MOS), a UTMOS został poprawnie załadowany i zwrócił metrykę `val_mos`. Brak tej metryki nie blokuje zapisu `best_val_mel.ckpt` ani `last.ckpt`. Opcjonalne punkty `best_*` są weryfikowane przed i po archiwizacji. Uszkodzony punkt opcjonalny zostaje pominięty z ostrzeżeniem i nie blokuje poprawnego `last.ckpt`.
 
 Piper zapisuje `last.ckpt` i najlepsze modele przez projektowe wywołania zwrotne `AtomicModelCheckpoint`. Najpierw zapisuje kompletny plik roboczy w katalogu docelowym, wymusza zapis na dysk, a dopiero potem zastępuje checkpoint docelowy. W razie przerwania zapisu poprzedni poprawny checkpoint pozostaje dostępny, a pozostałości tymczasowe można bezpiecznie usunąć po zatrzymaniu treningu. Projekt po zakończeniu sesji archiwizuje wybrane pliki i może usunąć pozostałe tymczasowe punkty kontrolne, aby ograniczyć zajętość dysku.
 
