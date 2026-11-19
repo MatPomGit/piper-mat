@@ -343,6 +343,51 @@ def validate_state(state: dict[str, Any]) -> None:
         raise RuntimeError("Pole completed_sessions w stanie musi być listą")
 
 
+def verify_committed_checkpoint(
+    config: dict[str, Any],
+    state: dict[str, Any],
+) -> None:
+    """Sprawdź punkt wznowienia i dziennik ostatniej zakończonej sesji."""
+    completed = state["completed_sessions"]
+    if not completed:
+        return
+
+    previous = completed[-1]
+    if not isinstance(previous, dict):
+        raise RuntimeError("Ostatnia zakończona sesja ma niepoprawną strukturę.")
+    checkpoint = Path(state["latest_checkpoint"])
+    if previous.get("checkpoint") != str(checkpoint):
+        raise RuntimeError(
+            "Punkt wznowienia jest niezgodny z ostatnią zakończoną sesją."
+        )
+
+    expected_epoch = previous.get("completed_epoch")
+    if type(expected_epoch) is not int or expected_epoch < 0:
+        raise RuntimeError("Brak poprawnej epoki zakończonej sesji.")
+
+    actual_epoch = validate_resume_checkpoint(checkpoint, expected_epoch)
+    if actual_epoch != expected_epoch:
+        raise RuntimeError(
+            "Checkpoint ma inną epokę niż zatwierdzona w state.json."
+        )
+
+    sessions = config["training"]["sessions"]
+    previous_log = (
+        Path(sessions["runs_dir"])
+        / f"session_{len(completed):02d}"
+        / "session.json"
+    )
+    if previous_log.is_file():
+        journal = load_json(previous_log)
+        expected_hash = journal.get("archive_last_sha256")
+        if isinstance(expected_hash, str) and expected_hash:
+            if sha256_file(checkpoint) != expected_hash:
+                raise RuntimeError(
+                    "Punkt wznowienia ma niezgodną sumę SHA-256 "
+                    "w porównaniu z dziennikiem poprzedniej sesji."
+                )
+
+
 def print_status(config: dict[str, Any], state: dict[str, Any] | None) -> None:
     """Wyświetl postęp planu wielosesyjnego."""
     increments = get_session_increments(config)
@@ -403,14 +448,25 @@ def archive_session_checkpoints(
     archive_file(last, archived_last)
     archived = {"last": str(archived_last)}
 
-    if best_mel is not None:
-        target = archive_dir / "best_val_mel.ckpt"
-        archive_file(best_mel, target)
-        archived["best_val_mel"] = str(target)
-    if best_mos is not None:
-        target = archive_dir / "best_val_mos.ckpt"
-        archive_file(best_mos, target)
-        archived["best_val_mos"] = str(target)
+    for label, source in (
+        ("best_val_mel", best_mel),
+        ("best_val_mos", best_mos),
+    ):
+        if source is None:
+            continue
+        target = archive_dir / f"{label}.ckpt"
+        try:
+            validate_resume_checkpoint(source, 0)
+            archive_file(source, target)
+            validate_resume_checkpoint(target, 0)
+        except (RuntimeError, OSError) as exc:
+            print(
+                f"Ostrzeżenie: pominięto niepoprawny opcjonalny "
+                f"checkpoint {label}: {exc}",
+                file=sys.stderr,
+            )
+            continue
+        archived[label] = str(target)
 
     return archived
 
@@ -559,6 +615,9 @@ def _run_next_with_config(
         target_max_epochs,
     ):
         return 0
+
+    if not dry_run:
+        verify_committed_checkpoint(config, state)
 
     command = build_command(
         config_path,
