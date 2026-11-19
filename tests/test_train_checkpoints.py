@@ -1,5 +1,9 @@
 """Testy punktów kontrolnych tworzonych podczas trenowania."""
 
+import os
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -175,3 +179,77 @@ def test_atomic_checkpoint_can_resume_full_training_on_cpu(
         ckpt_path=saved,
     )
     assert resumed.current_epoch == 3
+
+def test_killing_process_mid_write_preserves_previous_last(
+    tmp_path: Path,
+) -> None:
+    """Wymuszone zabicie procesu nie niszczy poprzedniego last.ckpt."""
+    last = tmp_path / "last.ckpt"
+    torch.save({"epoch": 3, "state_dict": {"weight": torch.ones(2)}}, last)
+    previous_bytes = last.read_bytes()
+    marker = tmp_path / "ready.marker"
+
+    script = """\
+import sys
+import time
+from pathlib import Path
+
+from piper.train.__main__ import AtomicModelCheckpoint
+
+
+class Strategy:
+    def broadcast(self, path):
+        return path
+
+    def barrier(self, *args):
+        pass
+
+
+class Trainer:
+    is_global_zero = True
+    strategy = Strategy()
+    global_step = 5
+    loggers = []
+
+    def save_checkpoint(self, path, weights_only):
+        with open(path, "wb") as stream:
+            stream.write(b"INCOMPLETE")
+            stream.flush()
+        Path(sys.argv[2]).touch()
+        time.sleep(30)
+
+
+AtomicModelCheckpoint(save_last=True)._save_checkpoint(
+    Trainer(), sys.argv[1]
+)
+"""
+    root = Path(__file__).resolve().parents[1]
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [str(root / "src"), str(root), environment.get("PYTHONPATH", "")]
+    )
+    child = subprocess.Popen(
+        [sys.executable, "-u", "-c", script, str(last), str(marker)],
+        cwd=root,
+        env=environment,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        deadline = time.monotonic() + 20
+        while not marker.is_file():
+            if child.poll() is not None:
+                pytest.fail("Proces zakończył się przed rozpoczęciem zapisu")
+            if time.monotonic() > deadline:
+                pytest.fail("Proces nie rozpoczął zapisu w zadanym czasie")
+            time.sleep(0.05)
+    finally:
+        if child.poll() is None:
+            child.kill()
+        child.wait(timeout=10)
+
+    assert last.read_bytes() == previous_bytes
+    assert torch.load(last, weights_only=False)["epoch"] == 3
+    unfinished = list(tmp_path.glob("*.tmp"))
+    assert len(unfinished) == 1
+    assert unfinished[0].read_bytes() == b"INCOMPLETE"
