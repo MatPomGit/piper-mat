@@ -314,3 +314,13 @@ def test_tampered_archived_checkpoint_blocks_gpu_restart(
     state = train_sessions.load_state(config)
     assert state is not None
     assert state["completed_sessions"] == []
+
+def test_invalid_pickle_reports_controlled_errors(tmp_path: Path) -> None:
+    """Uszkodzony format nie może powodować nieobsłużonego wyjątku."""
+    corrupt = tmp_path / "corrupt.ckpt"
+    corrupt.write_bytes(b"not a torch checkpoint")
+
+    with pytest.raises(RuntimeError, match="Nie można odczytać checkpointu"):
+        validate_resume_checkpoint(corrupt, 0)
+    with pytest.raises(RuntimeError, match="Nie można odczytać punktu"):
+        train_sessions.checkpoint_epoch(corrupt)
