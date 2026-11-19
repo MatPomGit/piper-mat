@@ -177,6 +177,20 @@ class WindowsSetupWizard(Tk):
         self._build_ui()
         self._show_step(0)
         self.after(100, self._drain_log_queue)
+        self.protocol("WM_DELETE_WINDOW", self._request_close)
+
+    def _request_close(self) -> None:
+        """Ostrzeż przed zamknięciem kreatora podczas aktywnej operacji."""
+        if self.running:
+            confirmed = messagebox.askyesno(
+                "Trwa operacja",
+                "Zamknięcie kreatora może przerwać monitorowanie i pozostawić "
+                "proces treningowy bez nadzoru. Najbezpieczniej poczekać na "
+                "zakończenie bieżącego kroku. Zamknąć mimo to?",
+            )
+            if not confirmed:
+                return
+        self.destroy()
 
     def _configure_style(self) -> None:
         """Configure Tk styles without failing when a theme is unavailable."""
