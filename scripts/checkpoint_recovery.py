@@ -124,4 +124,10 @@ def recoverable_session_archive(
         raise RuntimeError(
             "Metadane epoki nie odpowiadają checkpointowi."
         )
+    if not isinstance(metadata.get("finished_at"), str) or not metadata[
+        "finished_at"
+    ]:
+        raise RuntimeError(
+            "Metadane nie zawierają czasu zakończenia sesji."
+        )
     return epoch, metadata
