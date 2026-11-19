@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import queue
 import shutil
@@ -927,8 +928,27 @@ class WindowsSetupWizard(Tk):
         return False, "Walidator wykrył problem. Zobacz log."
 
     def _action_check_ready(self) -> ActionResult:
-        """Run the full readiness diagnostic."""
-        return self._diagnose()
+        """Sprawdź środowisko Windows i gotowość treningu Piper."""
+        ready, message = self._diagnose()
+        if not ready:
+            return False, message
+
+        python = self._venv_python()
+        script = self._repo_path() / "scripts" / "check_training_ready.py"
+        if not python.is_file() or not script.is_file():
+            return False, "Brak środowiska .venv lub kontroli gotowości treningu."
+
+        result = self._run_command(
+            [str(python), "scripts/check_training_ready.py"],
+            cwd=self._repo_path(),
+            timeout=1200,
+        )
+        if result != 0:
+            return False, (
+                "Kontrola danych, podziałów lub punktu kontrolnego "
+                "nie powiodła się. Zobacz szczegóły techniczne."
+            )
+        return True, "System, dane i punkt kontrolny są gotowe do treningu."
 
     def _action_training_status(self) -> ActionResult:
         """Display the staged training plan and current progress."""
@@ -944,13 +964,46 @@ class WindowsSetupWizard(Tk):
             return True, "Plan pokazano w logu."
         return False, "Nie udało się odczytać planu."
 
+    def _training_progress(self) -> tuple[int, int]:
+        """Odczytaj liczbę zakończonych oraz wszystkich planowanych sesji."""
+        repo = self._repo_path()
+        config_path = repo / "configs" / "pl_PL-mateusz-medium.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        sessions = config["training"]["sessions"]
+        schedule = sessions["epochs_per_session"]
+        if not isinstance(schedule, list) or not schedule:
+            raise ValueError("Niepoprawny plan sesji treningowych.")
+
+        state_dir = Path(sessions["state_dir"])
+        if not state_dir.is_absolute():
+            state_dir = repo / state_dir
+        state_path = state_dir / "state.json"
+        if not state_path.is_file():
+            return 0, len(schedule)
+
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        completed_sessions = state["completed_sessions"]
+        if not isinstance(completed_sessions, list):
+            raise ValueError("Niepoprawny stan zakończonych sesji.")
+        return len(completed_sessions), len(schedule)
+
     def _action_start_training(self) -> ActionResult:
-        """Validate readiness and start the next staged training session."""
-        ready, _ = self._diagnose()
+        """Start training only after a complete preflight and progress check."""
+        ready, message = self._action_check_ready()
         if not ready:
-            return (
-                False,
-                "Diagnostyka wykryła problem. Trenowanie nie zostało uruchomione.",
+            return False, (
+                f"{message} Trenowanie nie zostało uruchomione."
+            )
+
+        try:
+            completed_before, planned = self._training_progress()
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            return False, f"Nie można odczytać stanu treningu: {exc}"
+
+        if completed_before >= planned:
+            return True, (
+                "Wszystkie zaplanowane sesje są już ukończone. "
+                "Nie uruchomiono nowego treningu."
             )
 
         python = self._venv_python()
@@ -958,13 +1011,24 @@ class WindowsSetupWizard(Tk):
             [str(python), "scripts/train_sessions.py"],
             cwd=self._repo_path(),
         )
-        if return_code == 0:
-            return True, "Sesja zakończona i zapisana."
-        return (
-            False,
-            "Sesja zakończyła się błędem. Poprzedni punkt kontrolny pozostaje "
-            "bezpieczny.",
-        )
+        if return_code != 0:
+            return (
+                False,
+                "Sesja zakończyła się błędem. Poprzedni punkt kontrolny pozostaje "
+                "bezpieczny.",
+            )
+
+        try:
+            completed_after, _ = self._training_progress()
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            return False, f"Nie można potwierdzić zakończenia sesji: {exc}"
+
+        if completed_after != completed_before + 1:
+            return False, (
+                "Proces nie potwierdził ukończenia nowej sesji w state.json. "
+                "Sprawdź log i stan punktu kontrolnego."
+            )
+        return True, "Sesja zakończona i zapisana."
 
     def _latest_report(self) -> Path | None:
         """Return the newest staged-training report, if one exists."""

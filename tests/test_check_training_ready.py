@@ -193,3 +193,28 @@ def test_validate_project_paths_rejects_overlapping_splits(tmp_path: Path) -> No
     validate_project_paths(dataset, training, errors)
 
     assert any("występuje" in error for error in errors)
+
+def test_checkpoint_loading_uses_cross_platform_compatibility(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Kontrola gotowości korzysta z tego samego loadera co trenowanie."""
+    import scripts.check_training_ready as module
+
+    checkpoint = tmp_path / "base.ckpt"
+    checkpoint.touch()
+    calls: list[dict[str, object]] = []
+
+    def load(path: Path, **kwargs: object) -> dict[str, int]:
+        assert path == checkpoint
+        calls.append(kwargs)
+        return {"epoch": 123}
+
+    monkeypatch.setattr(module, "torch_load_checkpoint", load)
+    errors: list[str] = []
+    module.validate_checkpoint_load(checkpoint, False, set(), errors)
+
+    assert errors == []
+    assert calls == [{"map_location": "cpu", "weights_only": False}]
+    assert "epoka 123" in capsys.readouterr().out
