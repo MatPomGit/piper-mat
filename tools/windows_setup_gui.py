@@ -414,6 +414,7 @@ class WindowsSetupWizard(Tk):
             display_command = subprocess.list2cmdline([str(item) for item in command])
             self.log_queue.put(f"> {display_command}")
             process: subprocess.Popen[str] | None = None
+            output_reader: threading.Thread | None = None
 
             try:
                 process = subprocess.Popen(
@@ -438,8 +439,14 @@ class WindowsSetupWizard(Tk):
                 if process.stdout is None:
                     raise RuntimeError("Nie można odczytać wyjścia procesu.")
 
-                for line in process.stdout:
-                    self.log_queue.put(line.rstrip())
+                output_stream = process.stdout
+
+                def stream_output() -> None:
+                    for line in output_stream:
+                        self.log_queue.put(line.rstrip())
+
+                output_reader = threading.Thread(target=stream_output, daemon=True)
+                output_reader.start()
                 return_code = process.wait(timeout=timeout)
             except subprocess.TimeoutExpired as exc:
                 self.log_queue.put(f"BŁĄD: przekroczono limit czasu: {exc}")
@@ -453,6 +460,9 @@ class WindowsSetupWizard(Tk):
                 if process is not None and process.poll() is None:
                     process.kill()
                     process.wait()
+            finally:
+                if output_reader is not None:
+                    output_reader.join(timeout=2)
 
             if return_code == 0:
                 return 0
