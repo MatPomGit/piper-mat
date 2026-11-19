@@ -734,10 +734,11 @@ class WindowsSetupWizard(Tk):
                 "START_PIPER_MAT_GUI.bat ponownie.",
             )
 
-        self._run_command(
+        if self._run_command(
             [git, "lfs", "install", "--local"],
             cwd=repo,
-        )
+        ) != 0:
+            return False, "Nie udało się zainicjalizować Git LFS dla repozytorium."
         return_code = self._run_command(
             [git, "lfs", "pull"],
             cwd=repo,
@@ -770,7 +771,12 @@ class WindowsSetupWizard(Tk):
 
         venv = repo / ".venv"
         if venv.exists():
-            backup = repo / f".venv_broken_{datetime.now():%Y%m%d_%H%M%S}"
+            stamp = f"{datetime.now():%Y%m%d_%H%M%S}"
+            backup = repo / f".venv_broken_{stamp}"
+            suffix = 1
+            while backup.exists():
+                backup = repo / f".venv_broken_{stamp}_{suffix}"
+                suffix += 1
             venv.rename(backup)
             self.log_queue.put(f"Uszkodzone środowisko zachowano jako {backup.name}")
 
@@ -834,10 +840,10 @@ class WindowsSetupWizard(Tk):
         repo = self._repo_path()
         source = repo / "src" / "piper" / "train" / "vits" / "monotonic_align"
         target = source / "monotonic_align"
-        target.mkdir(exist_ok=True)
 
         if not python.is_file():
             return False, "Brak .venv."
+        target.mkdir(exist_ok=True)
 
         return_code = self._run_command(
             [str(python), "setup.py", "build_ext", "--inplace"],
@@ -883,11 +889,18 @@ class WindowsSetupWizard(Tk):
                 "Visual Studio 2022 C++ Build Tools, a następnie ponów ten krok.",
             )
 
-        for built in source.glob("core*.pyd"):
+        built_extensions = list(source.glob("core*.pyd"))
+        if not built_extensions:
+            return False, "Kompilator nie utworzył pliku monotonic_align (.pyd)."
+
+        for built in built_extensions:
             destination = target / built.name
-            if destination.exists():
-                destination.unlink()
-            shutil.move(str(built), str(destination))
+            try:
+                built.replace(destination)
+            except OSError as exc:
+                return False, (
+                    f"Nie można bezpiecznie zainstalować {built.name}: {exc}"
+                )
 
         return_code = self._run_command(
             [
