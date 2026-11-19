@@ -1,4 +1,8 @@
 import logging
+import os
+import tempfile
+from pathlib import Path
+from weakref import proxy
 
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -20,7 +24,42 @@ _LOGGER = logging.getLogger(__package__)
 _MONITOR = "val_mel"
 
 
-class OptionalMetricCheckpoint(ModelCheckpoint):
+class AtomicModelCheckpoint(ModelCheckpoint):
+    """Publikuj kompletny checkpoint dopiero po udanym zapisie."""
+
+    def _save_checkpoint(self, trainer, filepath: str) -> None:
+        """Zapisz do pliku roboczego i atomowo zastąp plik docelowy."""
+        target = Path(filepath)
+        temporary_name = None
+        if trainer.is_global_zero:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            descriptor, temporary_name = tempfile.mkstemp(
+                prefix=f".{target.name}.",
+                suffix=".tmp",
+                dir=target.parent,
+            )
+            os.close(descriptor)
+
+        temporary_name = trainer.strategy.broadcast(temporary_name)
+        try:
+            trainer.save_checkpoint(temporary_name, self.save_weights_only)
+            if trainer.is_global_zero:
+                with open(temporary_name, "rb") as stream:
+                    os.fsync(stream.fileno())
+                os.replace(temporary_name, filepath)
+            trainer.strategy.barrier("atomic_checkpoint_commit")
+        finally:
+            if trainer.is_global_zero and temporary_name is not None:
+                Path(temporary_name).unlink(missing_ok=True)
+
+        self._last_global_step_saved = trainer.global_step
+        self._last_checkpoint_saved = filepath
+        if trainer.is_global_zero:
+            for logger in trainer.loggers:
+                logger.after_save_checkpoint(proxy(self))
+
+
+class OptionalMetricCheckpoint(AtomicModelCheckpoint):
     """Save top checkpoints only when the monitored metric is available."""
 
     def on_validation_end(self, trainer, pl_module) -> None:
@@ -32,7 +71,7 @@ class OptionalMetricCheckpoint(ModelCheckpoint):
 
 
 _DEFAULT_CALLBACKS = [
-    ModelCheckpoint(
+    AtomicModelCheckpoint(
         monitor=_MONITOR,
         mode="min",
         save_top_k=5,
